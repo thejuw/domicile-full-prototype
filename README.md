@@ -2,7 +2,7 @@
 
 **Prototype · planning only · not production**
 
-Founder click-through of the **Domicile personal app** (kit ed. 3.2) plus a gated **business SERVICES workspace** (Cedar & Stone). Personal: Today · Map · Places · Explore · You. Business (after account switch): Today · Inbox · Jobs · Business. Also Stays, Ledger, move planning, Permissions MAP, private inquiry disclosure.
+Founder click-through of the **Domicile personal app** (kit ed. 3.2) plus gated **business** and **crew** workspaces for Cedar & Stone. Three accounts via Switch account: **Al · Personal** · **Cedar & Stone · Owner** · **Casey Nguyen · Crew**. Personal: Today · Map · Places · Explore · You. Owner: Today · Inbox · Jobs · Business. Crew: Today · Jobs · Me. Also Stays, Ledger, move planning, Permissions MAP, private inquiry disclosure.
 
 Phone frame (~390×844) on desktop with ambient glow; full-bleed on real phones. Warm parchment / terracotta / olive system. Zero build step, no CDN, system fonts.
 
@@ -14,7 +14,7 @@ open /workspace/domicile-full-prototype/index.html
 python3 -m http.server 8765 --directory /workspace/domicile-full-prototype
 ```
 
-Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-prototype/. Hash routes work (e.g. `#stays-search`, `#permissions`, `#service-inquiry`, `#biz-today`, `#biz-inbox`, `#biz-inquiry-detail`, `#biz-jobs`, `#biz-profile`). Bottom nav remembers the last screen per tab; **business nav replaces personal nav** after Switch account.
+Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-prototype/. Hash routes work (e.g. `#stays-search`, `#permissions`, `#service-inquiry`, `#biz-today`, `#biz-inbox`, `#biz-jobs`, `#biz-profile`, `#crew-today`, `#crew-jobs`, `#crew-job-detail`, `#crew-me`). Bottom nav remembers the last screen per tab; **Owner / Crew / Personal navs replace each other** after Switch account (or cross-mode hash).
 
 **Files:** `index.html` · `app.css` · `app.js` · this README.
 
@@ -71,22 +71,43 @@ Kit notes honored: authenticated recipient + purpose + fields/precision + time w
 
 Kit (P40/P41/P43) honored: browsing ≠ leads; one provider only; explicit disclosure; default approx area; identity ≠ address; inquiry-scoped alias; no forward of view-only places; quote ≠ booking; opaque toast refs; revoke blocks new disclosure (copies not recalled); personal pause ≠ inquiry cancel; prototype labeling.
 
-### Business SERVICES workspace (~30s · account switch required)
-**You → Switch account… → Cedar & Stone Clean Co. · Owner** (or Today → Open Cedar & Stone) → lands on **Business Today** (`#biz-today`). Bottom nav becomes **Today · Inbox · Jobs · Business**. Org pill “Cedar & Stone” on topbars.
+### Business + Crew workspace (account switch required)
+**You → Switch account…** shows three rows:
+1. **Al · Personal** → personal Today  
+2. **Cedar & Stone Clean Co. · Owner** (Al) → `#biz-today` · nav **Today · Inbox · Jobs · Business**  
+3. **Casey Nguyen · Crew @ Cedar & Stone** → `#crew-today` · nav **Today · Jobs · Me** (platform crew account tied to the org — not an Owner overlay)
 
-1. **Inbox** → River Guest inquiry (`grant_inq_cedar_7a2f`) · Approx East Cesar Chavez · Needs exact / Open  
-2. Inquiry detail → **Request exact address** (sets pending on shared grant; resident Permissions shows Approve) · **Send quote** (versioned `quote_cedar_…` · quote ≠ booking) · Message / Decline  
-3. After quote → **Mark quote accepted (demo)** → **Jobs** · Casey (crew) assigned · Reassign ends prior worker access  
-4. **Business** tab → org / coverage / catalog / team (Al Owner · Casey Crew) · Customers (light) · **Switch to Personal**
+Owner “View as Crew” lens on Business tab remains optional; **real account switch is the primary story**.
 
-**Cross-mode rule:** Navigating to a hash belonging to the other workspace **auto-switches** workspace (toast) then opens that screen. Personal Explore never shows business inbox chrome.
+**Cross-mode rule:** Opening `#crew-*` while on Personal/Owner auto-switches to Casey (toast) and vice versa for `#biz-*` / personal hashes. Personal Explore never shows Owner inbox chrome.
 
-**Shared grant sync (one source of truth in `app.js` `outgoingGrants`):**
+#### End-to-end click path (one session · inquiry → quote → job → crew)
+
+**A. Resident (Al · Personal)** — already seeded: Explore → Services → Cedar inquiry → `grant_inq_cedar_7a2f` (or Permissions → that grant). Exact may be pending; Approve exact on Permissions if Owner requested it.
+
+**B. Owner (Cedar & Stone)**  
+1. Switch account → **Cedar & Stone · Owner** → Business Today  
+2. **Inbox** → River Guest (`grant_inq_cedar_7a2f`) · Request exact if needed · resident Approves on Personal (or use approved exact)  
+3. **Send quote** → opaque `quote_cedar_…` · quote ≠ booking  
+4. **Accept quote (demo)** → creates/updates `job_deep_river_01` status `needs_assign`, links `inquiryId: grant_inq_cedar_7a2f`  
+5. **Jobs** (board already has Turnover / Recurring / Move-out seeds) → River Guest job → **Assign crew** → **Casey Nguyen**  
+6. Optional: Reassign → Riley · toast “Casey access ended · Riley now assigned” · Casey’s list loses that job  
+
+**C. Crew (Casey)**  
+7. Switch account → **Casey Nguyen · Crew** → Today / Jobs shows Deep clean River Guest (+ seeded Turnover)  
+8. Open job → scoped address (exact if grant approved / job unlocked) → **Start** → **On the way** → **Complete**  
+9. Switch back to Owner → Jobs shows Completed · inquiry history “Job completed by Casey”
+
+Owner Today shortcut: **Continue E2E: assign River Guest job** when that job exists unassigned.
+
+**Shared state (`bizJobs[]` in `app.js`):** id, inquiryId, service, whenLabel, customerAlias, status (`needs_assign|scheduled|in_progress|completed`), assigneeId (`casey|riley|null`), addressExact / addressApprox, accessNotes, crewPhase. Owner assign updates assigneeId; Crew lists filter `assigneeId === 'casey'`.
+
+**Shared grant sync (`outgoingGrants`):**
 - Provider Request exact ↔ `exactRequested` · resident Approve exact ↔ `precision: exact`  
-- Provider Send quote ↔ `inquiryStatus: quoted` + history “Quote received”  
-- Personal Pause sharing with people does **not** create/cancel inquiry or merchant rights  
+- Provider Send quote ↔ `inquiryStatus: quoted` · Accept quote ↔ `accepted` + job row  
+- Personal Pause sharing with people does **not** create/cancel inquiry, merchant rights, or jobs  
 
-Kit: W2 Business management · P38 team roles · P39 coverage · P43 inquiries/quotes · P45 ops. Inquiries only from deliberate submits — never browse leads. Opaque refs in toasts. Prototype labels throughout.
+Kit: W2 · P38 team roles · P39 coverage · P43 inquiries/quotes · P45 ops. Crew is org-linked with role Crew — sees only assigned jobs (and schedule), not full inquiry inbox / all customers / finance. Exact address / access notes are job-scoped for the assignee during the job window; reassign revokes prior access. Opaque refs in toasts. Prototype labels throughout.
 
 
 ### Move Planning (AI-assisted sketch)
@@ -94,8 +115,11 @@ Overview (East Cesar Chavez → South Lamar) → recipient checklist with channe
 
 ## Product constraints honored
 - Personal bottom nav: Today · Map · Places · Explore · You  
-- Business bottom nav (after switch): Today · Inbox · Jobs · Business  
-- Account switch required before any business ops UI  
+- Owner bottom nav (after switch): Today · Inbox · Jobs · Business  
+- Crew bottom nav (Casey): Today · Jobs · Me  
+- Account switch required before any Owner or Crew role UI  
+- Quote ≠ job until Accept; Accept creates/activates the job  
+- Crew sees only assigned jobs; reassign revokes prior exact access  
 - Private-cohort chrome + gated public discovery  
 - Exact address / door codes only after unlock for confirmed guests  
 - Guest ≠ household / tenant / resident  

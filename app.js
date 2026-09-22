@@ -1,7 +1,8 @@
 (function () {
   const navMemory = {
     today: 'today', map: 'map', places: 'places', explore: 'explore', you: 'you',
-    'biz-today': 'biz-today', 'biz-inbox': 'biz-inbox', 'biz-jobs': 'biz-jobs', 'biz-profile': 'biz-profile'
+    'biz-today': 'biz-today', 'biz-inbox': 'biz-inbox', 'biz-jobs': 'biz-jobs', 'biz-profile': 'biz-profile',
+    'crew-today': 'crew-today', 'crew-jobs': 'crew-jobs', 'crew-me': 'crew-me'
   };
   let current = 'today';
 
@@ -18,58 +19,175 @@
     'biz-jobs': 1, 'biz-job-detail': 1, 'biz-profile': 1
   };
 
-  var activeWorkspace = 'personal'; // personal | business
-  var activeOrg = null; // 'cedar' when business
-  var activeBizRole = 'owner'; // owner | crew (demo)
+  var CREW_SCREENS = {
+    'crew-today': 1, 'crew-jobs': 1, 'crew-job-detail': 1, 'crew-me': 1
+  };
+
+  // Three platform accounts: Al Personal · Al Owner @ Cedar · Casey Crew @ Cedar
+  var activeWorkspace = 'personal'; // personal | business | crew
+  var activeOrg = null; // 'cedar' when business or crew
+  var activeAccount = 'al'; // 'al' | 'casey'
+  var activeBizRole = 'owner'; // owner | crew (legacy lens on owner profile)
   var activeBizInquiryId = 'grant_inq_cedar_7a2f';
   var activeBizJobId = null;
+  var activeCrewJobId = null;
   var bizQuoteSeq = 1;
-  var bizJobs = []; // populated when quote accepted
-  var bizDemoRoleView = 'owner'; // which role lens is active in business UI
+  var bizDemoRoleView = 'owner'; // optional owner-only lens; primary story is Casey account
 
-  // Cross-mode rule: navigating to a screen belonging to the other workspace
-  // auto-switches the workspace (with toast), then opens that screen.
+  var CREW_PEOPLE = {
+    casey: { id: 'casey', name: 'Casey Nguyen', short: 'Casey', initials: 'CN', color: '#6a7a55', fullAccount: true },
+    riley: { id: 'riley', name: 'Riley Okonkwo', short: 'Riley', initials: 'RO', color: '#8a7355', fullAccount: false }
+  };
+
+  // Shared jobs board — Owner sees all; Crew (Casey) filters assigneeId === 'casey'
+  // River Guest deep-clean is created by Accept quote (E2E); other rows seed the board.
+  var bizJobs = [
+    {
+      id: 'job_turnover_02',
+      inquiryId: null,
+      service: 'Turnover',
+      whenLabel: 'Fri Sep 26 · 9–11',
+      whenShort: 'Fri · 9–11',
+      customerAlias: 'Loft Host',
+      status: 'scheduled',
+      assigneeId: 'casey',
+      addressExact: '2110 S Lamar Blvd · Apt 3B',
+      addressApprox: 'South Lamar area',
+      accessNotes: 'Lockbox 4421 · quiet hours after 10',
+      placeId: 'place_sl',
+      crewPhase: null
+    },
+    {
+      id: 'job_recurring_03',
+      inquiryId: null,
+      service: 'Recurring tidy',
+      whenLabel: 'Wed Sep 24 · done',
+      whenShort: 'Wed · done',
+      customerAlias: 'Maple Client',
+      status: 'completed',
+      assigneeId: 'casey',
+      addressExact: '1204 E Cesar Chavez St · Unit 204',
+      addressApprox: 'East Cesar Chavez area',
+      accessNotes: 'Side gate · dog friendly',
+      placeId: 'place_ecc',
+      crewPhase: 'completed'
+    },
+    {
+      id: 'job_window_04',
+      inquiryId: null,
+      service: 'Move-out clean',
+      whenLabel: 'Sat Sep 27 · 1–5',
+      whenShort: 'Sat · 1–5',
+      customerAlias: 'Unassigned Guest',
+      status: 'needs_assign',
+      assigneeId: null,
+      addressExact: null,
+      addressApprox: 'East Austin · approx',
+      accessNotes: null,
+      placeId: null,
+      crewPhase: null
+    }
+  ];
+
+  // Cross-mode rule: navigating to a screen belonging to another workspace
+  // auto-switches the account (with toast), then opens that screen.
   // Documented in README.
 
   function isBizScreen(name) {
     return !!BIZ_SCREENS[name] || (name && name.indexOf('biz-') === 0);
   }
 
+  function isCrewScreen(name) {
+    return !!CREW_SCREENS[name] || (name && name.indexOf('crew-') === 0);
+  }
+
   function applyWorkspaceChrome() {
     var phone = document.querySelector('.phone') || document.body;
     var pers = $('#bottom-nav-personal');
     var biz = $('#bottom-nav-business');
+    var crew = $('#bottom-nav-crew');
+    if (pers) pers.classList.add('hide');
+    if (biz) biz.classList.add('hide');
+    if (crew) crew.classList.add('hide');
+    if (phone) {
+      phone.classList.remove('biz-mode', 'crew-mode');
+    }
     if (activeWorkspace === 'business') {
-      if (pers) pers.classList.add('hide');
       if (biz) biz.classList.remove('hide');
       if (phone) phone.classList.add('biz-mode');
+    } else if (activeWorkspace === 'crew') {
+      if (crew) crew.classList.remove('hide');
+      if (phone) phone.classList.add('crew-mode');
     } else {
       if (pers) pers.classList.remove('hide');
-      if (biz) biz.classList.add('hide');
-      if (phone) phone.classList.remove('biz-mode');
     }
   }
 
   function switchWorkspace(mode, opts) {
     opts = opts || {};
     var prev = activeWorkspace;
+    var prevAcct = activeAccount;
     if (mode === 'business') {
       activeWorkspace = 'business';
       activeOrg = opts.org || 'cedar';
-      activeBizRole = opts.role || 'owner';
-      bizDemoRoleView = activeBizRole;
+      activeAccount = 'al';
+      activeBizRole = 'owner';
+      bizDemoRoleView = 'owner';
+    } else if (mode === 'crew') {
+      activeWorkspace = 'crew';
+      activeOrg = opts.org || 'cedar';
+      activeAccount = 'casey';
+      activeBizRole = 'crew';
     } else {
       activeWorkspace = 'personal';
       activeOrg = null;
+      activeAccount = 'al';
     }
     applyWorkspaceChrome();
-    if (opts.toast && prev !== activeWorkspace) {
+    if (opts.toast && (prev !== activeWorkspace || prevAcct !== activeAccount)) {
       if (activeWorkspace === 'business') {
         toast('Switched to Cedar & Stone · Owner');
+      } else if (activeWorkspace === 'crew') {
+        toast('Switched to Casey · Crew @ Cedar & Stone');
       } else {
         toast('Switched to Personal · @al');
       }
     }
+  }
+
+  function findJob(id) {
+    for (var i = 0; i < bizJobs.length; i++) if (bizJobs[i].id === id) return bizJobs[i];
+    return null;
+  }
+
+  function jobStatusPill(status) {
+    if (status === 'completed') return { cls: 'ok', label: 'Completed' };
+    if (status === 'in_progress') return { cls: 'warn', label: 'In progress' };
+    if (status === 'needs_assign') return { cls: 'warn', label: 'Needs crew' };
+    if (status === 'scheduled') return { cls: 'sage', label: 'Scheduled' };
+    return { cls: 'ghost', label: status || '—' };
+  }
+
+  function assigneeLabel(id) {
+    if (!id) return 'Unassigned';
+    var p = CREW_PEOPLE[id];
+    return p ? p.name : id;
+  }
+
+  function caseyJobs() {
+    return bizJobs.filter(function (j) { return j.assigneeId === 'casey'; });
+  }
+
+  function crewCanSeeExact(j) {
+    if (!j || j.assigneeId !== 'casey') return false;
+    if (j.status !== 'scheduled' && j.status !== 'in_progress' && j.status !== 'completed') return false;
+    // Prefer grant precision when linked; else job snapshot
+    if (j.inquiryId) {
+      var g = findOutgoing(j.inquiryId);
+      if (g && g.precision === 'exact') return true;
+      if (g && g.precision !== 'exact') return false;
+    }
+    return !!j.addressExact;
   }
 
   window.go = function (name) {
@@ -79,9 +197,17 @@
 
     // Workspace auto-switch on cross-mode navigation
     var targetBiz = isBizScreen(name);
-    if (targetBiz && activeWorkspace !== 'business') {
-      switchWorkspace('business', { org: 'cedar', role: 'owner', toast: true });
-    } else if (!targetBiz && activeWorkspace === 'business') {
+    var targetCrew = isCrewScreen(name);
+    if (targetCrew) {
+      if (activeWorkspace !== 'crew') {
+        switchWorkspace('crew', { org: 'cedar', toast: true });
+      }
+    } else if (targetBiz) {
+      if (activeWorkspace !== 'business') {
+        switchWorkspace('business', { org: 'cedar', role: 'owner', toast: true });
+      }
+    } else if (activeWorkspace === 'business' || activeWorkspace === 'crew') {
+      // Personal (or other non-biz/crew) screens → Personal
       switchWorkspace('personal', { toast: true });
     }
 
@@ -106,6 +232,7 @@
     if (name === 'arrival-detail' || name === 'appointment-detail') navMemory.today = name;
     if (name === 'biz-inquiry-detail') navMemory['biz-inbox'] = name;
     if (name === 'biz-job-detail') navMemory['biz-jobs'] = name;
+    if (name === 'crew-job-detail') navMemory['crew-jobs'] = name;
     updateNav(navKey);
     next.scrollTop = 0;
     try { history.replaceState(null, '', '#' + name); } catch (e) {}
@@ -124,6 +251,10 @@
     if (name === 'biz-jobs') renderBizJobs();
     if (name === 'biz-job-detail') renderBizJobDetail();
     if (name === 'biz-profile') renderBizProfile();
+    if (name === 'crew-today') renderCrewToday();
+    if (name === 'crew-jobs') renderCrewJobs();
+    if (name === 'crew-job-detail') renderCrewJobDetail();
+    if (name === 'crew-me') renderCrewMe();
   };
 
   window.navTo = function (tab) {
@@ -131,7 +262,10 @@
   };
 
   function updateNav(activeTab) {
-    var root = activeWorkspace === 'business' ? $('#bottom-nav-business') : $('#bottom-nav-personal');
+    var root;
+    if (activeWorkspace === 'business') root = $('#bottom-nav-business');
+    else if (activeWorkspace === 'crew') root = $('#bottom-nav-crew');
+    else root = $('#bottom-nav-personal');
     if (!root) root = document;
     $all('.nav-item', root).forEach(function (el) {
       el.classList.toggle('active', el.getAttribute('data-nav') === activeTab);
@@ -1438,7 +1572,7 @@
       purpose: 'Deep clean quote',
       status: 'active',
       inquiryStatus: 'submitted',
-      windowLabel: 'Thu Sep 25 · morning',
+      windowLabel: 'Thu Sep 25 · 10–1',
       identityMode: 'alias',
       identityLabel: 'River Guest (inquiry alias)',
       accessNotes: false,
@@ -2431,9 +2565,9 @@
       else if (g.inquiryStatus !== 'closed' && g.inquiryStatus !== 'accepted') open++;
     }
     bizJobs.forEach(function (j) {
-      if (j.status === 'scheduled' || j.status === 'today') jobsToday++;
+      if (j.status === 'scheduled' || j.status === 'needs_assign' || j.status === 'in_progress') jobsToday++;
     });
-    return { open: open, waiting: waiting, jobsToday: jobsToday || (bizJobs.length ? bizJobs.length : 0) };
+    return { open: open, waiting: waiting, jobsToday: jobsToday };
   }
 
   window.openAccountSwitcher = function () {
@@ -2441,6 +2575,7 @@
     if (!list) return;
     var persOn = activeWorkspace === 'personal';
     var cedarOn = activeWorkspace === 'business' && activeOrg === 'cedar';
+    var caseyOn = activeWorkspace === 'crew' && activeAccount === 'casey';
     list.innerHTML =
       '<div class="acct-option' + (persOn ? ' current' : '') + '" onclick="selectAccount(\'personal\')">' +
         '<div class="avatar" style="background:linear-gradient(135deg,#c4a882,#6d8a72)">AL</div>' +
@@ -2451,8 +2586,14 @@
       '<div class="acct-option' + (cedarOn ? ' current' : '') + '" onclick="selectAccount(\'cedar\')">' +
         '<div class="avatar" style="background:#2F5D50">CS</div>' +
         '<div class="acct-meta"><div class="acct-name">Cedar &amp; Stone Clean Co. · Owner</div>' +
-        '<div class="acct-sub">acct_cedar_stone_01 · Business ops workspace</div></div>' +
+        '<div class="acct-sub">Cedar &amp; Stone · Owner · Al · Inbox · Jobs · Business</div></div>' +
         (cedarOn ? '<span class="pill sage">Current</span>' : '') +
+      '</div>' +
+      '<div class="acct-option' + (caseyOn ? ' current' : '') + '" onclick="selectAccount(\'casey\')">' +
+        '<div class="avatar" style="background:#6a7a55">CN</div>' +
+        '<div class="acct-meta"><div class="acct-name">Casey Nguyen · Crew @ Cedar &amp; Stone</div>' +
+        '<div class="acct-sub">Platform account · Crew role · assigned jobs only</div></div>' +
+        (caseyOn ? '<span class="pill sage">Current</span>' : '') +
       '</div>' +
       '<div class="acct-option disabled">' +
         '<div class="avatar" style="background:#6a7a55">BL</div>' +
@@ -2480,12 +2621,22 @@
     }
     if (which === 'cedar') {
       if (activeWorkspace === 'business' && activeOrg === 'cedar') {
-        toast('Already on Cedar & Stone');
+        toast('Already on Cedar & Stone · Owner');
         go('biz-today');
         return;
       }
       switchWorkspace('business', { org: 'cedar', role: 'owner', toast: true });
       go('biz-today');
+      return;
+    }
+    if (which === 'casey') {
+      if (activeWorkspace === 'crew' && activeAccount === 'casey') {
+        toast('Already on Casey · Crew');
+        go('crew-today');
+        return;
+      }
+      switchWorkspace('crew', { org: 'cedar', toast: true });
+      go('crew-today');
     }
   };
 
@@ -2495,6 +2646,15 @@
     var g = cedarGrant();
     var stats = countBizStats();
     var cards = '';
+    var riverJob = findJob('job_deep_river_01');
+    if (riverJob && !riverJob.assigneeId && (riverJob.status === 'needs_assign' || riverJob.status === 'scheduled')) {
+      cards +=
+        '<div class="card tap mb-8" style="border-color:#c2d6c5;background:var(--accent-soft)" onclick="openBizJob(\'job_deep_river_01\')">' +
+          '<div class="between mb-8"><span class="pill warn">Continue E2E</span><span class="muted">Assign</span></div>' +
+          '<div class="strong">Continue E2E: assign River Guest job</div>' +
+          '<p class="sub mt-8">Deep clean · needs crew · open to Assign Casey</p>' +
+        '</div>';
+    }
     if (g && g.status === 'active' && g.inquiryStatus !== 'closed') {
       var st = bizInboxStatus(g);
       cards +=
@@ -2511,22 +2671,24 @@
         '<div class="card tap mb-8" onclick="openBizInquiry(\'' + g.id + '\')">' +
           '<div class="between mb-8"><span class="pill warn">Quote waiting</span><span class="muted">Customer</span></div>' +
           '<div class="strong">Quote ' + (g.latestQuoteId || 'quote_…') + '</div>' +
-          '<p class="sub mt-8">Awaiting customer accept · quote ≠ booking</p>' +
+          '<p class="sub mt-8">Accept quote (demo) creates job · quote ≠ booking</p>' +
         '</div>';
     }
-    if (bizJobs.length) {
-      bizJobs.forEach(function (j) {
-        cards +=
-          '<div class="card tap mb-8" onclick="openBizJob(\'' + j.id + '\')">' +
-            '<div class="between mb-8"><span class="pill ok">Job today</span><span class="muted">' + j.windowShort + '</span></div>' +
-            '<div class="strong">' + j.service + ' · ' + j.assignee + '</div>' +
-            '<p class="sub mt-8">Crew fields limited · exact only in job window</p>' +
-          '</div>';
-      });
-    } else {
+    var upcoming = bizJobs.filter(function (j) { return j.status === 'scheduled' || j.status === 'needs_assign' || j.status === 'in_progress'; });
+    upcoming.slice(0, 3).forEach(function (j) {
+      var pill = jobStatusPill(j.status);
       cards +=
+        '<div class="card tap mb-8" onclick="openBizJob(\'' + j.id + '\')">' +
+          '<div class="between mb-8"><span class="pill ' + pill.cls + '">' + pill.label + '</span>' +
+          '<span class="muted">' + j.whenShort + '</span></div>' +
+          '<div class="strong">' + j.service + ' · ' + (j.assigneeId ? assigneeLabel(j.assigneeId) : 'Unassigned') + '</div>' +
+          '<p class="sub mt-8">' + j.customerAlias + ' · job-scoped crew access</p>' +
+        '</div>';
+    });
+    if (!cards) {
+      cards =
         '<div class="card mb-8" style="border-style:dashed">' +
-          '<div class="muted" style="font-size:13px">No jobs on the board yet. Accept a quote (demo) from Inbox to schedule.</div>' +
+          '<div class="muted" style="font-size:13px">Nothing needs attention right now.</div>' +
         '</div>';
     }
 
@@ -2538,11 +2700,12 @@
       '<div class="stat-row mb-16">' +
         '<div class="stat"><div class="n">' + stats.open + '</div><div class="l">Open inquiries</div></div>' +
         '<div class="stat"><div class="n">' + stats.waiting + '</div><div class="l">Quotes waiting</div></div>' +
-        '<div class="stat"><div class="n">' + stats.jobsToday + '</div><div class="l">Jobs today</div></div>' +
+        '<div class="stat"><div class="n">' + stats.jobsToday + '</div><div class="l">Active jobs</div></div>' +
       '</div>' +
       '<div class="section-label" style="margin-top:0">Needs attention</div>' +
       cards +
       '<button class="btn btn-secondary mt-8" onclick="go(\'biz-inbox\')">Open Inbox</button>' +
+      '<button class="btn btn-ghost mt-8" style="width:100%" onclick="go(\'biz-jobs\')">Open Jobs board</button>' +
       '<p class="muted mt-16" style="font-size:11px;text-align:center">Prototype / demo · acct_cedar_stone_01</p>';
   }
 
@@ -2559,6 +2722,7 @@
     if (g) {
       var prec = bizPrecisionBadge(g);
       var st = bizInboxStatus(g);
+      var linked = findJob('job_deep_river_01');
       var row = document.createElement('div');
       row.className = 'inq-row';
       row.innerHTML =
@@ -2569,6 +2733,7 @@
           '<div class="inq-chips">' +
             '<span class="pill ' + prec.cls + '">' + prec.label + '</span>' +
             '<span class="pill ' + (st.indexOf('Needs') >= 0 ? 'warn' : (st === 'Quoted' ? 'warn' : 'sage')) + '">' + st + '</span>' +
+            (linked ? '<span class="pill ghost">Job ' + linked.status + '</span>' : '') +
           '</div>' +
           '<div class="grant-id" style="margin-top:6px">' + g.id + '</div>' +
         '</div>' +
@@ -2576,7 +2741,6 @@
       row.addEventListener('click', function () { openBizInquiry(g.id); });
       list.appendChild(row);
     }
-    // Closed texture row
     var c = BIZ_CLOSED_SEED;
     var crow = document.createElement('div');
     crow.className = 'inq-row';
@@ -2593,6 +2757,14 @@
     list.appendChild(crow);
   }
 
+  function linkedJobForInquiry(g) {
+    if (!g) return null;
+    for (var i = 0; i < bizJobs.length; i++) {
+      if (bizJobs[i].inquiryId === g.id) return bizJobs[i];
+    }
+    return null;
+  }
+
   function renderBizInquiryDetail() {
     var body = $('#biz-inquiry-detail-body');
     if (!body) return;
@@ -2601,7 +2773,7 @@
       body.innerHTML = '<p class="sub">Inquiry not found.</p>';
       return;
     }
-    var isOwner = bizDemoRoleView === 'owner';
+    var isOwner = activeWorkspace === 'business' && (bizDemoRoleView === 'owner' || activeAccount === 'al');
     var prec = g.precision;
     var mapHtml;
     if (prec === 'exact') {
@@ -2629,6 +2801,21 @@
       exactAction = '<div class="banner warn mb-12"><span>…</span><span><strong>Waiting on customer</strong> — exact request pending on resident Permissions for ' + g.id + '.</span></div>';
     }
 
+    var linked = linkedJobForInquiry(g);
+    var jobBlock = '';
+    if (linked) {
+      var jp = jobStatusPill(linked.status);
+      jobBlock =
+        '<div class="card mb-12" style="background:var(--ok-soft);border-color:#b5d4c0">' +
+          '<div class="between"><span class="strong" style="font-size:13px">Linked job</span><span class="pill ' + jp.cls + '">' + jp.label + '</span></div>' +
+          '<div class="muted mt-8" style="font-size:12px">' + linked.id + ' · ' + (linked.assigneeId ? assigneeLabel(linked.assigneeId) : 'Unassigned') + '</div>' +
+          (linked.status === 'completed'
+            ? '<div class="muted mt-4" style="font-size:11px">Job completed by ' + assigneeLabel(linked.assigneeId || 'casey') + '</div>'
+            : '') +
+          '<button class="btn btn-secondary btn-sm mt-12" style="width:auto" onclick="openBizJob(\'' + linked.id + '\')">Open job</button>' +
+        '</div>';
+    }
+
     var quoteBlock = '';
     if (g.inquiryStatus === 'quoted' || g.inquiryStatus === 'accepted') {
       quoteBlock =
@@ -2637,7 +2824,7 @@
           '<div class="muted mt-8" style="font-size:12px">' + (g.latestQuoteSummary || 'Sent') + '</div>' +
           '<div class="muted mt-4" style="font-size:11px">Status: ' + inquiryStatusLabel(g) + ' · quote ≠ booking / job confirmation</div>' +
           (g.inquiryStatus === 'quoted' && isOwner
-            ? '<button class="btn btn-secondary btn-sm mt-12" style="width:auto" onclick="markBizQuoteAccepted()">Mark quote accepted (demo)</button>'
+            ? '<button class="btn btn-primary btn-sm mt-12" style="width:auto" onclick="markBizQuoteAccepted()">Accept quote (demo)</button>'
             : '') +
         '</div>';
     }
@@ -2654,8 +2841,7 @@
           ? '<button class="btn btn-primary mt-8" onclick="openBizQuoteSheet()"' + (!isOwner ? ' disabled style="opacity:.5"' : '') + '>Send quote</button>'
           : '') +
         '<button class="btn btn-secondary mt-8" onclick="toast(\'Message thread (prototype) · ref ' + g.id + '\')">Message</button>' +
-        '<button class="btn btn-ghost mt-8" style="width:100%;color:var(--danger)" onclick="bizDeclineInquiry()">Decline / Close</button>' +
-        (!isOwner ? '<p class="role-note">Crew lens: inquiries limited · cannot send quotes or request exact (demo gate).</p>' : '');
+        '<button class="btn btn-ghost mt-8" style="width:100%;color:var(--danger)" onclick="bizDeclineInquiry()">Decline / Close</button>';
     }
 
     body.innerHTML =
@@ -2673,13 +2859,14 @@
         '<div class="fact-row" style="border:none"><span class="muted">Notes</span><span class="strong" style="font-size:12px;text-align:right;max-width:58%">' + (g.notes || '—') + '</span></div>' +
       '</div>' +
       quoteBlock +
+      jobBlock +
       '<div class="section-label">Actions</div>' +
       actions +
       '<p class="muted mt-16" style="font-size:11px;text-align:center">Pairwise ref <strong>' + g.id + '</strong> · shared with resident Permissions</p>';
   }
 
   window.bizRequestExact = function () {
-    if (bizDemoRoleView !== 'owner') { toast('Crew cannot request exact (demo)'); return; }
+    if (activeWorkspace !== 'business') { toast('Owner only · request exact'); return; }
     var g = findOutgoing(activeBizInquiryId) || cedarGrant();
     if (!g) return;
     if (g.precision === 'exact') { toast('Already exact · grant ' + g.id); return; }
@@ -2695,7 +2882,7 @@
   };
 
   window.openBizQuoteSheet = function () {
-    if (bizDemoRoleView !== 'owner') { toast('Crew cannot send quotes (demo)'); return; }
+    if (activeWorkspace !== 'business') { toast('Owner only · send quote'); return; }
     $('#biz-quote-backdrop').classList.add('show');
     $('#biz-quote-sheet').classList.add('show');
   };
@@ -2732,25 +2919,46 @@
     g.inquiryStatus = 'accepted';
     g.history.unshift({
       title: 'Quote accepted (demo)',
-      sub: 'Tue Sep 22 · just now · booking path separate · job seeded',
+      sub: 'Tue Sep 22 · just now · creates job · still not payment',
       denied: false
     });
-    var jid = 'job_cedar_' + Math.floor(Math.random() * 9000 + 1000).toString(16);
-    bizJobs = [{
-      id: jid,
-      grantId: g.id,
-      service: 'Deep clean',
-      windowLabel: g.windowLabel || 'Thu Sep 25 · morning',
-      windowShort: 'Thu · morning',
-      assignee: 'Casey',
-      assigneeRole: 'crew',
-      status: 'today',
-      precisionForCrew: g.precision,
-      placeId: g.placeId
-    }];
+    var jid = 'job_deep_river_01';
+    var existing = findJob(jid);
+    var pl = placeById(g.placeId || 'place_ecc');
+    var exactSnap = (g.precision === 'exact' && pl) ? (pl.street + ' · ' + pl.unit) : null;
+    if (existing) {
+      existing.inquiryId = g.id;
+      existing.service = 'Deep clean';
+      existing.whenLabel = g.windowLabel || 'Thu Sep 25 · 10–1';
+      existing.whenShort = 'Thu · 10–1';
+      existing.customerAlias = g.identityLabel || 'River Guest';
+      existing.status = 'needs_assign';
+      existing.assigneeId = null;
+      existing.addressExact = exactSnap;
+      existing.addressApprox = 'East Cesar Chavez area';
+      existing.placeId = g.placeId || 'place_ecc';
+      existing.crewPhase = null;
+      existing.accessNotes = g.notes || 'Gate code on arrival · quiet during work';
+    } else {
+      bizJobs.unshift({
+        id: jid,
+        inquiryId: g.id,
+        service: 'Deep clean',
+        whenLabel: g.windowLabel || 'Thu Sep 25 · 10–1',
+        whenShort: 'Thu · 10–1',
+        customerAlias: g.identityLabel || 'River Guest',
+        status: 'needs_assign',
+        assigneeId: null,
+        addressExact: exactSnap,
+        addressApprox: 'East Cesar Chavez area',
+        accessNotes: g.notes || 'Gate code on arrival · quiet during work',
+        placeId: g.placeId || 'place_ecc',
+        crewPhase: null
+      });
+    }
     activeBizJobId = jid;
     if (current === 'biz-inquiry-detail') renderBizInquiryDetail();
-    toast('Quote accepted · job ' + jid + ' · still not payment');
+    toast('Quote accepted · job ' + jid + ' · needs assign');
   };
 
   window.bizDeclineInquiry = function () {
@@ -2770,23 +2978,24 @@
     var body = $('#biz-jobs-body');
     if (!body) return;
     var html = '<h1 class="h1" style="font-size:22px">Schedule / Jobs</h1>' +
-      '<p class="sub mb-12">Worker assignment is job-scoped. Prior worker access ends on reassign (demo).</p>';
+      '<p class="sub mb-12">Owner board · assign crew. Worker access is job-scoped; reassign ends prior access.</p>';
     if (!bizJobs.length) {
       html +=
-        '<div class="banner info mb-12"><span>ℹ</span><span>No accepted jobs yet. From an inquiry, send a quote then <strong>Mark quote accepted (demo)</strong>.</span></div>' +
-        '<div class="card" style="border-style:dashed"><p class="sub">Empty board — quote ≠ booking until customer accepts.</p></div>' +
-        '<button class="btn btn-secondary mt-12" onclick="go(\'biz-inbox\')">Go to Inbox</button>';
+        '<div class="banner info mb-12"><span>ℹ</span><span>No jobs yet. Accept a quote from Inbox to create River Guest job.</span></div>';
     } else {
       bizJobs.forEach(function (j) {
+        var pill = jobStatusPill(j.status);
+        var who = j.assigneeId ? assigneeLabel(j.assigneeId) : 'Unassigned';
+        var av = j.assigneeId && CREW_PEOPLE[j.assigneeId] ? CREW_PEOPLE[j.assigneeId] : null;
         html +=
           '<div class="card tap mb-8" onclick="openBizJob(\'' + j.id + '\')">' +
-            '<div class="between mb-8"><span class="pill ok">' + (j.status === 'today' ? 'Today' : 'Scheduled') + '</span>' +
-            '<span class="muted">' + j.windowShort + '</span></div>' +
-            '<div class="strong">' + j.service + '</div>' +
+            '<div class="between mb-8"><span class="pill ' + pill.cls + '">' + pill.label + '</span>' +
+            '<span class="muted">' + j.whenShort + '</span></div>' +
+            '<div class="strong">' + j.service + ' · ' + j.customerAlias + '</div>' +
             '<div class="row gap-md mt-8">' +
-              '<div class="avatar sm" style="background:#6a7a55">CA</div>' +
-              '<div><div class="strong" style="font-size:13px">' + j.assignee + ' (crew)</div>' +
-              '<div class="muted">Assigned · limited fields</div></div>' +
+              '<div class="avatar sm" style="background:' + (av ? av.color : '#a8a29e') + '">' + (av ? av.initials : '?') + '</div>' +
+              '<div><div class="strong" style="font-size:13px">' + who + '</div>' +
+              '<div class="muted">' + (j.assigneeId ? 'Crew assigned' : 'Needs assign') + '</div></div>' +
             '</div>' +
             '<div class="grant-id" style="margin-top:8px">' + j.id + '</div>' +
           '</div>';
@@ -2804,47 +3013,122 @@
   function renderBizJobDetail() {
     var body = $('#biz-job-detail-body');
     if (!body) return;
-    var j = null;
-    for (var i = 0; i < bizJobs.length; i++) if (bizJobs[i].id === activeBizJobId) j = bizJobs[i];
+    var j = findJob(activeBizJobId);
     if (!j) { body.innerHTML = '<p class="sub">Job not found.</p>'; return; }
-    var g = findOutgoing(j.grantId);
-    var exactOk = g && g.precision === 'exact';
+    var g = j.inquiryId ? findOutgoing(j.inquiryId) : null;
+    var exactOk = false;
+    if (g && g.precision === 'exact') exactOk = true;
+    else if (j.addressExact) exactOk = true;
     var fields;
     if (exactOk) {
-      var pl = placeById(j.placeId || (g && g.placeId));
+      var street = j.addressExact;
+      if (!street && g) {
+        var pl = placeById(j.placeId || g.placeId);
+        street = pl.street + ' · ' + pl.unit;
+      }
       fields =
-        '<div class="fact-row"><span class="muted">Street</span><span class="strong" style="font-size:13px">' + pl.street + '</span></div>' +
-        '<div class="fact-row"><span class="muted">Unit</span><span class="strong" style="font-size:13px">' + pl.unit + '</span></div>' +
-        '<div class="fact-row" style="border:none"><span class="muted">Crew note</span><span class="strong" style="font-size:12px">Exact only for job window</span></div>';
+        '<div class="fact-row"><span class="muted">Street</span><span class="strong" style="font-size:13px">' + street + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Access</span><span class="strong" style="font-size:12px">' + (j.accessNotes || '—') + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Scope</span><span class="strong" style="font-size:12px">Owner + assigned crew (job window)</span></div>';
     } else {
       fields =
-        '<div class="fact-row"><span class="muted">Area</span><span class="strong" style="font-size:13px">East Cesar Chavez (approx)</span></div>' +
-        '<div class="fact-row" style="border:none"><span class="muted">Exact</span><span class="strong" style="font-size:12px">Hidden until resident approved / job window</span></div>';
+        '<div class="fact-row"><span class="muted">Area</span><span class="strong" style="font-size:13px">' + (j.addressApprox || 'Approx area') + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Exact</span><span class="strong" style="font-size:12px">Hidden until resident approved</span></div>';
     }
+    var pill = jobStatusPill(j.status);
+    var who = j.assigneeId ? assigneeLabel(j.assigneeId) : 'Unassigned';
+    var av = j.assigneeId && CREW_PEOPLE[j.assigneeId] ? CREW_PEOPLE[j.assigneeId] : null;
     body.innerHTML =
-      '<div class="between mb-8"><span class="pill ok">Assigned</span><span class="muted">' + j.windowLabel + '</span></div>' +
+      '<div class="between mb-8"><span class="pill ' + pill.cls + '">' + pill.label + '</span><span class="muted">' + j.whenLabel + '</span></div>' +
       '<h1 class="h1" style="font-size:22px">' + j.service + '</h1>' +
-      '<p class="sub mb-12">Job-scoped assignment · Casey (crew) sees limited fields.</p>' +
-      '<div class="banner private mb-12"><span>◎</span><span><strong>Crew sees exact only for job window.</strong> Reassign ends prior worker access (demo).</span></div>' +
+      '<p class="sub mb-12">' + j.customerAlias + ' · job-scoped assignment.</p>' +
+      '<div class="banner private mb-12"><span>◎</span><span><strong>Crew sees exact only for job window.</strong> Reassign ends prior worker access.</span></div>' +
       '<div class="section-label" style="margin-top:0">Assignee</div>' +
       '<div class="card mb-12"><div class="team-row" style="padding:0;border:none">' +
-        '<div class="avatar" style="background:#6a7a55">CA</div>' +
-        '<div><div class="strong">Casey</div><div class="muted">Crew · inquiries limited / exact when assigned</div></div>' +
+        '<div class="avatar" style="background:' + (av ? av.color : '#a8a29e') + '">' + (av ? av.initials : '?') + '</div>' +
+        '<div class="flex-1"><div class="strong">' + who + '</div>' +
+        '<div class="muted">' + (j.assigneeId ? 'Crew · limited fields while assigned' : 'No crew yet') + '</div></div>' +
       '</div></div>' +
-      '<div class="section-label">Fields crew can see</div>' +
+      '<div class="section-label">Fields</div>' +
       '<div class="card field-preview mb-12">' + fields + '</div>' +
-      '<button class="btn btn-secondary" onclick="bizReassignDemo()">Reassign (demo)</button>' +
-      '<p class="muted mt-12" style="font-size:11px;text-align:center">Job ' + j.id + ' · grant ' + j.grantId + '</p>';
+      (j.inquiryId ? '<div class="muted mb-12" style="font-size:11px">Linked inquiry <strong>' + j.inquiryId + '</strong></div>' : '') +
+      '<button class="btn btn-primary" onclick="openAssignSheet()">' + (j.assigneeId ? 'Reassign crew' : 'Assign crew') + '</button>' +
+      '<p class="muted mt-12" style="font-size:11px;text-align:center">Job ' + j.id + '</p>';
   }
 
-  window.bizReassignDemo = function () {
-    var j = null;
-    for (var i = 0; i < bizJobs.length; i++) if (bizJobs[i].id === activeBizJobId) j = bizJobs[i];
+  window.openAssignSheet = function () {
+    var list = $('#biz-assign-list');
+    if (!list) return;
+    var j = findJob(activeBizJobId);
     if (!j) return;
-    var prev = j.assignee;
-    j.assignee = 'Riley';
-    toast('Reassigned ' + prev + ' → Riley · prior worker access ended');
+    var html = '';
+    ['casey', 'riley'].forEach(function (cid) {
+      var p = CREW_PEOPLE[cid];
+      var on = j.assigneeId === cid;
+      html +=
+        '<div class="acct-option' + (on ? ' current' : '') + '" onclick="assignJobTo(\'' + cid + '\')">' +
+          '<div class="avatar" style="background:' + p.color + '">' + p.initials + '</div>' +
+          '<div class="acct-meta"><div class="acct-name">' + p.name + '</div>' +
+          '<div class="acct-sub">' + (p.fullAccount ? 'Crew · full switchable account' : 'Crew · assignable only (demo)') + '</div></div>' +
+          (on ? '<span class="pill sage">Assigned</span>' : '<span class="pill ghost">Assign</span>') +
+        '</div>';
+    });
+    if (j.assigneeId) {
+      html +=
+        '<button class="btn btn-ghost mt-8" style="width:100%;color:var(--danger)" onclick="assignJobTo(null)">Clear assignment</button>';
+    }
+    list.innerHTML = html;
+    $('#biz-assign-backdrop').classList.add('show');
+    $('#biz-assign-sheet').classList.add('show');
+  };
+
+  window.closeAssignSheet = function () {
+    var b = $('#biz-assign-backdrop'); var s = $('#biz-assign-sheet');
+    if (b) b.classList.remove('show');
+    if (s) s.classList.remove('show');
+  };
+
+  window.assignJobTo = function (crewId) {
+    var j = findJob(activeBizJobId);
+    if (!j) return;
+    var prev = j.assigneeId;
+    closeAssignSheet();
+    if (crewId === prev) { toast('Already assigned to ' + assigneeLabel(crewId)); return; }
+    j.assigneeId = crewId || null;
+    if (crewId && j.status === 'needs_assign') j.status = 'scheduled';
+    if (!crewId && j.status === 'scheduled') j.status = 'needs_assign';
+    j.crewPhase = null;
+    // Snapshot exact for assignee when grant already approved
+    if (crewId && j.inquiryId) {
+      var gSnap = findOutgoing(j.inquiryId);
+      if (gSnap && gSnap.precision === 'exact') {
+        var plSnap = placeById(j.placeId || gSnap.placeId || 'place_ecc');
+        j.addressExact = plSnap.street + ' · ' + plSnap.unit;
+        if (gSnap.notes) j.accessNotes = gSnap.notes;
+      }
+    }
+    var msg;
+    if (prev && crewId) {
+      msg = assigneeLabel(prev).split(' ')[0] + ' access ended · ' + assigneeLabel(crewId).split(' ')[0] + ' now assigned';
+    } else if (crewId) {
+      msg = 'Assigned to ' + assigneeLabel(crewId) + ' · ' + j.id;
+    } else {
+      msg = (prev ? assigneeLabel(prev).split(' ')[0] + ' access ended · ' : '') + 'Unassigned · ' + j.id;
+    }
+    toast(msg);
+    if (j.inquiryId && crewId) {
+      var ig = findOutgoing(j.inquiryId);
+      if (ig) {
+        ig.history.unshift({
+          title: 'Job assigned to ' + assigneeLabel(crewId),
+          sub: 'Tue Sep 22 · just now · ' + j.id + ' · prior access revoked if any',
+          denied: false
+        });
+      }
+    }
     if (current === 'biz-job-detail') renderBizJobDetail();
+    if (current === 'biz-jobs') renderBizJobs();
+    if (current === 'biz-today') renderBizToday();
   };
 
   function renderBizProfile() {
@@ -2860,13 +3144,13 @@
             '<div class="row mt-8 wrap" style="gap:6px"><span class="pill sage">acct_cedar_stone_01</span></div>' +
           '</div>' +
         '</div>' +
-        '<button type="button" class="btn btn-primary mt-12" onclick="selectAccount(\'personal\')">Switch to Personal</button>' +
+        '<button type="button" class="btn btn-primary mt-12" onclick="openAccountSwitcher()">Switch account…</button>' +
       '</div>' +
       '<div class="section-label" style="margin-top:0">Org</div>' +
       '<div class="card mb-12">' +
         '<p class="sub">Small East Austin cleaning team. Quiet during work hours. Matched privately in Explore — never notified by browse alone.</p>' +
         '<div class="fact-row mt-12"><span class="muted">Coverage</span><span class="strong" style="font-size:12px">Serves East Austin</span></div>' +
-        '<div class="fact-row" style="border:none"><span class="muted">Catalog</span><span class="strong" style="font-size:12px">Deep clean</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Catalog</span><span class="strong" style="font-size:12px">Deep clean · Turnover · Tidy</span></div>' +
       '</div>' +
       '<div class="section-label">Customers</div>' +
       '<div class="card mb-12">' +
@@ -2885,27 +3169,225 @@
           '<span class="pill sage">Owner</span>' +
         '</div>' +
         '<div class="team-row">' +
-          '<div class="avatar" style="background:#6a7a55">CA</div>' +
-          '<div class="flex-1"><div class="strong">Casey</div><div class="muted">Crew — inquiries limited / exact only when assigned to a job</div></div>' +
+          '<div class="avatar" style="background:#6a7a55">CN</div>' +
+          '<div class="flex-1"><div class="strong">Casey Nguyen</div><div class="muted">Crew · switchable account · assigned jobs only</div></div>' +
+          '<span class="pill ghost">Crew</span>' +
+        '</div>' +
+        '<div class="team-row">' +
+          '<div class="avatar" style="background:#8a7355">RO</div>' +
+          '<div class="flex-1"><div class="strong">Riley Okonkwo</div><div class="muted">Crew · assignable (no full account in this demo)</div></div>' +
           '<span class="pill ghost">Crew</span>' +
         '</div>' +
       '</div>' +
-      '<div class="section-label">Role lens (demo)</div>' +
+      '<div class="banner info mb-12"><span>ℹ</span><span>Primary story: <strong>Switch account → Casey Crew</strong>. Optional owner lens below is secondary.</span></div>' +
+      '<div class="section-label">Role lens (optional demo)</div>' +
       '<div class="chip-row mb-12">' +
         '<button type="button" class="purpose-chip' + (bizDemoRoleView === 'owner' ? ' on' : '') + '" onclick="setBizRoleLens(\'owner\')">View as Owner</button>' +
         '<button type="button" class="purpose-chip' + (bizDemoRoleView === 'crew' ? ' on' : '') + '" onclick="setBizRoleLens(\'crew\')">View as Crew</button>' +
       '</div>' +
-      '<div class="banner info mb-12"><span>ℹ</span><span><strong>Connected merchant routing</strong> (Amazon etc.) is a different product surface than this inquiry inbox — see personal Connected Services.</span></div>' +
-      '<div class="banner private"><span>◎</span><span>Personal Pause sharing with people does <strong>not</strong> create or cancel merchant / inquiry rights.</span></div>' +
+      '<div class="banner private"><span>◎</span><span>Personal Pause sharing with people does <strong>not</strong> create or cancel merchant / inquiry rights or jobs.</span></div>' +
       '<p class="muted mt-16" style="font-size:11px;text-align:center">W2 · P38 team · P39 coverage · P43 inquiries · P45 ops</p>';
   }
 
   window.setBizRoleLens = function (role) {
     bizDemoRoleView = role === 'crew' ? 'crew' : 'owner';
-    toast(bizDemoRoleView === 'owner' ? 'Owner lens' : 'Crew lens · limited actions');
+    toast(bizDemoRoleView === 'owner'
+      ? 'Owner lens (optional) · prefer Switch → Casey for real crew'
+      : 'Crew lens overlay · Switch account → Casey for full crew UX');
     if (current === 'biz-profile') renderBizProfile();
     if (current === 'biz-inquiry-detail') renderBizInquiryDetail();
   };
+
+  /* ========== Crew account (Casey Nguyen @ Cedar & Stone) ========== */
+
+  window.openCrewJob = function (id) {
+    var j = findJob(id);
+    if (!j || j.assigneeId !== 'casey') {
+      toast('Not assigned to you · access denied');
+      return;
+    }
+    activeCrewJobId = id;
+    go('crew-job-detail');
+  };
+
+  function renderCrewToday() {
+    var body = $('#crew-today-body');
+    if (!body) return;
+    var mine = caseyJobs().filter(function (j) { return j.status !== 'completed'; });
+    var next = mine[0] || null;
+    var cards = '';
+    if (next) {
+      cards +=
+        '<div class="card tap mb-8" style="border-color:#c2d6c5;background:var(--accent-soft)" onclick="openCrewJob(\'' + next.id + '\')">' +
+          '<div class="between mb-8"><span class="pill sage">Next up</span><span class="muted">' + next.whenShort + '</span></div>' +
+          '<div class="strong">' + next.service + ' · ' + next.customerAlias + '</div>' +
+          '<p class="sub mt-8">' + next.addressApprox + '</p>' +
+        '</div>';
+    }
+    mine.forEach(function (j) {
+      if (next && j.id === next.id) return;
+      var pill = jobStatusPill(j.status);
+      cards +=
+        '<div class="card tap mb-8" onclick="openCrewJob(\'' + j.id + '\')">' +
+          '<div class="between mb-8"><span class="pill ' + pill.cls + '">' + pill.label + '</span>' +
+          '<span class="muted">' + j.whenShort + '</span></div>' +
+          '<div class="strong">' + j.service + '</div>' +
+          '<p class="sub mt-8">' + j.customerAlias + '</p>' +
+        '</div>';
+    });
+    if (!cards) {
+      cards = '<div class="card mb-8" style="border-style:dashed"><p class="sub">No active assignments. Ask Owner to assign a job.</p></div>';
+    }
+    var done = caseyJobs().filter(function (j) { return j.status === 'completed'; }).length;
+    body.innerHTML =
+      '<div class="greeting">Hi Casey</div>' +
+      '<h1 class="h1">Crew Today</h1>' +
+      '<p class="sub mb-12">Cedar &amp; Stone · Crew role</p>' +
+      '<div class="banner private mb-12"><span>◎</span><span>You only see jobs assigned to you · exact address only for active job window.</span></div>' +
+      '<div class="stat-row mb-16">' +
+        '<div class="stat"><div class="n">' + mine.length + '</div><div class="l">Assigned</div></div>' +
+        '<div class="stat"><div class="n">' + done + '</div><div class="l">Completed</div></div>' +
+        '<div class="stat"><div class="n">0</div><div class="l">Inbox</div></div>' +
+      '</div>' +
+      '<div class="section-label" style="margin-top:0">Your jobs</div>' +
+      cards +
+      '<button class="btn btn-secondary mt-8" onclick="go(\'crew-jobs\')">All my jobs</button>' +
+      '<p class="muted mt-16" style="font-size:11px;text-align:center">No inquiry inbox · no finance · prototype</p>';
+  }
+
+  function renderCrewJobs() {
+    var body = $('#crew-jobs-body');
+    if (!body) return;
+    var mine = caseyJobs();
+    var html = '<h1 class="h1" style="font-size:22px">My jobs</h1>' +
+      '<p class="sub mb-12">Filtered to Casey · reassign removes jobs from this list.</p>';
+    if (!mine.length) {
+      html += '<div class="card" style="border-style:dashed"><p class="sub">Nothing assigned. Owner Jobs → Assign Casey.</p></div>';
+    } else {
+      mine.forEach(function (j) {
+        var pill = jobStatusPill(j.status);
+        html +=
+          '<div class="card tap mb-8" onclick="openCrewJob(\'' + j.id + '\')">' +
+            '<div class="between mb-8"><span class="pill ' + pill.cls + '">' + pill.label + '</span>' +
+            '<span class="muted">' + j.whenShort + '</span></div>' +
+            '<div class="strong">' + j.service + '</div>' +
+            '<div class="muted mt-8" style="font-size:12px">' + j.customerAlias + ' · ' + j.addressApprox + '</div>' +
+            '<div class="grant-id" style="margin-top:8px">' + j.id + '</div>' +
+          '</div>';
+      });
+    }
+    body.innerHTML = html;
+  }
+
+  function renderCrewJobDetail() {
+    var body = $('#crew-job-detail-body');
+    if (!body) return;
+    var j = findJob(activeCrewJobId);
+    if (!j || j.assigneeId !== 'casey') {
+      body.innerHTML =
+        '<div class="banner warn mb-12"><span>⚠</span><span>This job is not assigned to you. Access ended on reassign (or never granted).</span></div>' +
+        '<button class="btn btn-secondary" onclick="go(\'crew-jobs\')">Back to my jobs</button>';
+      return;
+    }
+    var exact = crewCanSeeExact(j);
+    var fields;
+    if (exact) {
+      var street = j.addressExact;
+      if (!street && j.placeId) {
+        var pl = placeById(j.placeId);
+        street = pl.street + ' · ' + pl.unit;
+      }
+      fields =
+        '<div class="fact-row"><span class="muted">Street</span><span class="strong" style="font-size:13px">' + (street || '—') + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Access</span><span class="strong" style="font-size:12px">' + (j.accessNotes || 'See Owner notes') + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Window</span><span class="strong" style="font-size:12px">Exact unlocked for assignee</span></div>';
+    } else {
+      fields =
+        '<div class="fact-row"><span class="muted">Area</span><span class="strong" style="font-size:13px">' + (j.addressApprox || 'Approx') + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Exact</span><span class="strong" style="font-size:12px">Locked · needs grant precision or job unlock</span></div>';
+    }
+    var pill = jobStatusPill(j.status);
+    var phase = j.crewPhase || 'idle';
+    var checklist =
+      '<div class="section-label">Execution</div>' +
+      '<div class="card mb-12">' +
+        '<button class="btn ' + (phase === 'idle' || !phase ? 'btn-primary' : 'btn-secondary') + ' mb-8" ' +
+          (j.status === 'completed' ? 'disabled style="opacity:.5"' : '') +
+          ' onclick="crewAdvanceJob(\'started\')">1 · Start job</button>' +
+        '<button class="btn ' + (phase === 'started' ? 'btn-primary' : 'btn-secondary') + ' mb-8" ' +
+          (phase !== 'started' && phase !== 'on_way' && j.status !== 'in_progress' ? 'disabled style="opacity:.5"' : '') +
+          (j.status === 'completed' ? ' disabled style="opacity:.5"' : '') +
+          ' onclick="crewAdvanceJob(\'on_way\')">2 · On the way / on site</button>' +
+        '<button class="btn ' + (phase === 'on_way' ? 'btn-primary' : 'btn-secondary') + '" ' +
+          (phase !== 'on_way' && j.status !== 'in_progress' ? 'disabled style="opacity:.5"' : '') +
+          (j.status === 'completed' ? ' disabled style="opacity:.5"' : '') +
+          ' onclick="crewAdvanceJob(\'completed\')">3 · Complete</button>' +
+        '<p class="muted mt-12" style="font-size:11px">Phase: ' + (phase === 'idle' || !phase ? 'not started' : phase) + '</p>' +
+      '</div>';
+
+    body.innerHTML =
+      '<div class="between mb-8"><span class="pill ' + pill.cls + '">' + pill.label + '</span><span class="muted">' + j.whenLabel + '</span></div>' +
+      '<h1 class="h1" style="font-size:22px">' + j.service + '</h1>' +
+      '<p class="sub mb-12">' + j.customerAlias + ' · assigned to you</p>' +
+      '<div class="banner private mb-12"><span>◎</span><span>No Send quote · no full inbox. Exact only while you are assignee in the job window.</span></div>' +
+      '<div class="section-label" style="margin-top:0">What you can see</div>' +
+      '<div class="card field-preview mb-12">' + fields + '</div>' +
+      checklist +
+      '<p class="muted mt-8" style="font-size:11px;text-align:center">Job ' + j.id + (j.inquiryId ? ' · ' + j.inquiryId : '') + '</p>';
+  }
+
+  window.crewAdvanceJob = function (phase) {
+    var j = findJob(activeCrewJobId);
+    if (!j || j.assigneeId !== 'casey') { toast('Not your job'); return; }
+    if (j.status === 'completed') { toast('Already completed · ' + j.id); return; }
+    j.crewPhase = phase;
+    if (phase === 'started' || phase === 'on_way') {
+      j.status = 'in_progress';
+      toast(phase === 'started' ? 'Job started · ' + j.id : 'On site · ' + j.id);
+    } else if (phase === 'completed') {
+      j.status = 'completed';
+      j.crewPhase = 'completed';
+      if (j.inquiryId) {
+        var g = findOutgoing(j.inquiryId);
+        if (g) {
+          g.history.unshift({
+            title: 'Job completed by Casey',
+            sub: 'Tue Sep 22 · just now · ' + j.id + ' · opaque ref',
+            denied: false
+          });
+        }
+      }
+      toast('Completed · ' + j.id);
+    }
+    if (current === 'crew-job-detail') renderCrewJobDetail();
+  };
+
+  function renderCrewMe() {
+    var body = $('#crew-me-body');
+    if (!body) return;
+    var n = caseyJobs().length;
+    body.innerHTML =
+      '<div class="card mb-16 acct-card">' +
+        '<div class="row gap-md">' +
+          '<div class="avatar lg" style="background:#6a7a55">CN</div>' +
+          '<div class="flex-1">' +
+            '<div class="strong" style="font-size:17px">Casey Nguyen</div>' +
+            '<div class="muted">Crew at Cedar &amp; Stone</div>' +
+            '<div class="row mt-8 wrap" style="gap:6px"><span class="pill sage">acct_casey_crew_01</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<button type="button" class="btn btn-primary mt-12" onclick="openAccountSwitcher()">Switch account…</button>' +
+      '</div>' +
+      '<div class="section-label" style="margin-top:0">Access</div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Org</span><span class="strong" style="font-size:12px">Cedar &amp; Stone</span></div>' +
+        '<div class="fact-row"><span class="muted">Role</span><span class="strong" style="font-size:12px">Crew</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Jobs</span><span class="strong" style="font-size:12px">' + n + ' assigned</span></div>' +
+      '</div>' +
+      '<div class="banner private mb-12"><span>◎</span><span>No inquiry inbox · no all-customers CRM · no finance. Exact address only for jobs assigned to you during the job window.</span></div>' +
+      '<div class="banner info"><span>ℹ</span><span>Reassign by Owner removes this job from your list and ends exact access.</span></div>' +
+      '<p class="muted mt-16" style="font-size:11px;text-align:center">Platform crew account · prototype</p>';
+  }
 
   // Extend inquiry status labels
   var _inqLabel = inquiryStatusLabel;
@@ -2936,9 +3418,15 @@
     if (hash && $('[data-screen="' + hash + '"]')) {
       $all('.screen').forEach(function (s) { s.classList.remove('active'); });
       // Pre-set workspace so first go() doesn't double-toast
-      if (isBizScreen(hash)) {
+      if (isCrewScreen(hash)) {
+        activeWorkspace = 'crew';
+        activeOrg = 'cedar';
+        activeAccount = 'casey';
+        applyWorkspaceChrome();
+      } else if (isBizScreen(hash)) {
         activeWorkspace = 'business';
         activeOrg = 'cedar';
+        activeAccount = 'al';
         applyWorkspaceChrome();
       }
       go(hash);

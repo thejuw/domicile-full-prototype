@@ -887,3 +887,5 @@ a { color: inherit; text-decoration: none; }
 .team-row:last-child { border-bottom: none; }
 .bottom-nav.hide { display: none !important; }
 .phone.biz-mode .bottom-nav#bottom-nav-business { display: flex; }
+.phone.crew-mode .bottom-nav#bottom-nav-crew { display: flex; }
+.mb-8 { margin-bottom: 8px; }

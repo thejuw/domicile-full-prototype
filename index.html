@@ -1711,6 +1711,44 @@ AL</div>
           <div class="pad" id="biz-profile-body"><!-- filled by JS --></div>
         </section>
 
+
+        <!-- ========== Crew workspace (Casey @ Cedar & Stone) ========== -->
+        <section class="screen" data-screen="crew-today" data-nav="crew-today" data-workspace="crew">
+          <div class="topbar">
+            <span class="org-pill">Casey · Crew</span>
+            <span class="title">Today</span>
+            <button class="back" style="justify-self:end;font-size:13px;font-weight:650" onclick="openAccountSwitcher()">Switch</button>
+          </div>
+          <div class="pad" id="crew-today-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="crew-jobs" data-nav="crew-jobs" data-workspace="crew">
+          <div class="topbar">
+            <span class="org-pill">Casey · Crew</span>
+            <span class="title">Jobs</span>
+            <span></span>
+          </div>
+          <div class="pad" id="crew-jobs-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="crew-job-detail" data-nav="crew-jobs" data-workspace="crew">
+          <div class="topbar">
+            <button class="back" onclick="go('crew-jobs')">‹ Jobs</button>
+            <span class="title">Job</span>
+            <span class="org-pill" style="justify-self:end">Casey</span>
+          </div>
+          <div class="pad" id="crew-job-detail-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="crew-me" data-nav="crew-me" data-workspace="crew">
+          <div class="topbar">
+            <span class="org-pill">Casey · Crew</span>
+            <span class="title">Me</span>
+            <button class="back" style="justify-self:end;font-size:13px;font-weight:650" onclick="openAccountSwitcher()">Switch</button>
+          </div>
+          <div class="pad" id="crew-me-body"><!-- filled by JS --></div>
+        </section>
+
       </div><!-- /screens -->
 
       <nav class="bottom-nav" id="bottom-nav-personal">
@@ -1725,6 +1763,11 @@ AL</div>
         <button class="nav-item" data-nav="biz-inbox" onclick="navTo('biz-inbox')"><span class="ico">◎</span>Inbox</button>
         <button class="nav-item" data-nav="biz-jobs" onclick="navTo('biz-jobs')"><span class="ico">◇</span>Jobs</button>
         <button class="nav-item" data-nav="biz-profile" onclick="navTo('biz-profile')"><span class="ico">⌂</span>Business</button>
+      </nav>
+      <nav class="bottom-nav hide" id="bottom-nav-crew">
+        <button class="nav-item" data-nav="crew-today" onclick="navTo('crew-today')"><span class="ico">☀</span>Today</button>
+        <button class="nav-item" data-nav="crew-jobs" onclick="navTo('crew-jobs')"><span class="ico">◇</span>Jobs</button>
+        <button class="nav-item" data-nav="crew-me" onclick="navTo('crew-me')"><span class="ico">☺</span>Me</button>
       </nav>
       <!-- Move sheets -->
       <div class="sheet-backdrop" id="confirm-send-backdrop" onclick="closeConfirmSend()"></div>
@@ -1777,7 +1820,7 @@ AL</div>
       <div class="sheet" id="acct-switch-sheet" role="dialog" aria-modal="true" aria-labelledby="acct-switch-title">
         <div class="sheet-handle"></div>
         <h2 class="h2" id="acct-switch-title" style="font-size:18px;margin-bottom:6px">Switch account</h2>
-        <p class="sub mb-12">Workspace changes the whole shell — nav, home, and You. Business UX is never mixed into personal Explore.</p>
+        <p class="sub mb-12">Three accounts: Personal · Owner · Crew. Switching changes the whole shell — nav never mixes Owner inbox with Crew or Personal Explore.</p>
         <div id="acct-switch-list"><!-- filled by JS --></div>
         <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeAccountSwitcher()">Cancel</button>
       </div>
@@ -1797,6 +1840,16 @@ AL</div>
         <div class="banner info mb-12"><span>ℹ</span><span>Owner role can send quotes. Crew cannot (demo gate).</span></div>
         <button class="btn btn-primary" onclick="confirmBizQuote()">Send quote</button>
         <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeBizQuoteSheet()">Cancel</button>
+      </div>
+
+      <!-- Biz assign / reassign sheet -->
+      <div class="sheet-backdrop" id="biz-assign-backdrop" onclick="closeAssignSheet()"></div>
+      <div class="sheet" id="biz-assign-sheet" role="dialog" aria-modal="true" aria-labelledby="biz-assign-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="biz-assign-title" style="font-size:18px;margin-bottom:6px">Assign crew</h2>
+        <p class="sub mb-12">Job-scoped. Reassign ends prior worker access to exact address / notes.</p>
+        <div id="biz-assign-list"><!-- filled by JS --></div>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeAssignSheet()">Cancel</button>
       </div>
 
 
