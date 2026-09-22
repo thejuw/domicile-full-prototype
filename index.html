@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="description" content="Domicile personal app — interactive founder prototype (planning only)" />
+<title>Domicile · Personal App Prototype</title>
+<link rel="stylesheet" href="app.css" />
+</head>
+<body>
+<div class="desk">
+  <aside class="side-panel">
+    <div class="badge-proto">Prototype · planning only · not production</div>
+    <h2>Domicile</h2>
+    <p>Full personal app click-through for founder demo. Warm home-platform tone — Today, Map, Places, Explore, You — plus Stays guest &amp; host paths.</p>
+    <div class="hint"><strong>60-second path:</strong> Today → arrival → Explore→Stays book → unlock → Places→Hosting → You→Ledger</div>
+    <div class="path">Today — arrivals, stay check-in, hosting turnover</div>
+    <div class="path">Explore → Stays → Oak &amp; Waller → Instant book → Trips unlock</div>
+    <div class="path">Places → East Cesar Chavez → Hosting dashboard</div>
+    <div class="path">You → Ledger, Move planning, permissions</div>
+    <p class="muted" style="margin-top:14px;font-size:11px;line-height:1.45">Private-cohort chrome. Exact address &amp; codes only after pre-arrival unlock. Guest ≠ household. Fictional Austin sample data.</p>
+  </aside>
+
+  <div class="phone" id="phone">
+    <div class="phone-notch"></div>
+    <div class="fab-demo">Prototype · planning only</div>
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <span class="status-icons">▌▌▌  Wi‑Fi  ████</span>
+    </div>
+    <div class="app">
+      <div class="cohort-bar"><span class="dot"></span> Private Hosted Stays cohort · planning demo</div>
+      <div class="screens" id="screens">
+
+        <!-- ========== TODAY ========== -->
+        <section class="screen active" data-screen="today" data-nav="today">
+          <div class="pad-lg">
+            <div class="greeting">Good afternoon · Tuesday, Sep 22</div>
+            <h1 class="h1">Today</h1>
+            <p class="sub mb-12">Arrivals, stays, and what needs your attention.</p>
+
+            <div class="section-label" style="margin-top:8px">Arrivals</div>
+            <div class="card tap" onclick="go('arrival-detail')">
+              <div class="between mb-8">
+                <span class="pill sky">En route</span>
+                <span class="muted">ETA 11:20–11:35 AM</span>
+              </div>
+              <div class="row gap-md">
+                <div class="spend-ico" style="background:var(--sky-soft);font-size:18px">📦</div>
+                <div>
+                  <div class="strong" style="font-size:15px">Package · Cedar Creek Courier</div>
+                  <div class="muted">To East Cesar Chavez Cottage</div>
+                  <div class="sub mt-8" style="font-size:12px">Last update 4 min ago · tap for tracking detail</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-label">Upcoming stay</div>
+            <div class="card tap" onclick="go('trip-prearrival')">
+              <div class="between mb-8">
+                <span class="pill ok">Check in tomorrow</span>
+                <span class="muted">Sep 23 · 3:00 PM</span>
+              </div>
+              <div class="row gap-md">
+                <div class="photo sm loft"></div>
+                <div>
+                  <div class="strong" style="font-size:15px">Oak &amp; Waller Loft</div>
+                  <div class="muted">East Austin · approximate area</div>
+                  <div class="sub mt-8" style="font-size:12px">Address unlocks 24h before check-in</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="section-label">Appointments</div>
+            <div class="card tap" onclick="go('appointment-detail')">
+              <div class="between mb-8">
+                <span class="pill olive">Confirmed</span>
+                <span class="muted">Thu · 10:00 AM</span>
+              </div>
+              <div class="h3" style="margin:0">Deep clean · Cedar &amp; Stone</div>
+              <p class="sub mt-8">East Cesar Chavez Cottage · 3 hr window · access via host code</p>
+            </div>
+
+            <div class="section-label">Hosting</div>
+            <div class="card tap" onclick="go('host-reservation')">
+              <div class="between mb-8">
+                <span class="pill warn">Turnover due</span>
+                <span class="muted">Today · by 2:00 PM</span>
+              </div>
+              <div class="h3" style="margin:0">East Cesar Chavez Cottage</div>
+              <p class="sub mt-8">Guest checked out this morning. Clean + restock before next arrival (Jordan · Sep 24).</p>
+              <button class="btn btn-secondary btn-sm mt-12" style="width:auto" onclick="event.stopPropagation();go('host-reservation')">View reservation</button>
+            </div>
+
+            <div class="section-label">Obligations</div>
+            <div class="card tap" onclick="go('place-community')">
+              <div class="between">
+                <div>
+                  <div class="h3" style="margin:0">HOA dues · Sep</div>
+                  <p class="sub mt-8">Holly Grove Association · $285 due Oct 1</p>
+                </div>
+                <span class="pill ghost">Due soon</span>
+              </div>
+            </div>
+
+            <div class="section-label">Quiet</div>
+            <div class="card">
+              <p class="sub">Map sharing is on for Maya (expires Fri). No other exceptions.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="arrival-detail" data-nav="today">
+          <div class="topbar">
+            <button class="back" onclick="go('today')">‹ Today</button>
+            <span class="title">Arrival</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <div class="between mb-8">
+              <span class="pill sky">En route</span>
+              <span class="muted">Fresh · 4 min ago</span>
+            </div>
+            <h1 class="h1" style="font-size:22px">Package delivery</h1>
+            <p class="sub mb-16">Cedar Creek Courier · tracking capability from provider</p>
+            <div class="card mb-12">
+              <div class="quote-line"><span>ETA window</span><span class="strong">11:20–11:35 AM</span></div>
+              <div class="quote-line"><span>Destination</span><span>East Cesar Chavez Cottage</span></div>
+              <div class="quote-line"><span>Provider status</span><span>Out for delivery</span></div>
+              <div class="quote-line sub"><span>Position precision</span><span>Coarse area only</span></div>
+            </div>
+            <div class="map-canvas mb-12" style="height:180px">
+              <div class="map-blob sky" style="top:40%;left:40%;width:70px;height:55px"><span>Courier</span></div>
+              <div class="map-blob olive" style="top:55%;left:58%;width:50px;height:40px"><span>Home</span></div>
+              <div class="map-note">ETA-based card — no fabricated live pin. Exact courier track stays in provider app.</div>
+            </div>
+            <div class="banner info mb-12">
+              <span>ℹ</span>
+              <span>Domicile shows what this provider authorized. Open their app for turn-by-turn tracking.</span>
+            </div>
+            <button class="btn btn-secondary" onclick="toast('Would open Cedar Creek Courier (prototype)')">Open provider app</button>
+            <button class="btn btn-ghost mt-8" style="width:100%" onclick="go('today')">Back to Today</button>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="appointment-detail" data-nav="today">
+          <div class="topbar">
+            <button class="back" onclick="go('today')">‹ Today</button>
+            <span class="title">Appointment</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <span class="pill olive mb-8">Confirmed</span>
+            <h1 class="h1" style="font-size:22px">Deep clean</h1>
+            <p class="sub mb-16">Cedar &amp; Stone Clean Co. · Thu Sep 25 · 10:00–1:00 PM</p>
+            <div class="card mb-12">
+              <div class="h3">Place</div>
+              <p class="sub">East Cesar Chavez Cottage · worker access via timed code</p>
+            </div>
+            <div class="card mb-12">
+              <div class="h3">Scope</div>
+              <p class="sub">Kitchen, baths, floors · linens not included · pets: none noted</p>
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-secondary" onclick="go('service-inquiry')">Message</button>
+              <button class="btn btn-ghost" onclick="toast('Reschedule flow (prototype)')">Reschedule</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== MAP ========== -->
+        <section class="screen" data-screen="map" data-nav="map">
+          <div class="pad-lg">
+            <h1 class="h1">Map</h1>
+            <p class="sub mb-8">Only geometry you’re permitted to receive.</p>
+            <div class="layer-chips">
+              <button class="layer-chip on" data-layer="dest" onclick="toggleLayer(this)">Destinations</button>
+              <button class="layer-chip on" data-layer="biz" onclick="toggleLayer(this)">Businesses</button>
+              <button class="layer-chip on" data-layer="evt" onclick="toggleLayer(this)">Events</button>
+            </div>
+            <div class="map-canvas" style="height:380px">
+              <svg class="map-city" viewBox="0 0 300 280" xmlns="http://www.w3.org/2000/svg">
+                <path d="M40,80 Q80,40 140,55 T220,70 Q260,100 250,160 T180,220 Q100,240 50,180 Z" fill="#9aab9a" opacity=".4"/>
+                <path d="M120,100 Q160,90 190,120 T210,180 Q170,200 130,170 Z" fill="#b8a090" opacity=".35"/>
+                <line x1="20" y1="140" x2="280" y2="130" stroke="#7a8a7a" stroke-width="2" opacity=".3"/>
+                <line x1="100" y1="40" x2="160" y2="250" stroke="#7a8a7a" stroke-width="1.5" opacity=".25"/>
+              </svg>
+              <div class="map-blob" data-map-layer="dest" style="top:26%;left:18%"><span>Stay area</span></div>
+              <div class="map-blob olive" data-map-layer="dest" style="top:48%;left:54%;width:72px;height:56px"><span>Home</span></div>
+              <div class="map-biz" data-map-layer="biz" style="top:35%;left:62%"></div>
+              <div class="map-biz" data-map-layer="biz" style="top:58%;left:30%"></div>
+              <div class="map-biz" data-map-layer="biz" style="top:42%;left:72%"></div>
+              <div class="map-event" data-map-layer="evt" style="top:22%;left:48%"></div>
+              <div class="map-event" data-map-layer="evt" style="top:68%;left:45%"></div>
+              <div class="map-note">Approximate public geometry. Exact pins only when authorized — stay areas remain neighborhood blobs until pre-arrival unlock.</div>
+            </div>
+            <div class="card mt-12">
+              <div class="h3">Legend</div>
+              <div class="stack gap-sm mt-8">
+                <div class="row"><span class="pill">Area blob</span><span class="muted">Destinations you may see</span></div>
+                <div class="row"><span class="pill olive">□</span><span class="muted">Businesses (labeled when zoomed)</span></div>
+                <div class="row"><span class="pill sky">●</span><span class="muted">Events with venue disclosure</span></div>
+              </div>
+            </div>
+            <div class="banner private mt-12">
+              <span>◎</span>
+              <span><strong>Permissioned map.</strong> Counts and markers never reveal private people you shouldn’t see.</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== PLACES ========== -->
+        <section class="screen" data-screen="places" data-nav="places">
+          <div class="pad-lg">
+            <h1 class="h1">Places</h1>
+            <p class="sub mb-16">Homes and properties you manage or belong to.</p>
+            <div class="home-hero" onclick="go('place-home')">
+              <div class="photo med cottage"><span class="photo-label">Eligible for Hosting</span></div>
+              <div class="body">
+                <div class="name">East Cesar Chavez Cottage</div>
+                <div class="addr">Your home · Austin, TX · fictional sample</div>
+                <div class="row mt-12 wrap" style="gap:6px">
+                  <span class="pill sage">Hosting on</span>
+                  <span class="pill ghost">Private cohort</span>
+                </div>
+              </div>
+            </div>
+            <div class="card mt-12" style="opacity:.72">
+              <div class="strong" style="font-size:14px">Lake Travis Weekender</div>
+              <p class="muted mt-8">Not eligible — needs place verification before Hosting.</p>
+            </div>
+            <div class="section-label">Saved destinations</div>
+            <div class="card">
+              <div class="between"><span class="strong" style="font-size:14px">Maya’s place · East Austin</span><span class="pill ghost">Shared</span></div>
+              <p class="muted mt-8">Approximate until she grants exact · expires Fri</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="place-home" data-nav="places">
+          <div class="topbar"><button class="back" onclick="go('places')">‹ Places</button><span></span><span></span></div>
+          <div class="pad">
+            <div class="photo tall cottage mb-12"><span class="photo-label">East Cesar Chavez Cottage</span></div>
+            <h1 class="h1" style="font-size:22px">East Cesar Chavez Cottage</h1>
+            <p class="sub mb-12">Your home on Domicile. Guests are visitors — not household members, tenants, or residents.</p>
+            <div class="stat-row mb-16">
+              <div class="stat"><div class="n">2</div><div class="l">Household</div></div>
+              <div class="stat"><div class="n">$1.2k</div><div class="l">Sep spend</div></div>
+              <div class="stat"><div class="n">On</div><div class="l">Hosting</div></div>
+            </div>
+            <div class="card tap mb-10" onclick="go('host-dashboard')">
+              <div class="between">
+                <div>
+                  <div class="h3" style="margin:0">Hosting</div>
+                  <p class="sub mt-8">Listings, calendar, reservations, earnings</p>
+                </div>
+                <span style="color:var(--muted)">›</span>
+              </div>
+            </div>
+            <div class="profile-grid mb-12">
+              <div class="profile-tile" onclick="go('place-household')"><div class="pt-ico">👥</div><div class="pt-name">Household</div><div class="pt-sub">People &amp; roles</div></div>
+              <div class="profile-tile" onclick="go('place-facts')"><div class="pt-ico">📋</div><div class="pt-name">Facts &amp; assets</div><div class="pt-sub">Specs, docs</div></div>
+              <div class="profile-tile" onclick="go('place-spending')"><div class="pt-ico">◈</div><div class="pt-name">Spending</div><div class="pt-sub">Home snapshot</div></div>
+              <div class="profile-tile" onclick="go('place-bills')"><div class="pt-ico">◎</div><div class="pt-name">Bills</div><div class="pt-sub">Due &amp; history</div></div>
+              <div class="profile-tile" onclick="go('place-community')"><div class="pt-ico">⌂</div><div class="pt-name">Community</div><div class="pt-sub">HOA &amp; balance</div></div>
+              <div class="profile-tile" onclick="go('place-maintenance')"><div class="pt-ico">✦</div><div class="pt-name">Maintenance</div><div class="pt-sub">History &amp; tasks</div></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="place-household" data-nav="places">
+          <div class="topbar"><button class="back" onclick="go('place-home')">‹ Home</button><span class="title">Household</span><span></span></div>
+          <div class="pad">
+            <p class="sub mb-16">People who live here — separate from Stays guests.</p>
+            <div class="card mb-8">
+              <div class="row gap-md">
+                <div class="avatar">AL</div>
+                <div><div class="strong">AL · You</div><div class="muted">Owner · primary</div></div>
+              </div>
+            </div>
+            <div class="card mb-8">
+              <div class="row gap-md">
+                <div class="avatar sm" style="background:linear-gradient(135deg,#a88,#689)">JR</div>
+                <div><div class="strong">Jordan R.</div><div class="muted">Household member · shared access</div></div>
+              </div>
+            </div>
+            <div class="banner gated mt-12"><span>⬚</span><span>Stays guests never appear here. Hosting guests stay under Hosting → Reservations.</span></div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="place-facts" data-nav="places">
+          <div class="topbar"><button class="back" onclick="go('place-home')">‹ Home</button><span class="title">Facts &amp; assets</span><span></span></div>
+          <div class="pad">
+            <div class="card mb-12">
+              <div class="quote-line"><span>Beds / baths</span><span class="strong">2 / 1</span></div>
+              <div class="quote-line"><span>Sq ft (approx)</span><span>980</span></div>
+              <div class="quote-line"><span>Year</span><span>1948 · renovated 2019</span></div>
+              <div class="quote-line"><span>Utilities</span><span>Electric · gas · city water</span></div>
+            </div>
+            <div class="section-label" style="margin-top:0">Assets</div>
+            <div class="card mb-8"><div class="between"><span>Washer / dryer</span><span class="muted">Serial on file</span></div></div>
+            <div class="card mb-8"><div class="between"><span>HVAC · Carrier</span><span class="muted">Filter due Oct</span></div></div>
+            <div class="card"><div class="between"><span>Water heater</span><span class="muted">Installed 2021</span></div></div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="place-spending" data-nav="places">
+          <div class="topbar"><button class="back" onclick="go('place-home')">‹ Home</button><span class="title">Spending</span><span></span></div>
+          <div class="pad">
+            <p class="sub mb-12">September snapshot for this home. Full Ledger under You.</p>
+            <div class="stat-row mb-16">
+              <div class="stat"><div class="n">$1,248</div><div class="l">This month</div></div>
+              <div class="stat"><div class="n">$412</div><div class="l">Services</div></div>
+              <div class="stat"><div class="n">$285</div><div class="l">HOA</div></div>
+            </div>
+            <div class="card tap" onclick="go('ledger')">
+              <div class="between"><span class="strong">Open Domicile Ledger</span><span>›</span></div>
+              <p class="muted mt-8">Source-attributed spend across stays, services, community</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="place-bills" data-nav="places">
+          <div class="topbar"><button class="back" onclick="go('place-home')">‹ Home</button><span class="title">Bills</span><span></span></div>
+          <div class="pad">
+            <div class="section-label" style="margin-top:0">Due soon</div>
+            <div class="card mb-8">
+              <div class="between"><div><div class="strong">Electric · Austin Energy</div><div class="muted">Period Aug 15–Sep 14</div></div><span class="strong">$94.20</span></div>
+              <p class="muted mt-8">Due Sep 28 · pay in provider portal</p>
+            </div>
+            <div class="card mb-8 tap" onclick="go('place-community')">
+              <div class="between"><div><div class="strong">HOA · Holly Grove</div><div class="muted">September assessment</div></div><span class="strong">$285.00</span></div>
+              <p class="muted mt-8">Due Oct 1 · view community balance</p>
+            </div>
+            <div class="section-label">Scheduled</div>
+            <div class="card"><p class="sub">Internet auto-pay · 1st of month · reminder only</p></div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="place-community" data-nav="places">
+          <div class="topbar"><button class="back" onclick="go('place-home')">‹ Home</button><span class="title">Community</span><span></span></div>
+          <div class="pad">
+            <h2 class="h2">Holly Grove Association</h2>
+            <p class="sub mb-16">Read-only balance card · fictional Austin HOA</p>
+            <div class="card mb-12" style="background:linear-gradient(145deg,#fff,#eef3e8)">
+              <div class="muted mb-4">Current balance</div>
+              <div style="font-size:32px;font-weight:750;letter-spacing:-.03em">$285.00</div>
+              <p class="sub mt-8">Due Oct 1 · Assessment · Sep 2026</p>
+              <div class="progress-bar"><span style="width:0%"></span></div>
+              <p class="muted mt-8">Status: Open · last sync yesterday</p>
+            </div>
+            <div class="card mb-8">
+              <div class="h3">Notices</div>
+              <p class="sub">Pool hours extended through October · no board vote required</p>
+            </div>
+            <div class="card">
+              <div class="h3">Amenities</div>
+              <p class="sub">Pool · shared garden · mail room. Reserve in community portal (read-only here).</p>
+            </div>
+            <div class="banner gated mt-12"><span>⬚</span><span>Payment stays with association systems. Domicile surfaces balance &amp; due dates you’re authorized to see.</span></div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="place-maintenance" data-nav="places">
+          <div class="topbar"><button class="back" onclick="go('place-home')">‹ Home</button><span class="title">Maintenance</span><span></span></div>
+          <div class="pad">
+            <div class="section-label" style="margin-top:0">Open</div>
+            <div class="card mb-8">
+              <div class="between"><span class="pill warn">Due Oct</span><span class="muted">HVAC filter</span></div>
+              <p class="sub mt-8">Replace 16×25×1 filter · last done Jul</p>
+            </div>
+            <div class="section-label">Recent</div>
+            <div class="card mb-8"><div class="between"><span class="strong">Gutter clean</span><span class="muted">Aug 12</span></div></div>
+            <div class="card"><div class="between"><span class="strong">Dishwasher seal</span><span class="muted">Jun 3</span></div></div>
+          </div>
+        </section>
+
+        <!-- ========== EXPLORE ========== -->
+        <section class="screen" data-screen="explore" data-nav="explore">
+          <div class="pad-lg">
+            <h1 class="h1">Explore</h1>
+            <p class="sub mb-16">Discover what’s open to you — services, stays, events, and more.</p>
+            <div class="hub-grid">
+              <div class="hub-tile featured" onclick="go('stays-search')">
+                <div>
+                  <div class="tile-ico">⌂</div>
+                  <div class="tile-name">Stays</div>
+                  <div class="tile-desc">Private hosted stays in places you’re invited to — short visits, not residency.</div>
+                </div>
+                <span class="pill sage" style="align-self:flex-start;margin-top:10px">Private cohort</span>
+              </div>
+              <div class="hub-tile" onclick="go('services-list')">
+                <div class="tile-ico">✦</div>
+                <div class="tile-name">Services</div>
+                <div class="tile-desc">Home care nearby</div>
+              </div>
+              <div class="hub-tile" onclick="go('events-list')">
+                <div class="tile-ico">◎</div>
+                <div class="tile-name">Events</div>
+                <div class="tile-desc">With venue context</div>
+              </div>
+              <div class="hub-tile" onclick="go('packages-list')">
+                <div class="tile-ico">▣</div>
+                <div class="tile-name">Packages</div>
+                <div class="tile-desc">Home plans &amp; bundles</div>
+              </div>
+              <div class="hub-tile" onclick="go('sponsored-list')">
+                <div class="tile-ico">◇</div>
+                <div class="tile-name">Sponsored</div>
+                <div class="tile-desc">Partner picks · Ad labeled</div>
+              </div>
+            </div>
+            <div class="banner gated mt-16">
+              <span>⬚</span>
+              <span><strong>Public discovery — gated.</strong> Open marketplace search activates after private cohort. You’re browsing invite-approved inventory.</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Services -->
+        <section class="screen" data-screen="services-list" data-nav="explore">
+          <div class="topbar"><button class="back" onclick="go('explore')">‹ Explore</button><span class="title">Services</span><span></span></div>
+          <div class="pad">
+            <p class="sub mb-12">Discover cleaners and home care near your places.</p>
+            <div class="listing-card" onclick="go('service-detail')">
+              <div class="photo sm service"></div>
+              <div class="meta">
+                <div class="name">Cedar &amp; Stone Clean Co.</div>
+                <div class="loc">East Austin · 4.9 · responds same day</div>
+                <div class="chips mb-8"><span class="chip">Deep clean</span><span class="chip">Turnover</span></div>
+                <div class="price">From $145 <span>· visit</span></div>
+              </div>
+            </div>
+            <div class="listing-card mt-10" onclick="toast('Demo focuses on Cedar & Stone — open that listing')">
+              <div class="photo sm" style="background:linear-gradient(140deg,#c8b8a8,#6a7a68)"></div>
+              <div class="meta">
+                <div class="name">Bluebonnet Lawn Care</div>
+                <div class="loc">Travis County · seasonal</div>
+                <div class="price">From $65 <span>· visit</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="service-detail" data-nav="explore">
+          <div class="topbar"><button class="back" onclick="go('services-list')">‹ Services</button><span class="title">Service</span><span></span></div>
+          <div class="pad">
+            <div class="photo med service mb-12"><span class="photo-label">Cedar &amp; Stone</span></div>
+            <h1 class="h1" style="font-size:22px">Cedar &amp; Stone Clean Co.</h1>
+            <p class="sub mb-12">Residential cleaning · East Austin &amp; nearby · bonded &amp; insured (disclosed)</p>
+            <div class="chips mb-12"><span class="chip">Deep clean</span><span class="chip">Recurring</span><span class="chip">Turnover</span><span class="chip">Eco products</span></div>
+            <div class="card mb-12">
+              <div class="h3">About</div>
+              <p class="sub">Small team that knows cottage layouts. Quiet during work hours. Access via your place permissions — never shared publicly.</p>
+            </div>
+            <div class="card mb-16">
+              <div class="quote-line"><span>Standard deep clean</span><span class="strong">$145–190</span></div>
+              <div class="quote-line"><span>Turnover (Stays)</span><span>$95–120</span></div>
+            </div>
+            <button class="btn btn-primary" onclick="go('service-inquiry')">Send private inquiry</button>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="service-inquiry" data-nav="explore">
+          <div class="topbar"><button class="back" onclick="go('service-detail')">‹ Service</button><span class="title">Inquiry</span><span></span></div>
+          <div class="pad">
+            <p class="sub mb-12">Private message to Cedar &amp; Stone — not a public review or marketplace post.</p>
+            <div class="field mb-8"><label>Place</label><select><option>East Cesar Chavez Cottage</option></select></div>
+            <div class="field mb-8"><label>Preferred window</label><input value="Thu Sep 25 · morning" /></div>
+            <div class="field mb-16"><label>Notes</label><textarea>Deep clean before next host arrival. Pets: none. Lockbox OK.</textarea></div>
+            <button class="btn btn-primary" onclick="sendInquiry()">Send inquiry</button>
+          </div>
+        </section>
+
+        <!-- Events -->
+        <section class="screen" data-screen="events-list" data-nav="explore">
+          <div class="topbar"><button class="back" onclick="go('explore')">‹ Explore</button><span class="title">Events</span><span></span></div>
+          <div class="pad">
+            <div class="listing-card" onclick="go('event-detail')">
+              <div class="photo sm event"></div>
+              <div class="meta">
+                <div class="name">East Side Porch Social</div>
+                <div class="loc">Sat Oct 4 · 5–8 PM · neighborhood venue</div>
+                <div class="chips"><span class="chip">Open RSVP</span><span class="chip">~40 capacity</span></div>
+              </div>
+            </div>
+            <div class="card mt-12" style="opacity:.75">
+              <div class="strong" style="font-size:14px">Holly Grove board mixer</div>
+              <p class="muted mt-8">Members only · you’re eligible via community</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="event-detail" data-nav="explore">
+          <div class="topbar"><button class="back" onclick="go('events-list')">‹ Events</button><span class="title">Event</span><span></span></div>
+          <div class="pad">
+            <div class="photo med event mb-12"><span class="photo-label">Oct 4</span></div>
+            <h1 class="h1" style="font-size:22px">East Side Porch Social</h1>
+            <p class="sub mb-12">Saturday, Oct 4 · 5:00–8:00 PM CT · organized by Mira R.</p>
+            <div class="card mb-12">
+              <div class="h3">Venue</div>
+              <p class="sub">Neighborhood porch / garden — approximate area until you RSVP and organizer discloses exact address.</p>
+            </div>
+            <div class="map-canvas mb-12" style="height:140px">
+              <div class="map-blob sky" style="top:30%;left:35%"><span>Venue area</span></div>
+              <div class="map-note">Organizer controls venue precision. Being able to see a friend’s home does not authorize a public event there.</div>
+            </div>
+            <div class="card mb-16">
+              <div class="h3">Attendance</div>
+              <p class="sub">Interest list visible to organizer · capacity ~40 · no ticket fee</p>
+            </div>
+            <button class="btn btn-primary" id="rsvp-btn" onclick="rsvpEvent()">RSVP interest</button>
+          </div>
+        </section>
+
+        <!-- Packages -->
+        <section class="screen" data-screen="packages-list" data-nav="explore">
+          <div class="topbar"><button class="back" onclick="go('explore')">‹ Explore</button><span class="title">Packages</span><span></span></div>
+          <div class="pad">
+            <p class="sub mb-12">Home packages from partners — optional, disclosed.</p>
+            <div class="card tap mb-10" onclick="go('package-detail')">
+              <div class="row gap-md">
+                <div class="photo sm pkg"></div>
+                <div>
+                  <div class="strong">Seasonal home care bundle</div>
+                  <div class="muted">Filter + gutter + HVAC check</div>
+                  <div class="price mt-8" style="font-size:13px;font-weight:700">$289 <span class="muted" style="font-weight:450">· one-time</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="card tap" onclick="toast('Demo opens Seasonal home care bundle')">
+              <div class="row gap-md">
+                <div class="photo sm" style="background:linear-gradient(135deg,#d8c8b0,#7a8a70)"></div>
+                <div>
+                  <div class="strong">Smart monitor starter</div>
+                  <div class="muted">Leak + temp sensors · install visit</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="package-detail" data-nav="explore">
+          <div class="topbar"><button class="back" onclick="go('packages-list')">‹ Packages</button><span class="title">Package</span><span></span></div>
+          <div class="pad">
+            <div class="photo med pkg mb-12"><span class="photo-label">Seasonal care</span></div>
+            <h1 class="h1" style="font-size:22px">Seasonal home care bundle</h1>
+            <p class="sub mb-12">Filter change, gutter clean, and HVAC visual check — scheduled as one visit window.</p>
+            <div class="card mb-12">
+              <div class="quote-line"><span>Package price</span><span class="strong">$289</span></div>
+              <div class="quote-line"><span>Partner</span><span>Hill Country Home Care</span></div>
+              <div class="quote-line sub"><span>Optional referral fee</span><span>Disclosed at checkout</span></div>
+            </div>
+            <div class="banner info mb-16"><span>ℹ</span><span>Buying a package does not change insurance or silently cancel other coverage.</span></div>
+            <button class="btn btn-primary" onclick="toast('Package hold started (prototype)')">Continue</button>
+          </div>
+        </section>
+
+        <!-- Sponsored -->
+        <section class="screen" data-screen="sponsored-list" data-nav="explore">
+          <div class="topbar"><button class="back" onclick="go('explore')">‹ Explore</button><span class="title">Sponsored</span><span></span></div>
+          <div class="pad">
+            <div class="banner gated mb-12"><span>Ad</span><span><strong>Sponsored results</strong> are labeled before you interact. They are not organic rankings.</span></div>
+            <div class="card tap mb-10" onclick="go('sponsored-detail')">
+              <div class="between mb-8"><span class="pill ad">Ad</span><span class="muted">Partner</span></div>
+              <div class="row gap-md">
+                <div class="photo sm ad"></div>
+                <div>
+                  <div class="strong">Riverbend Insurance · home policy refresh</div>
+                  <div class="muted">Compare coverage for East Austin cottages</div>
+                </div>
+              </div>
+            </div>
+            <div class="card" style="opacity:.8">
+              <div class="between mb-8"><span class="pill ad">Ad</span></div>
+              <div class="strong" style="font-size:14px">Solar estimate · Austin roofs</div>
+              <p class="muted mt-8">Tap would open labeled partner flow</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="sponsored-detail" data-nav="explore">
+          <div class="topbar"><button class="back" onclick="go('sponsored-list')">‹ Sponsored</button><span class="title">Partner offer</span><span></span></div>
+          <div class="pad">
+            <span class="pill ad mb-8">Ad · Sponsored</span>
+            <h1 class="h1" style="font-size:22px">Riverbend Insurance</h1>
+            <p class="sub mb-16">Home policy refresh for cottages like yours. This placement is paid — not an organic Domicile recommendation.</p>
+            <div class="card mb-16">
+              <div class="h3">What happens next</div>
+              <p class="sub">You’ll leave Domicile’s ranked Explore and enter a partner intake. No silent coverage change from this screen alone.</p>
+            </div>
+            <button class="btn btn-primary" onclick="toast('Would open partner flow (prototype)')">Continue to partner</button>
+            <button class="btn btn-ghost mt-8" style="width:100%" onclick="go('sponsored-list')">Not now</button>
+          </div>
+        </section>
+
+        <!-- ========== STAYS (guest) ========== -->
+        <section class="screen" data-screen="stays-search" data-nav="explore">
+          <div class="topbar">
+            <button class="back" onclick="go('explore')">‹ Explore</button>
+            <span class="title">Stays</span>
+            <button class="icon-btn" onclick="go('trips')" title="Trips">☰</button>
+          </div>
+          <div class="pad">
+            <div class="banner private mb-12">
+              <span>◎</span>
+              <span><strong>Private Hosted Stays cohort</strong> — invite-only / approved guests.</span>
+            </div>
+            <div class="stack gap-sm mb-12">
+              <div class="field"><label>Where</label><input value="Austin, TX" readonly /></div>
+              <div class="field-row">
+                <div class="field"><label>Check-in</label><input type="date" value="2026-09-23" id="ci-date" /></div>
+                <div class="field"><label>Check-out</label><input type="date" value="2026-09-26" id="co-date" /></div>
+              </div>
+              <div class="field">
+                <label>Guests</label>
+                <select id="guest-count">
+                  <option>1 guest</option>
+                  <option selected>2 guests</option>
+                  <option>3 guests</option>
+                  <option>4 guests</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" onclick="go('stays-results')">Search stays</button>
+            </div>
+            <p class="muted text-center">Nightly inventory · host policy · timed access</p>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="stays-results" data-nav="explore">
+          <div class="topbar">
+            <button class="back" onclick="go('stays-search')">‹ Search</button>
+            <span class="title">Austin · Sep 23–26</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <div class="toggle-bar">
+              <button class="on" id="tog-list" onclick="toggleResults('list')">List</button>
+              <button id="tog-map" onclick="toggleResults('map')">Map</button>
+            </div>
+            <div id="results-list">
+              <p class="muted mb-12">3 stays open to your invitations · 3 nights</p>
+              <div class="stack gap-md">
+                <div class="listing-card" onclick="go('listing-detail')">
+                  <div class="photo sm loft"></div>
+                  <div class="meta">
+                    <div class="between"><div class="name">Oak &amp; Waller Loft</div><span class="pill">Instant book</span></div>
+                    <div class="loc">East Austin · area only until confirmed</div>
+                    <div class="chips mb-8"><span class="chip">Wifi</span><span class="chip">Workspace</span></div>
+                    <div class="price">$148 <span>/ night</span></div>
+                  </div>
+                </div>
+                <div class="listing-card" onclick="toast('Demo focuses on Oak & Waller Loft — tap that listing')">
+                  <div class="photo sm bungalow"></div>
+                  <div class="meta">
+                    <div class="between"><div class="name">Holly St Bungalow</div><span class="pill warn">Request</span></div>
+                    <div class="loc">Holly neighborhood · approx.</div>
+                    <div class="price">$165 <span>/ night</span></div>
+                  </div>
+                </div>
+                <div class="listing-card" onclick="toast('Demo focuses on Oak & Waller Loft — tap that listing')">
+                  <div class="photo sm casita"></div>
+                  <div class="meta">
+                    <div class="between"><div class="name">Govalle Casita</div><span class="pill">Instant book</span></div>
+                    <div class="loc">Govalle · approx. area</div>
+                    <div class="price">$129 <span>/ night</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="results-map" class="hide">
+              <div class="map-canvas" style="height:360px">
+                <div class="map-blob" style="top:22%;left:18%"><span>Loft</span></div>
+                <div class="map-blob" style="top:45%;left:48%;width:72px;height:58px"><span>Bungalow</span></div>
+                <div class="map-blob olive" style="top:58%;left:28%;width:64px;height:50px"><span>Casita</span></div>
+                <div class="map-note">Approximate stay areas — not street pins. Exact address after confirmed guest + pre-arrival.</div>
+              </div>
+              <button class="btn btn-secondary mt-12" onclick="go('listing-detail')">Open Oak &amp; Waller Loft</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="listing-detail" data-nav="explore">
+          <div class="topbar">
+            <button class="back" onclick="go('stays-results')">‹ Results</button>
+            <span class="title">Listing</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <div class="photo tall loft mb-12">
+              <span class="photo-label">1 / 5 · Living loft</span>
+              <div class="photo-dots"><span class="on"></span><span></span><span></span><span></span><span></span></div>
+            </div>
+            <div class="between mb-8">
+              <h1 class="h1" style="font-size:22px;margin:0">Oak &amp; Waller Loft</h1>
+              <span class="pill">Instant book</span>
+            </div>
+            <p class="sub mb-8">Entire loft · East Austin · up to 3 guests · 1 bedroom</p>
+            <p class="muted mb-12">You are a guest for a short stay — not a household member, tenant, or resident.</p>
+            <div class="row mb-16">
+              <div class="avatar">MR</div>
+              <div>
+                <div class="strong" style="font-size:14px">Hosted by Mira R.</div>
+                <div class="muted">Responds within a few hours · careful house guide</div>
+              </div>
+            </div>
+            <div class="section-label" style="margin-top:0">About this stay</div>
+            <p class="sub mb-12">Light-filled loft near Waller Creek. Quiet evenings preferred. Self check-in with timed access code after you’re confirmed.</p>
+            <div class="section-label">Amenities</div>
+            <div class="chips mb-12">
+              <span class="chip">Wifi</span><span class="chip">Kitchen</span><span class="chip">Washer</span>
+              <span class="chip">Workspace</span><span class="chip">AC</span><span class="chip">Street parking</span>
+            </div>
+            <div class="section-label">House rules</div>
+            <div class="card mb-12"><p class="sub">No parties · Quiet after 10 PM · No smoking · Max 3 guests · Shoes off indoors</p></div>
+            <div class="section-label">Safety</div>
+            <div class="card mb-12"><p class="sub">Smoke &amp; CO alarms · Fire extinguisher · First-aid kit · Exterior cameras on entry only (disclosed)</p></div>
+            <div class="section-label">Location</div>
+            <div class="map-canvas mb-8" style="height:160px">
+              <div class="map-blob" style="top:30%;left:35%"><span>Area</span></div>
+              <div class="map-note">Approximate neighborhood — exact address unlocks for confirmed guests before arrival.</div>
+            </div>
+            <div class="section-label">Cancellation</div>
+            <p class="sub mb-16">Flexible · Full refund if canceled 5+ days before check-in. Deposit held until checkout inspection.</p>
+            <div class="sticky-cta">
+              <div class="between mb-8">
+                <div><span class="strong">$148</span> <span class="muted">/ night</span></div>
+                <span class="muted">Sep 23–26 · 3 nights</span>
+              </div>
+              <button class="btn btn-primary" onclick="go('checkout')">Continue to book</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="checkout" data-nav="explore">
+          <div class="topbar">
+            <button class="back" onclick="go('listing-detail')">‹ Listing</button>
+            <span class="title">Checkout</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <div class="card mb-12">
+              <div class="row gap-md">
+                <div class="photo sm loft"></div>
+                <div>
+                  <div class="strong">Oak &amp; Waller Loft</div>
+                  <div class="muted">Sep 23–26 · 2 guests · 3 nights</div>
+                  <span class="pill mt-8">Host policy: Instant book</span>
+                </div>
+              </div>
+            </div>
+            <div class="section-label" style="margin-top:4px">Quote breakdown</div>
+            <div class="card mb-12">
+              <div class="quote-line"><span>$148 × 3 nights</span><span>$444.00</span></div>
+              <div class="quote-line"><span>Cleaning fee</span><span>$65.00</span></div>
+              <div class="quote-line"><span>Service fee</span><span>$48.00</span></div>
+              <div class="quote-line"><span>Taxes (Austin / Travis)</span><span>$72.14</span></div>
+              <div class="quote-line sub"><span>Refundable security deposit</span><span>$200.00</span></div>
+              <div class="quote-line total"><span>Due now</span><span>$629.14</span></div>
+              <p class="muted mt-8">Deposit authorized separately; released after checkout if no issues.</p>
+            </div>
+            <div class="section-label">Cancellation policy</div>
+            <div class="card mb-12">
+              <p class="sub"><strong>Flexible.</strong> Full refund of stay + fees if canceled at least 5 days before check-in.</p>
+            </div>
+            <div class="section-label">Guest acknowledgment</div>
+            <div class="card mb-16">
+              <p class="sub">I understand I’m booking a short stay as a guest — not joining the household, becoming a tenant, or establishing residency.</p>
+            </div>
+            <div class="btn-row mb-8">
+              <button class="btn btn-primary" onclick="confirmBook('instant')">Instant book</button>
+            </div>
+            <button class="btn btn-secondary" onclick="confirmBook('request')">Request to book instead</button>
+            <p class="muted text-center mt-12">This host allows Instant book. Other listings may require approval.</p>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="confirmation" data-nav="explore">
+          <div class="pad-lg" style="padding-top:24px">
+            <div class="text-center mb-16">
+              <div style="font-size:42px;margin-bottom:8px;color:var(--ok)">✓</div>
+              <h1 class="h1" id="confirm-title">You’re booked</h1>
+              <p class="sub" id="confirm-sub">Reservation confirmed · Oak &amp; Waller Loft</p>
+            </div>
+            <div class="card mb-12">
+              <div class="timeline">
+                <div class="tl-item done"><div class="tl-dot"></div><div><div class="tl-label">Requested</div><div class="tl-sub">Just now</div></div></div>
+                <div class="tl-item done" id="tl-held"><div class="tl-dot"></div><div><div class="tl-label">Held</div><div class="tl-sub">Inventory reserved</div></div></div>
+                <div class="tl-item now" id="tl-confirmed"><div class="tl-dot"></div><div><div class="tl-label" id="tl-confirmed-label">Confirmed</div><div class="tl-sub" id="tl-confirmed-sub">Instant book · payment authorized</div></div></div>
+                <div class="tl-item"><div class="tl-dot"></div><div><div class="tl-label">Check-in eligible</div><div class="tl-sub">Opens Sep 23 · timed access</div></div></div>
+                <div class="tl-item"><div class="tl-dot"></div><div><div class="tl-label">Active → checked out → completed</div><div class="tl-sub">During stay &amp; after</div></div></div>
+              </div>
+            </div>
+            <div class="banner lock mb-16">
+              <span>🔒</span>
+              <span>Exact address &amp; door instructions unlock <strong>24 hours before check-in</strong> (host setting).</span>
+            </div>
+            <button class="btn btn-primary" onclick="go('trips')">View in Trips</button>
+          </div>
+        </section>
+
+        <!-- ========== TRIPS ========== -->
+        <section class="screen" data-screen="trips" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('you')">‹ You</button>
+            <span class="title">Trips</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <div class="seg-tabs mb-12">
+              <button class="on">Upcoming</button>
+              <button onclick="go('trip-completed')">Past</button>
+            </div>
+            <div class="card tap" onclick="go('trip-prearrival')">
+              <div class="between mb-8">
+                <span class="pill ok" id="trip-status-pill">Confirmed</span>
+                <span class="muted">Sep 23–26</span>
+              </div>
+              <div class="row gap-md">
+                <div class="photo sm loft"></div>
+                <div>
+                  <div class="strong">Oak &amp; Waller Loft</div>
+                  <div class="muted">East Austin · 2 guests</div>
+                  <div class="sub mt-8" style="font-size:12px">Address locked until pre-arrival window</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="trip-prearrival" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('trips')">‹ Trips</button>
+            <span class="title">Trip</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <div class="between mb-8">
+              <span class="pill ok">Confirmed</span>
+              <span class="muted">Check-in Sep 23 · 3:00 PM</span>
+            </div>
+            <h1 class="h1" style="font-size:22px">Oak &amp; Waller Loft</h1>
+            <p class="sub mb-12">Hosted by Mira R. · Sep 23–26 · 2 guests</p>
+
+            <div class="card mb-12" id="countdown-card">
+              <div class="h3">Pre-arrival lock</div>
+              <p class="sub mt-8">Exact address, house guide, and access code unlock <strong>24 hours before check-in</strong>.</p>
+              <div class="progress-bar"><span style="width:72%"></span></div>
+              <p class="muted mt-8">~18 hours remaining · host setting</p>
+              <button class="btn btn-secondary btn-sm mt-12" style="width:auto" onclick="simulateUnlock()">Demo: simulate unlock now</button>
+            </div>
+
+            <div id="locked-address">
+              <div class="section-label" style="margin-top:4px">Address &amp; access</div>
+              <div class="lock-overlay mb-12">
+                <div class="veil">🔒 Locked until pre-arrival window</div>
+                <div class="card locked-block">
+                  <p class="strong">1247 Waller Creek Ln, Unit B</p>
+                  <p class="sub">Austin, TX · door code 48291#</p>
+                </div>
+              </div>
+            </div>
+
+            <div id="unlocked-address" class="hide">
+              <div class="section-label" style="margin-top:4px">Address</div>
+              <div class="card mb-12">
+                <p class="strong">1247 Waller Creek Ln, Unit B</p>
+                <p class="sub">East Austin · fictional sample address</p>
+              </div>
+              <div class="section-label">House guide</div>
+              <div class="card mb-12">
+                <p class="sub">Wifi: OakWaller_Guest · Parking: street east side · Trash: blue bin Thu · Quiet after 10.</p>
+              </div>
+              <div class="section-label">Access code</div>
+              <div class="code-reveal mb-12">48291#</div>
+              <p class="muted text-center mb-12">Code active from 2:00 PM check-in day · changes after checkout</p>
+            </div>
+
+            <div class="btn-row mb-8">
+              <button class="btn btn-secondary" onclick="go('trip-messaging')">Message host</button>
+              <button class="btn btn-primary" onclick="go('trip-active')">I’m here · check in</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="trip-messaging" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('trip-prearrival')">‹ Trip</button>
+            <span class="title">Mira R.</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <div id="msg-thread" style="min-height:280px;padding-bottom:12px">
+              <div class="msg host">Welcome! Address unlocks tomorrow afternoon. Text if you need anything.<div class="when">Yesterday</div></div>
+              <div class="msg guest">Thanks — looking forward to it.<div class="when">Yesterday</div></div>
+              <div class="msg host">Street parking is easier on the east side after 6.<div class="when">10:12 AM</div></div>
+            </div>
+            <div class="row gap-sm" style="position:sticky;bottom:calc(var(--nav-h) + 8px);background:var(--bg);padding:8px 0">
+              <div class="field flex-1" style="padding:8px 12px"><input id="msg-input" placeholder="Message Mira…" /></div>
+              <button class="btn btn-primary btn-sm" style="width:auto;padding:0 16px" onclick="sendMsg()">Send</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="trip-active" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('trips')">‹ Trips</button>
+            <span class="title">Active stay</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <span class="pill ok mb-8">Checked in</span>
+            <h1 class="h1" style="font-size:22px">Oak &amp; Waller Loft</h1>
+            <p class="sub mb-16">Checkout by Sep 26 · 11:00 AM</p>
+            <div class="card mb-12">
+              <div class="h3">During your stay</div>
+              <p class="sub mt-8">You’re a guest — enjoy the loft, follow house rules, message Mira if anything’s off.</p>
+            </div>
+            <div class="card mb-12">
+              <div class="quote-line"><span>Wifi</span><span>OakWaller_Guest</span></div>
+              <div class="quote-line"><span>Access code</span><span class="strong">48291#</span></div>
+              <div class="quote-line"><span>Checkout</span><span>Sep 26 · 11:00 AM</span></div>
+            </div>
+            <button class="btn btn-secondary mb-8" onclick="go('trip-messaging')">Message host</button>
+            <button class="btn btn-primary" onclick="go('trip-checkout-flow')">Ready to check out</button>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="trip-checkout-flow" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('trip-active')">‹ Stay</button>
+            <span class="title">Checkout</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <h2 class="h2">Before you go</h2>
+            <p class="sub mb-12">Quick checklist from Mira’s house guide.</p>
+            <div class="card mb-16">
+              <div class="check-item"><div class="check-box on" onclick="toggleCheck(this)">✓</div><div>Dishes washed or in dishwasher</div></div>
+              <div class="check-item"><div class="check-box on" onclick="toggleCheck(this)">✓</div><div>Trash taken out</div></div>
+              <div class="check-item"><div class="check-box" onclick="toggleCheck(this)"></div><div>Lights off · thermostat 76°</div></div>
+              <div class="check-item"><div class="check-box" onclick="toggleCheck(this)"></div><div>Door locked · code will rotate</div></div>
+            </div>
+            <button class="btn btn-primary" onclick="go('trip-completed')">Complete checkout</button>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="trip-completed" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('trips')">‹ Trips</button>
+            <span class="title">Completed</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <div class="text-center mb-16">
+              <div style="font-size:36px;margin-bottom:6px">✓</div>
+              <h1 class="h1" style="font-size:22px">Stay complete</h1>
+              <p class="sub">Oak &amp; Waller Loft · Sep 23–26</p>
+            </div>
+            <div class="section-label" style="margin-top:0">Receipt</div>
+            <div class="card mb-12">
+              <div class="quote-line"><span>Stay + fees + tax</span><span>$629.14</span></div>
+              <div class="quote-line"><span>Security deposit</span><span>Released</span></div>
+              <div class="quote-line total"><span>Total charged</span><span>$629.14</span></div>
+            </div>
+            <div class="section-label">How was your stay?</div>
+            <div class="card mb-16">
+              <p class="sub mb-12">Rate Oak &amp; Waller Loft (optional).</p>
+              <div class="row" style="justify-content:center;gap:8px;font-size:28px;margin-bottom:12px">
+                <button onclick="this.parentNode.querySelectorAll('button').forEach((b,i)=>b.style.opacity=i<=0?'1':'.35')">☆</button>
+                <button onclick="this.parentNode.querySelectorAll('button').forEach((b,i)=>b.style.opacity=i<=1?'1':'.35')">☆</button>
+                <button onclick="this.parentNode.querySelectorAll('button').forEach((b,i)=>b.style.opacity=i<=2?'1':'.35')">☆</button>
+                <button onclick="this.parentNode.querySelectorAll('button').forEach((b,i)=>b.style.opacity=i<=3?'1':'.35')">☆</button>
+                <button onclick="this.parentNode.querySelectorAll('button').forEach((b,i)=>b.style.opacity=i<=4?'1':'.35')">☆</button>
+              </div>
+              <button class="btn btn-secondary" onclick="submitReview()">Submit review</button>
+            </div>
+            <button class="btn btn-ghost" style="width:100%" onclick="go('explore')">Back to Explore</button>
+          </div>
+        </section>
+
+        <!-- ========== YOU ========== -->
+        <section class="screen" data-screen="you" data-nav="you">
+          <div class="pad-lg">
+            <h1 class="h1">You</h1>
+            <div class="card mb-16">
+              <div class="row gap-md">
+                <div class="avatar lg">AL</div>
+                <div>
+                  <div class="strong" style="font-size:17px">AL</div>
+                  <div class="muted">@al · Austin</div>
+                  <div class="row mt-8 wrap" style="gap:6px">
+                    <span class="pill sage">Verified</span>
+                    <span class="pill ghost">Private cohort</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card mb-8">
+              <div class="you-row" onclick="go('trips')"><span>🧳</span><span class="y-label">Trips</span><span class="y-chev">›</span></div>
+              <div class="you-row" onclick="go('host-dashboard')"><span>⌂</span><span class="y-label">Hosting</span><span class="y-chev">›</span></div>
+              <div class="you-row" onclick="go('ledger')"><span>◈</span><span class="y-label">Ledger</span><span class="y-meta">Sep $1.8k</span><span class="y-chev">›</span></div>
+            </div>
+            <div class="card mb-8">
+              <div class="you-row" onclick="go('permissions')"><span>◎</span><span class="y-label">Permissions &amp; sharing</span><span class="y-chev">›</span></div>
+              <div class="you-row" onclick="go('connections')"><span>↔</span><span class="y-label">Connections</span><span class="y-chev">›</span></div>
+              <div class="you-row" onclick="go('move-planning')"><span>→</span><span class="y-label">Move planning</span><span class="y-chev">›</span></div>
+            </div>
+            <div class="card">
+              <div class="you-row" onclick="go('support')"><span>?</span><span class="y-label">Support</span><span class="y-chev">›</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="ledger" data-nav="you">
+          <div class="topbar"><button class="back" onclick="go('you')">‹ You</button><span class="title">Ledger</span><span></span></div>
+          <div class="pad">
+            <p class="sub mb-12">Source-attributed home &amp; stay spending. Planning snapshot only.</p>
+            <div class="stat-row mb-16">
+              <div class="stat"><div class="n">$1,842</div><div class="l">Sep total</div></div>
+              <div class="stat"><div class="n">12</div><div class="l">Lines</div></div>
+              <div class="stat"><div class="n">3</div><div class="l">Sources</div></div>
+            </div>
+            <div class="section-label" style="margin-top:0">Recent</div>
+            <div class="card">
+              <div class="spend-row">
+                <div class="spend-ico">⌂</div>
+                <div class="flex-1">
+                  <div class="between"><span class="strong" style="font-size:13px">Oak &amp; Waller Loft</span><span class="strong">$629.14</span></div>
+                  <div class="muted">Guest stay · Sep 23–26 · Instant book</div>
+                </div>
+              </div>
+              <div class="spend-row">
+                <div class="spend-ico svc">✦</div>
+                <div class="flex-1">
+                  <div class="between"><span class="strong" style="font-size:13px">Cedar &amp; Stone Clean</span><span class="strong">$165.00</span></div>
+                  <div class="muted">Service · deep clean · East Cesar Chavez</div>
+                </div>
+              </div>
+              <div class="spend-row">
+                <div class="spend-ico hoa">⌂</div>
+                <div class="flex-1">
+                  <div class="between"><span class="strong" style="font-size:13px">Holly Grove Association</span><span class="strong">$285.00</span></div>
+                  <div class="muted">HOA assessment · Sep 2026</div>
+                </div>
+              </div>
+              <div class="spend-row">
+                <div class="spend-ico" style="background:var(--warn-soft)">⚡</div>
+                <div class="flex-1">
+                  <div class="between"><span class="strong" style="font-size:13px">Austin Energy</span><span class="strong">$94.20</span></div>
+                  <div class="muted">Utility · reminder-linked</div>
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-ghost mt-12" style="width:100%" onclick="toast('Export CSV (prototype)')">Export statement</button>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="permissions" data-nav="you">
+          <div class="topbar"><button class="back" onclick="go('you')">‹ You</button><span class="title">Permissions</span><span></span></div>
+          <div class="pad">
+            <p class="sub mb-12">Who can find your appropriate current destination.</p>
+            <div class="card mb-8">
+              <div class="between"><div><div class="strong">Maya</div><div class="muted">Approximate area · expires Fri</div></div><span class="pill sage">Active</span></div>
+            </div>
+            <div class="card mb-8">
+              <div class="between"><div><div class="strong">Cedar Creek Courier</div><div class="muted">Delivery destination · task-scoped</div></div><span class="pill ghost">Task</span></div>
+            </div>
+            <div class="card">
+              <div class="between"><div><div class="strong">Public handle lookup</div><div class="muted">@al resolves to message only</div></div><span class="pill ghost">Off map</span></div>
+            </div>
+            <div class="banner private mt-12"><span>◎</span><span>Grants bind to people, not mutable handles. Expiry is required for peer sharing.</span></div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="connections" data-nav="you">
+          <div class="topbar"><button class="back" onclick="go('you')">‹ You</button><span class="title">Connections</span><span></span></div>
+          <div class="pad">
+            <div class="card mb-8"><div class="between"><span class="strong">Austin Energy</span><span class="muted">Utility</span></div><p class="muted mt-8">Linked for bill reminders</p></div>
+            <div class="card mb-8"><div class="between"><span class="strong">Holly Grove Association</span><span class="muted">Community</span></div><p class="muted mt-8">Balance read-back</p></div>
+            <div class="card mb-8"><div class="between"><span class="strong">Cedar &amp; Stone Clean</span><span class="muted">Service</span></div><p class="muted mt-8">Jobs &amp; inquiries</p></div>
+            <div class="card"><div class="between"><span class="strong">Riverbend Insurance</span><span class="muted">Partner</span></div><p class="muted mt-8">Policy observations only</p></div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="move-planning" data-nav="you">
+          <div class="topbar"><button class="back" onclick="go('you')">‹ You</button><span class="title">Move planning</span><span></span></div>
+          <div class="pad">
+            <h2 class="h2">Update once</h2>
+            <p class="sub mb-16">Choose who stays updated — then see which systems actually applied the change.</p>
+            <div class="field mb-8"><label>Future address (preview)</label><input value="North Loop bungalow · Austin (planned)" readonly /></div>
+            <div class="field mb-12"><label>Effective date</label><input type="date" value="2026-11-01" /></div>
+            <div class="section-label" style="margin-top:0">Preview recipients</div>
+            <div class="card mb-12">
+              <div class="recipient"><div class="r-check" onclick="toggleRecipient(this)">✓</div><div class="flex-1"><div class="strong" style="font-size:13px">Austin Energy</div><div class="muted">Service address update</div></div></div>
+              <div class="recipient"><div class="r-check" onclick="toggleRecipient(this)">✓</div><div class="flex-1"><div class="strong" style="font-size:13px">Holly Grove Association</div><div class="muted">Will leave · stop dues</div></div></div>
+              <div class="recipient"><div class="r-check" onclick="toggleRecipient(this)">✓</div><div class="flex-1"><div class="strong" style="font-size:13px">Riverbend Insurance</div><div class="muted">Eligibility check — no silent cancel</div></div></div>
+              <div class="recipient"><div class="r-check off" onclick="toggleRecipient(this)"></div><div class="flex-1"><div class="strong" style="font-size:13px">Maya (map share)</div><div class="muted">Keep sharing current home until move</div></div></div>
+            </div>
+            <div class="banner info mb-16"><span>ℹ</span><span><strong>Who stays updated:</strong> selected recipients get authorized update jobs. Unresolved outcomes stay visible — never assume success.</span></div>
+            <button class="btn btn-primary" onclick="toast('Move plan saved as draft (prototype)')">Save draft plan</button>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="support" data-nav="you">
+          <div class="topbar"><button class="back" onclick="go('you')">‹ You</button><span class="title">Support</span><span></span></div>
+          <div class="pad">
+            <div class="card mb-8 tap" onclick="toast('Help center (prototype)')"><div class="between"><span class="strong">Help center</span><span>›</span></div></div>
+            <div class="card mb-8 tap" onclick="toast('Message support (prototype)')"><div class="between"><span class="strong">Message Domicile</span><span>›</span></div></div>
+            <div class="card"><div class="h3">About this prototype</div><p class="sub mt-8">Planning edition 3.2 · fictional Austin sample · not production. No real payments, auth, or map tiles.</p></div>
+          </div>
+        </section>
+
+        <!-- ========== HOSTING ========== -->
+        <section class="screen" data-screen="host-dashboard" data-nav="places">
+          <div class="topbar">
+            <button class="back" onclick="go('place-home')">‹ Home</button>
+            <span class="title">Hosting</span>
+            <button class="icon-btn" onclick="go('host-invite')" title="Invite">＋</button>
+          </div>
+          <div class="pad">
+            <div class="banner private mb-12">
+              <span>◎</span>
+              <span><strong>Private cohort.</strong> Public discovery stays gated until release.</span>
+            </div>
+            <div class="stat-row mb-16">
+              <div class="stat"><div class="n">$2.4k</div><div class="l">Sep payout</div></div>
+              <div class="stat"><div class="n">4</div><div class="l">Nights</div></div>
+              <div class="stat"><div class="n">98%</div><div class="l">Occupancy</div></div>
+            </div>
+            <div class="section-label" style="margin-top:0">Needs attention</div>
+            <div class="card tap mb-8" onclick="go('host-reservation')">
+              <div class="between mb-8"><span class="pill warn">Turnover due</span><span class="muted">Today · 2:00 PM</span></div>
+              <div class="strong">After checkout · before Jordan (Sep 24)</div>
+              <p class="sub mt-8">Clean + restock linens · restock coffee</p>
+            </div>
+            <div class="section-label">Upcoming</div>
+            <div class="card tap mb-8" onclick="go('host-reservation')">
+              <div class="between mb-8"><span class="pill ok">Confirmed</span><span class="muted">Sep 24–27</span></div>
+              <div class="row gap-md">
+                <div class="avatar sm">JK</div>
+                <div><div class="strong">Jordan K. · 2 guests</div><div class="muted">East Cesar Chavez Cottage</div></div>
+              </div>
+            </div>
+            <div class="section-label">Manage</div>
+            <div class="stack gap-sm">
+              <div class="card tap" onclick="go('host-listing')"><div class="between"><span class="strong">Listing &amp; visibility</span><span>›</span></div></div>
+              <div class="card tap" onclick="go('host-calendar')"><div class="between"><span class="strong">Calendar &amp; rates</span><span>›</span></div></div>
+              <div class="card tap" onclick="go('host-invite')"><div class="between"><span class="strong">Invite a guest</span><span>›</span></div></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="host-listing" data-nav="places">
+          <div class="topbar">
+            <button class="back" onclick="go('host-dashboard')">‹ Hosting</button>
+            <span class="title">Listing</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <div class="photo med cottage mb-12"><span class="photo-label">Cottage listing</span></div>
+            <h2 class="h2">East Cesar Chavez Cottage</h2>
+            <p class="sub mb-16">Entire home · 2 bed · up to 4 guests · $175 / night base</p>
+            <div class="section-label" style="margin-top:0">Visibility</div>
+            <div class="vis-option selected" onclick="selectVis(this, true)">
+              <div class="v-title">Private · invite only</div>
+              <div class="v-desc">Guests need your invite link or approval. Active in Private Hosted Stays cohort.</div>
+            </div>
+            <div class="vis-option disabled" onclick="selectVis(this, false)">
+              <div class="v-title">Public discovery</div>
+              <div class="v-desc">Gated — activates after cohort. Not available in this planning prototype.</div>
+            </div>
+            <div class="banner gated mt-8"><span>⬚</span><span>Public marketplace search remains off until Stays cohort gates open.</span></div>
+            <button class="btn btn-secondary mt-16" onclick="toast('Listing saved (prototype)')">Save changes</button>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="host-calendar" data-nav="places">
+          <div class="topbar">
+            <button class="back" onclick="go('host-dashboard')">‹ Hosting</button>
+            <span class="title">Calendar</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <div class="between mb-12">
+              <h2 class="h2" style="margin:0">September 2026</h2>
+              <span class="muted">$175 base</span>
+            </div>
+            <div class="cal-grid mb-12">
+              <div class="cal-dow">S</div><div class="cal-dow">M</div><div class="cal-dow">T</div><div class="cal-dow">W</div><div class="cal-dow">T</div><div class="cal-dow">F</div><div class="cal-dow">S</div>
+              <div class="cal-day off">30</div><div class="cal-day off">31</div>
+              <div class="cal-day avail">1</div><div class="cal-day avail">2</div><div class="cal-day booked">3</div><div class="cal-day booked">4</div><div class="cal-day booked">5</div>
+              <div class="cal-day avail">6</div><div class="cal-day avail">7</div><div class="cal-day avail">8</div><div class="cal-day avail">9</div><div class="cal-day avail">10</div><div class="cal-day booked">11</div><div class="cal-day booked">12</div>
+              <div class="cal-day booked">13</div><div class="cal-day avail">14</div><div class="cal-day avail">15</div><div class="cal-day avail">16</div><div class="cal-day avail">17</div><div class="cal-day avail">18</div><div class="cal-day avail">19</div>
+              <div class="cal-day booked">20</div><div class="cal-day booked">21</div><div class="cal-day booked">22</div><div class="cal-day conflict" title="Conflict">23</div><div class="cal-day booked">24</div><div class="cal-day booked">25</div><div class="cal-day booked">26</div>
+              <div class="cal-day booked">27</div><div class="cal-day avail">28</div><div class="cal-day avail">29</div><div class="cal-day blocked">30</div><div class="cal-day off">1</div><div class="cal-day off">2</div><div class="cal-day off">3</div>
+            </div>
+            <div class="card mb-12" style="border-color:#e0c090;background:var(--warn-soft)">
+              <div class="h3" style="color:var(--warn)">Conflict · Sep 23</div>
+              <p class="sub mt-8">Blocked personal night overlaps a held request. Resolve before confirming — inventory can’t double-book.</p>
+              <button class="btn btn-secondary btn-sm mt-12" style="width:auto" onclick="toast('Conflict flagged for review (prototype)')">Review conflict</button>
+            </div>
+            <div class="row wrap" style="gap:8px">
+              <span class="pill">Booked</span>
+              <span class="pill warn">Conflict</span>
+              <span class="pill danger">Blocked</span>
+              <span class="pill ghost">Available</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="host-reservation" data-nav="places">
+          <div class="topbar">
+            <button class="back" onclick="go('host-dashboard')">‹ Hosting</button>
+            <span class="title">Reservation</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <div class="between mb-8">
+              <span class="pill ok">Confirmed</span>
+              <span class="muted">Sep 24–27</span>
+            </div>
+            <h1 class="h1" style="font-size:22px">Jordan K.</h1>
+            <p class="sub mb-16">2 guests · East Cesar Chavez Cottage · short stay guest (not household)</p>
+            <div class="card mb-12">
+              <div class="quote-line"><span>Nights</span><span>3 × $175</span></div>
+              <div class="quote-line"><span>Cleaning</span><span>$75</span></div>
+              <div class="quote-line"><span>Host payout (est.)</span><span class="strong">$512</span></div>
+            </div>
+            <div class="section-label" style="margin-top:0">Turnover</div>
+            <div class="card mb-12">
+              <div class="between mb-8"><span class="pill warn">Due today</span><span class="muted">By 2:00 PM</span></div>
+              <p class="sub">Previous guest checked out. Clean + restock before Jordan’s 3 PM arrival.</p>
+              <button class="btn btn-secondary btn-sm mt-12" style="width:auto" onclick="toast('Turnover marked in progress')">Mark in progress</button>
+            </div>
+            <div class="section-label">Access</div>
+            <div class="card mb-16">
+              <p class="sub">Guest code issues at pre-arrival window. Household codes stay separate.</p>
+            </div>
+            <button class="btn btn-ghost" style="width:100%" onclick="go('trip-messaging')">Message guest</button>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="host-invite" data-nav="places">
+          <div class="topbar">
+            <button class="back" onclick="go('host-dashboard')">‹ Hosting</button>
+            <span class="title">Invite guest</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <h2 class="h2">Invite to your stay</h2>
+            <p class="sub mb-16">Private cohort — share an expiring link. Invitees remain guests, not household members.</p>
+            <div class="field mb-8">
+              <label>Guest email or handle</label>
+              <input placeholder="name@email.com or @handle" id="invite-to" />
+            </div>
+            <div class="field-row mb-8">
+              <div class="field"><label>Suggested dates</label><input type="text" value="Oct 3–6" /></div>
+              <div class="field">
+                <label>Link expires</label>
+                <select>
+                  <option>7 days</option>
+                  <option selected>14 days</option>
+                  <option>30 days</option>
+                </select>
+              </div>
+            </div>
+            <div class="card mb-16" style="background:var(--accent-soft);border-style:dashed">
+              <div class="muted mb-8">Invite link</div>
+              <div class="strong" style="font-size:13px;word-break:break-all" id="invite-link">domicile.app/stay/invite/ecc-7f3a9c</div>
+              <p class="muted mt-8">Expires Oct 6, 2026 · one listing · private cohort</p>
+            </div>
+            <button class="btn btn-primary" onclick="toast('Invite link copied & sent (prototype)')">Send invite</button>
+            <button class="btn btn-secondary mt-8" onclick="toast('Link copied to clipboard (prototype)')">Copy link</button>
+          </div>
+        </section>
+
+      </div><!-- /screens -->
+
+      <nav class="bottom-nav" id="bottom-nav">
+        <button class="nav-item active" data-nav="today" onclick="navTo('today')"><span class="ico">☀</span>Today</button>
+        <button class="nav-item" data-nav="map" onclick="navTo('map')"><span class="ico">⌖</span>Map</button>
+        <button class="nav-item" data-nav="places" onclick="navTo('places')"><span class="ico">⌂</span>Places</button>
+        <button class="nav-item" data-nav="explore" onclick="navTo('explore')"><span class="ico">◎</span>Explore</button>
+        <button class="nav-item" data-nav="you" onclick="navTo('you')"><span class="ico">☺</span>You</button>
+      </nav>
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
