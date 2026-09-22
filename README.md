@@ -94,13 +94,19 @@ Owner “View as Crew” lens on Business tab remains optional; **real account s
 6. Optional: Reassign → Riley · toast “Casey access ended · Riley now assigned” · Casey’s list loses that job  
 
 **C. Crew (Casey)**  
-7. Switch account → **Casey Nguyen · Crew** → Today / Jobs shows Deep clean River Guest (+ seeded Turnover)  
+7. Switch account → **Casey Nguyen · Crew** → Today / Jobs shows Deep clean River Guest (+ seeded Turnover mid-flight: **On the way**)  
 8. Open job → scoped address (exact if grant approved / job unlocked) → **Start** → **On the way** → **Complete**  
-9. Switch back to Owner → Jobs shows Completed · inquiry history “Job completed by Casey”
+   - Each tap writes a real `Date` stamp into `statusLog` and denormalized `startedAt` / `onTheWayAt` / `completedAt`  
+   - Crew has **no reset** — note says ask Owner if tapped by accident; read-only status history timeline  
+9. Switch back to Owner → Jobs list badges show live execution (Started / On the way / Completed) plus short duration (“Started 10:04a · 26m”)  
+10. Open job detail → **Execution status** card (time since Started / On the way, active service duration, door-to-done when Completed) + **Status history** timeline  
+11. **Owner reset** (Owner-only): **Reset to Scheduled** or **Step back** one status → clears later timestamps, writes audit row e.g. “Owner Al reset Completed → Scheduled” → Casey’s job detail reflects Scheduled again (shared `bizJobs`)
 
 Owner Today shortcut: **Continue E2E: assign River Guest job** when that job exists unassigned.
 
-**Shared state (`bizJobs[]` in `app.js`):** id, inquiryId, service, whenLabel, customerAlias, status (`needs_assign|scheduled|in_progress|completed`), assigneeId (`casey|riley|null`), addressExact / addressApprox, accessNotes, crewPhase. Owner assign updates assigneeId; Crew lists filter `assigneeId === 'casey'`.
+**Seeded mid-flight:** `job_turnover_02` (Turnover · Loft Host) loads already **On the way** with Started (~26m ago) + On the way (~10m ago) history so Owner sees stamps/duration without clicking. River Guest E2E (`job_deep_river_01` via Accept quote) still works from Needs crew → Assign Casey → crew advance.
+
+**Shared state (`bizJobs[]` in `app.js`):** id, inquiryId, service, whenLabel, customerAlias, status (`needs_assign|scheduled|in_progress|completed`), crewPhase (`null|started|on_way|completed`), assigneeId (`casey|riley|null`), addressExact / addressApprox, accessNotes, `startedAt` / `onTheWayAt` / `completedAt` (ISO), `statusLog: [{ status, atIso, byAccountId, byLabel, note?, kind?, fromStatus?, toStatus? }]`. Owner assign updates assigneeId; Crew lists filter `assigneeId === 'casey'`. Owner reset via `ownerResetJobStatus(jobId, targetStatus)` (workspace must be business / Al).
 
 **Shared grant sync (`outgoingGrants`):**
 - Provider Request exact ↔ `exactRequested` · resident Approve exact ↔ `precision: exact`  
@@ -120,6 +126,8 @@ Overview (East Cesar Chavez → South Lamar) → recipient checklist with channe
 - Account switch required before any Owner or Crew role UI  
 - Quote ≠ job until Accept; Accept creates/activates the job  
 - Crew sees only assigned jobs; reassign revokes prior exact access  
+- Job execution status is shared; Owner sees live stamps/duration; Owner-only reset with audit row  
+- Crew cannot reset status (ask Owner); duration uses real in-session `Date` stamps  
 - Private-cohort chrome + gated public discovery  
 - Exact address / door codes only after unlock for confirmed guests  
 - Guest ≠ household / tenant / resident  

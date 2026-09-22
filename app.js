@@ -41,6 +41,14 @@
 
   // Shared jobs board — Owner sees all; Crew (Casey) filters assigneeId === 'casey'
   // River Guest deep-clean is created by Accept quote (E2E); other rows seed the board.
+  // Seed ISO helpers — relative to page load so mid-flight duration is honest
+  function seedIsoMinutesAgo(mins) {
+    return new Date(Date.now() - mins * 60000).toISOString();
+  }
+  function seedIsoHoursAgo(hours, extraMins) {
+    return seedIsoMinutesAgo(hours * 60 + (extraMins || 0));
+  }
+
   var bizJobs = [
     {
       id: 'job_turnover_02',
@@ -49,13 +57,21 @@
       whenLabel: 'Fri Sep 26 · 9–11',
       whenShort: 'Fri · 9–11',
       customerAlias: 'Loft Host',
-      status: 'scheduled',
+      status: 'in_progress',
       assigneeId: 'casey',
       addressExact: '2110 S Lamar Blvd · Apt 3B',
       addressApprox: 'South Lamar area',
       accessNotes: 'Lockbox 4421 · quiet hours after 10',
       placeId: 'place_sl',
-      crewPhase: null
+      crewPhase: 'on_way',
+      startedAt: seedIsoMinutesAgo(26),
+      onTheWayAt: seedIsoMinutesAgo(10),
+      completedAt: null,
+      statusLog: [
+        { status: 'scheduled', atIso: seedIsoHoursAgo(5, 12), byAccountId: 'al', byLabel: 'Owner Al', note: 'Assigned to Casey' },
+        { status: 'started', atIso: seedIsoMinutesAgo(26), byAccountId: 'casey', byLabel: 'Casey Nguyen' },
+        { status: 'on_way', atIso: seedIsoMinutesAgo(10), byAccountId: 'casey', byLabel: 'Casey Nguyen' }
+      ]
     },
     {
       id: 'job_recurring_03',
@@ -70,7 +86,16 @@
       addressApprox: 'East Cesar Chavez area',
       accessNotes: 'Side gate · dog friendly',
       placeId: 'place_ecc',
-      crewPhase: 'completed'
+      crewPhase: 'completed',
+      startedAt: seedIsoHoursAgo(48, 90),
+      onTheWayAt: seedIsoHoursAgo(48, 75),
+      completedAt: seedIsoHoursAgo(48, 20),
+      statusLog: [
+        { status: 'scheduled', atIso: seedIsoHoursAgo(72), byAccountId: 'al', byLabel: 'Owner Al', note: 'Assigned to Casey' },
+        { status: 'started', atIso: seedIsoHoursAgo(48, 90), byAccountId: 'casey', byLabel: 'Casey Nguyen' },
+        { status: 'on_way', atIso: seedIsoHoursAgo(48, 75), byAccountId: 'casey', byLabel: 'Casey Nguyen' },
+        { status: 'completed', atIso: seedIsoHoursAgo(48, 20), byAccountId: 'casey', byLabel: 'Casey Nguyen' }
+      ]
     },
     {
       id: 'job_window_04',
@@ -85,7 +110,13 @@
       addressApprox: 'East Austin · approx',
       accessNotes: null,
       placeId: null,
-      crewPhase: null
+      crewPhase: null,
+      startedAt: null,
+      onTheWayAt: null,
+      completedAt: null,
+      statusLog: [
+        { status: 'needs_assign', atIso: seedIsoHoursAgo(2), byAccountId: 'al', byLabel: 'Owner Al', note: 'Job created · needs crew' }
+      ]
     }
   ];
 
@@ -160,13 +191,263 @@
     return null;
   }
 
-  function jobStatusPill(status) {
-    if (status === 'completed') return { cls: 'ok', label: 'Completed' };
-    if (status === 'in_progress') return { cls: 'warn', label: 'In progress' };
-    if (status === 'needs_assign') return { cls: 'warn', label: 'Needs crew' };
-    if (status === 'scheduled') return { cls: 'sage', label: 'Scheduled' };
-    return { cls: 'ghost', label: status || '—' };
+  function execStatusKey(j) {
+    if (!j) return '';
+    if (typeof j === 'string') return j;
+    if (j.status === 'completed' || j.crewPhase === 'completed') return 'completed';
+    if (j.status === 'in_progress') {
+      if (j.crewPhase === 'on_way') return 'on_way';
+      if (j.crewPhase === 'started') return 'started';
+      return 'in_progress';
+    }
+    return j.status || '';
   }
+
+  function jobStatusPill(jobOrStatus) {
+    var key = typeof jobOrStatus === 'string' ? jobOrStatus : execStatusKey(jobOrStatus);
+    if (key === 'completed') return { cls: 'ok', label: 'Completed' };
+    if (key === 'on_way') return { cls: 'warn', label: 'On the way' };
+    if (key === 'started') return { cls: 'warn', label: 'Started' };
+    if (key === 'in_progress') return { cls: 'warn', label: 'In progress' };
+    if (key === 'needs_assign') return { cls: 'warn', label: 'Needs crew' };
+    if (key === 'scheduled') return { cls: 'sage', label: 'Scheduled' };
+    return { cls: 'ghost', label: key || '—' };
+  }
+
+  function statusKeyLabel(key) {
+    var map = {
+      needs_assign: 'Needs crew',
+      scheduled: 'Scheduled',
+      started: 'Started',
+      on_way: 'On the way',
+      in_progress: 'In progress',
+      completed: 'Completed'
+    };
+    return map[key] || key || '—';
+  }
+
+  function formatCtClock(d) {
+    if (!(d instanceof Date) || isNaN(d.getTime())) return '—';
+    var h = d.getHours();
+    var m = d.getMinutes();
+    var ap = h >= 12 ? 'p' : 'a';
+    h = h % 12;
+    if (!h) h = 12;
+    return h + ':' + (m < 10 ? '0' : '') + m + ap;
+  }
+
+  function formatCtStamp(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return days[d.getDay()] + ' ' + months[d.getMonth()] + ' ' + d.getDate() + ' · ' + formatCtClock(d) + ' CT';
+  }
+
+  function formatDurationShort(ms) {
+    if (ms == null || isNaN(ms)) return '—';
+    if (ms < 0) ms = 0;
+    var mins = Math.floor(ms / 60000);
+    if (mins < 1) return '<1m';
+    if (mins < 60) return mins + 'm';
+    var h = Math.floor(mins / 60);
+    var m = mins % 60;
+    return m ? (h + 'h ' + m + 'm') : (h + 'h');
+  }
+
+  function ensureJobStatusFields(j) {
+    if (!j) return j;
+    if (!j.statusLog) j.statusLog = [];
+    if (j.startedAt === undefined) j.startedAt = null;
+    if (j.onTheWayAt === undefined) j.onTheWayAt = null;
+    if (j.completedAt === undefined) j.completedAt = null;
+    return j;
+  }
+
+  function appendStatusLog(j, status, byAccountId, byLabel, note, extra) {
+    ensureJobStatusFields(j);
+    var row = {
+      status: status,
+      atIso: new Date().toISOString(),
+      byAccountId: byAccountId || 'al',
+      byLabel: byLabel || 'Owner Al',
+      note: note || null
+    };
+    if (extra) {
+      Object.keys(extra).forEach(function (k) { row[k] = extra[k]; });
+    }
+    j.statusLog.push(row);
+    return row;
+  }
+
+  function jobDurationFacts(j) {
+    ensureJobStatusFields(j);
+    var now = Date.now();
+    var started = j.startedAt ? new Date(j.startedAt).getTime() : null;
+    var onWay = j.onTheWayAt ? new Date(j.onTheWayAt).getTime() : null;
+    var done = j.completedAt ? new Date(j.completedAt).getTime() : null;
+    var end = done != null ? done : now;
+    var firstStart = started != null ? started : onWay;
+    return {
+      sinceStarted: started != null ? (now - started) : null,
+      sinceOnWay: onWay != null ? (now - onWay) : null,
+      activeService: started != null ? (end - started) : null,
+      doorToDone: (firstStart != null && done != null) ? (done - firstStart) : null,
+      startedClock: started != null ? formatCtClock(new Date(started)) : null,
+      onWayClock: onWay != null ? formatCtClock(new Date(onWay)) : null,
+      completedClock: done != null ? formatCtClock(new Date(done)) : null
+    };
+  }
+
+  function jobListDurationHint(j) {
+    var d = jobDurationFacts(j);
+    var key = execStatusKey(j);
+    if (key === 'completed' && d.doorToDone != null) {
+      return 'Started ' + (d.startedClock || d.onWayClock || '—') + ' · ' + formatDurationShort(d.doorToDone) + ' total';
+    }
+    if (key === 'on_way' && j.onTheWayAt) {
+      return 'On the way ' + d.onWayClock + ' · ' + formatDurationShort(d.sinceOnWay);
+    }
+    if ((key === 'started' || key === 'in_progress') && j.startedAt) {
+      return 'Started ' + d.startedClock + ' · ' + formatDurationShort(d.sinceStarted);
+    }
+    return '';
+  }
+
+  function renderJobStatusTimeline(j, opts) {
+    opts = opts || {};
+    ensureJobStatusFields(j);
+    var rows = (j.statusLog || []).slice().reverse(); // newest first for access-tl style
+    if (!rows.length) {
+      return '<p class="sub">No status events yet.</p>';
+    }
+    return rows.map(function (r) {
+      var title;
+      if (r.kind === 'reset') {
+        title = r.note || ('Reset · ' + statusKeyLabel(r.fromStatus) + ' → ' + statusKeyLabel(r.toStatus));
+      } else {
+        title = statusKeyLabel(r.status) + (r.note ? (' · ' + r.note) : '');
+      }
+      var who = r.byLabel || r.byAccountId || '—';
+      var denied = r.kind === 'reset';
+      return '<div class="access-row' + (denied ? ' denied' : '') + '">' +
+        '<div class="ar-title">' + title + '</div>' +
+        '<div class="ar-sub">' + formatCtStamp(r.atIso) + ' · ' + who + '</div></div>';
+    }).join('');
+  }
+
+  function renderJobDurationCard(j) {
+    var d = jobDurationFacts(j);
+    var key = execStatusKey(j);
+    var rows = '';
+    if (j.startedAt) {
+      rows += '<div class="fact-row"><span class="muted">Started</span><span class="strong" style="font-size:12px">' +
+        formatCtStamp(j.startedAt) + (key !== 'completed' && d.sinceStarted != null ? ' · ' + formatDurationShort(d.sinceStarted) + ' ago' : '') +
+        '</span></div>';
+    }
+    if (j.onTheWayAt) {
+      rows += '<div class="fact-row"><span class="muted">On the way</span><span class="strong" style="font-size:12px">' +
+        formatCtStamp(j.onTheWayAt) + (key !== 'completed' && d.sinceOnWay != null ? ' · ' + formatDurationShort(d.sinceOnWay) + ' ago' : '') +
+        '</span></div>';
+    }
+    if (d.activeService != null) {
+      rows += '<div class="fact-row"><span class="muted">Active service</span><span class="strong" style="font-size:12px">' +
+        formatDurationShort(d.activeService) + (key === 'completed' ? ' (to complete)' : ' (running)') +
+        '</span></div>';
+    }
+    if (key === 'completed' && d.doorToDone != null) {
+      rows += '<div class="fact-row" style="border:none"><span class="muted">Door-to-done</span><span class="strong" style="font-size:12px">' +
+        formatDurationShort(d.doorToDone) + (j.completedAt ? ' · done ' + formatCtStamp(j.completedAt) : '') +
+        '</span></div>';
+    } else if (!rows) {
+      rows = '<p class="sub" style="margin:0">No execution stamps yet · waiting for crew Start.</p>';
+    } else {
+      // last fact-row should lose border if we didn't add door-to-done
+      rows = rows.replace(/class="fact-row"><span class="muted">Active service/, 'class="fact-row" style="border:none"><span class="muted">Active service');
+      if (rows.indexOf('Active service') < 0) {
+        rows = rows.replace(/(class="fact-row)("><span class="muted">On the way)/, '$1" style="border:none$2');
+        if (rows.indexOf('On the way') < 0) {
+          rows = rows.replace(/(class="fact-row)("><span class="muted">Started)/, '$1" style="border:none$2');
+        }
+      }
+    }
+    return '<div class="card field-preview mb-12">' + rows + '</div>';
+  }
+
+  function priorExecStatus(j) {
+    var key = execStatusKey(j);
+    if (key === 'completed') return j.onTheWayAt ? 'on_way' : (j.startedAt ? 'started' : 'scheduled');
+    if (key === 'on_way') return j.startedAt ? 'started' : 'scheduled';
+    if (key === 'started' || key === 'in_progress') return 'scheduled';
+    return null;
+  }
+
+  function applyJobTargetStatus(j, target) {
+    ensureJobStatusFields(j);
+    if (target === 'scheduled' || target === 'needs_assign') {
+      if (target === 'needs_assign') {
+        j.status = 'needs_assign';
+      } else {
+        j.status = j.assigneeId ? 'scheduled' : 'needs_assign';
+      }
+      j.crewPhase = null;
+      j.startedAt = null;
+      j.onTheWayAt = null;
+      j.completedAt = null;
+    } else if (target === 'started') {
+      j.status = 'in_progress';
+      j.crewPhase = 'started';
+      j.onTheWayAt = null;
+      j.completedAt = null;
+      if (!j.startedAt) j.startedAt = new Date().toISOString();
+    } else if (target === 'on_way') {
+      j.status = 'in_progress';
+      j.crewPhase = 'on_way';
+      j.completedAt = null;
+      if (!j.startedAt) j.startedAt = new Date().toISOString();
+      if (!j.onTheWayAt) j.onTheWayAt = new Date().toISOString();
+    } else if (target === 'completed') {
+      j.status = 'completed';
+      j.crewPhase = 'completed';
+      if (!j.startedAt) j.startedAt = new Date().toISOString();
+      if (!j.completedAt) j.completedAt = new Date().toISOString();
+    }
+  }
+
+  window.ownerResetJobStatus = function (jobId, targetStatus) {
+    if (activeWorkspace !== 'business' || activeAccount !== 'al') {
+      toast('Owner only · switch to Cedar Owner to reset');
+      return;
+    }
+    var j = findJob(jobId || activeBizJobId);
+    if (!j) { toast('Job not found'); return; }
+    ensureJobStatusFields(j);
+    var fromKey = execStatusKey(j);
+    var target = targetStatus;
+    if (target === 'step_back') {
+      target = priorExecStatus(j);
+      if (!target) { toast('Already at earliest status'); return; }
+    }
+    if (!target) { toast('Pick a reset target'); return; }
+    if (target === fromKey) { toast('Already ' + statusKeyLabel(target)); return; }
+    if (target !== 'scheduled' && target !== 'needs_assign' && target !== 'started' && target !== 'on_way') {
+      toast('Invalid reset target');
+      return;
+    }
+    applyJobTargetStatus(j, target);
+    var toKey = execStatusKey(j);
+    appendStatusLog(j, toKey, 'al', 'Owner Al',
+      'Owner Al reset ' + statusKeyLabel(fromKey) + ' → ' + statusKeyLabel(toKey),
+      { kind: 'reset', fromStatus: fromKey, toStatus: toKey });
+    toast('Reset · ' + statusKeyLabel(fromKey) + ' → ' + statusKeyLabel(toKey));
+    if (current === 'biz-job-detail') renderBizJobDetail();
+    if (current === 'biz-jobs') renderBizJobs();
+    if (current === 'biz-today') renderBizToday();
+    if (current === 'crew-job-detail') renderCrewJobDetail();
+    if (current === 'crew-jobs') renderCrewJobs();
+    if (current === 'crew-today') renderCrewToday();
+  };
 
   function assigneeLabel(id) {
     if (!id) return 'Unassigned';
@@ -2676,13 +2957,15 @@
     }
     var upcoming = bizJobs.filter(function (j) { return j.status === 'scheduled' || j.status === 'needs_assign' || j.status === 'in_progress'; });
     upcoming.slice(0, 3).forEach(function (j) {
-      var pill = jobStatusPill(j.status);
+      ensureJobStatusFields(j);
+      var pill = jobStatusPill(j);
+      var hint = jobListDurationHint(j);
       cards +=
         '<div class="card tap mb-8" onclick="openBizJob(\'' + j.id + '\')">' +
           '<div class="between mb-8"><span class="pill ' + pill.cls + '">' + pill.label + '</span>' +
           '<span class="muted">' + j.whenShort + '</span></div>' +
           '<div class="strong">' + j.service + ' · ' + (j.assigneeId ? assigneeLabel(j.assigneeId) : 'Unassigned') + '</div>' +
-          '<p class="sub mt-8">' + j.customerAlias + ' · job-scoped crew access</p>' +
+          '<p class="sub mt-8">' + j.customerAlias + ' · job-scoped crew access' + (hint ? ' · ' + hint : '') + '</p>' +
         '</div>';
     });
     if (!cards) {
@@ -2939,8 +3222,13 @@
       existing.placeId = g.placeId || 'place_ecc';
       existing.crewPhase = null;
       existing.accessNotes = g.notes || 'Gate code on arrival · quiet during work';
+      existing.startedAt = null;
+      existing.onTheWayAt = null;
+      existing.completedAt = null;
+      ensureJobStatusFields(existing);
+      appendStatusLog(existing, 'needs_assign', 'al', 'Owner Al', 'Quote accepted · job needs assign');
     } else {
-      bizJobs.unshift({
+      var freshJob = {
         id: jid,
         inquiryId: g.id,
         service: 'Deep clean',
@@ -2953,8 +3241,14 @@
         addressApprox: 'East Cesar Chavez area',
         accessNotes: g.notes || 'Gate code on arrival · quiet during work',
         placeId: g.placeId || 'place_ecc',
-        crewPhase: null
-      });
+        crewPhase: null,
+        startedAt: null,
+        onTheWayAt: null,
+        completedAt: null,
+        statusLog: []
+      };
+      appendStatusLog(freshJob, 'needs_assign', 'al', 'Owner Al', 'Quote accepted · job needs assign');
+      bizJobs.unshift(freshJob);
     }
     activeBizJobId = jid;
     if (current === 'biz-inquiry-detail') renderBizInquiryDetail();
@@ -2978,20 +3272,23 @@
     var body = $('#biz-jobs-body');
     if (!body) return;
     var html = '<h1 class="h1" style="font-size:22px">Schedule / Jobs</h1>' +
-      '<p class="sub mb-12">Owner board · assign crew. Worker access is job-scoped; reassign ends prior access.</p>';
+      '<p class="sub mb-12">Owner board · live execution status · assign crew. Worker access is job-scoped; reassign ends prior access.</p>';
     if (!bizJobs.length) {
       html +=
         '<div class="banner info mb-12"><span>ℹ</span><span>No jobs yet. Accept a quote from Inbox to create River Guest job.</span></div>';
     } else {
       bizJobs.forEach(function (j) {
-        var pill = jobStatusPill(j.status);
+        ensureJobStatusFields(j);
+        var pill = jobStatusPill(j);
         var who = j.assigneeId ? assigneeLabel(j.assigneeId) : 'Unassigned';
         var av = j.assigneeId && CREW_PEOPLE[j.assigneeId] ? CREW_PEOPLE[j.assigneeId] : null;
+        var hint = jobListDurationHint(j);
         html +=
           '<div class="card tap mb-8" onclick="openBizJob(\'' + j.id + '\')">' +
             '<div class="between mb-8"><span class="pill ' + pill.cls + '">' + pill.label + '</span>' +
             '<span class="muted">' + j.whenShort + '</span></div>' +
             '<div class="strong">' + j.service + ' · ' + j.customerAlias + '</div>' +
+            (hint ? '<div class="muted mt-8" style="font-size:12px">' + hint + '</div>' : '') +
             '<div class="row gap-md mt-8">' +
               '<div class="avatar sm" style="background:' + (av ? av.color : '#a8a29e') + '">' + (av ? av.initials : '?') + '</div>' +
               '<div><div class="strong" style="font-size:13px">' + who + '</div>' +
@@ -3015,6 +3312,7 @@
     if (!body) return;
     var j = findJob(activeBizJobId);
     if (!j) { body.innerHTML = '<p class="sub">Job not found.</p>'; return; }
+    ensureJobStatusFields(j);
     var g = j.inquiryId ? findOutgoing(j.inquiryId) : null;
     var exactOk = false;
     if (g && g.precision === 'exact') exactOk = true;
@@ -3035,15 +3333,32 @@
         '<div class="fact-row"><span class="muted">Area</span><span class="strong" style="font-size:13px">' + (j.addressApprox || 'Approx area') + '</span></div>' +
         '<div class="fact-row" style="border:none"><span class="muted">Exact</span><span class="strong" style="font-size:12px">Hidden until resident approved</span></div>';
     }
-    var pill = jobStatusPill(j.status);
+    var pill = jobStatusPill(j);
     var who = j.assigneeId ? assigneeLabel(j.assigneeId) : 'Unassigned';
     var av = j.assigneeId && CREW_PEOPLE[j.assigneeId] ? CREW_PEOPLE[j.assigneeId] : null;
+    var execKey = execStatusKey(j);
+    var canReset = execKey === 'started' || execKey === 'on_way' || execKey === 'in_progress' || execKey === 'completed';
+    var stepTarget = priorExecStatus(j);
+    var resetBlock = '';
+    if (canReset) {
+      resetBlock =
+        '<div class="section-label">Owner reset</div>' +
+        '<div class="card mb-12">' +
+          '<p class="sub mb-12">If crew advanced by accident, reset clears later stamps and restores a prior state. Audit row is written.</p>' +
+          '<button class="btn btn-secondary mb-8" onclick="ownerResetJobStatus(\'' + j.id + '\',\'scheduled\')">Reset to Scheduled</button>' +
+          (stepTarget
+            ? '<button class="btn btn-ghost" style="width:100%" onclick="ownerResetJobStatus(\'' + j.id + '\',\'step_back\')">Step back → ' + statusKeyLabel(stepTarget) + '</button>'
+            : '') +
+        '</div>';
+    }
     body.innerHTML =
       '<div class="between mb-8"><span class="pill ' + pill.cls + '">' + pill.label + '</span><span class="muted">' + j.whenLabel + '</span></div>' +
       '<h1 class="h1" style="font-size:22px">' + j.service + '</h1>' +
-      '<p class="sub mb-12">' + j.customerAlias + ' · job-scoped assignment.</p>' +
-      '<div class="banner private mb-12"><span>◎</span><span><strong>Crew sees exact only for job window.</strong> Reassign ends prior worker access.</span></div>' +
-      '<div class="section-label" style="margin-top:0">Assignee</div>' +
+      '<p class="sub mb-12">' + j.customerAlias + ' · live execution · job-scoped assignment.</p>' +
+      '<div class="banner private mb-12"><span>◎</span><span><strong>Crew sees exact only for job window.</strong> Reassign ends prior worker access. You can reset mistaken status advances.</span></div>' +
+      '<div class="section-label" style="margin-top:0">Execution status</div>' +
+      renderJobDurationCard(j) +
+      '<div class="section-label">Assignee</div>' +
       '<div class="card mb-12"><div class="team-row" style="padding:0;border:none">' +
         '<div class="avatar" style="background:' + (av ? av.color : '#a8a29e') + '">' + (av ? av.initials : '?') + '</div>' +
         '<div class="flex-1"><div class="strong">' + who + '</div>' +
@@ -3052,8 +3367,11 @@
       '<div class="section-label">Fields</div>' +
       '<div class="card field-preview mb-12">' + fields + '</div>' +
       (j.inquiryId ? '<div class="muted mb-12" style="font-size:11px">Linked inquiry <strong>' + j.inquiryId + '</strong></div>' : '') +
-      '<button class="btn btn-primary" onclick="openAssignSheet()">' + (j.assigneeId ? 'Reassign crew' : 'Assign crew') + '</button>' +
-      '<p class="muted mt-12" style="font-size:11px;text-align:center">Job ' + j.id + '</p>';
+      '<button class="btn btn-primary mb-8" onclick="openAssignSheet()">' + (j.assigneeId ? 'Reassign crew' : 'Assign crew') + '</button>' +
+      resetBlock +
+      '<div class="section-label">Status history</div>' +
+      '<div class="card mb-12"><div class="access-tl">' + renderJobStatusTimeline(j) + '</div></div>' +
+      '<p class="muted mt-12" style="font-size:11px;text-align:center">Job ' + j.id + ' · prototype</p>';
   }
 
   window.openAssignSheet = function () {
@@ -3091,13 +3409,24 @@
   window.assignJobTo = function (crewId) {
     var j = findJob(activeBizJobId);
     if (!j) return;
+    ensureJobStatusFields(j);
     var prev = j.assigneeId;
     closeAssignSheet();
     if (crewId === prev) { toast('Already assigned to ' + assigneeLabel(crewId)); return; }
+    var fromKey = execStatusKey(j);
     j.assigneeId = crewId || null;
-    if (crewId && j.status === 'needs_assign') j.status = 'scheduled';
-    if (!crewId && j.status === 'scheduled') j.status = 'needs_assign';
-    j.crewPhase = null;
+    if (crewId && (j.status === 'needs_assign' || j.status === 'scheduled')) j.status = 'scheduled';
+    if (!crewId && (j.status === 'scheduled' || j.status === 'needs_assign')) j.status = 'needs_assign';
+    // Reassign clears in-flight execution (new worker starts fresh)
+    if (prev !== crewId) {
+      j.crewPhase = null;
+      j.startedAt = null;
+      j.onTheWayAt = null;
+      j.completedAt = null;
+      if (j.status === 'in_progress' || j.status === 'completed') {
+        j.status = crewId ? 'scheduled' : 'needs_assign';
+      }
+    }
     // Snapshot exact for assignee when grant already approved
     if (crewId && j.inquiryId) {
       var gSnap = findOutgoing(j.inquiryId);
@@ -3107,6 +3436,11 @@
         if (gSnap.notes) j.accessNotes = gSnap.notes;
       }
     }
+    var toKey = execStatusKey(j);
+    appendStatusLog(j, toKey, 'al', 'Owner Al',
+      crewId
+        ? ('Assigned to ' + assigneeLabel(crewId) + (fromKey !== toKey ? ' · cleared ' + statusKeyLabel(fromKey) : ''))
+        : ('Unassigned' + (prev ? ' · ' + assigneeLabel(prev).split(' ')[0] + ' access ended' : '')));
     var msg;
     if (prev && crewId) {
       msg = assigneeLabel(prev).split(' ')[0] + ' access ended · ' + assigneeLabel(crewId).split(' ')[0] + ' now assigned';
@@ -3226,13 +3560,15 @@
     }
     mine.forEach(function (j) {
       if (next && j.id === next.id) return;
-      var pill = jobStatusPill(j.status);
+      ensureJobStatusFields(j);
+      var pill = jobStatusPill(j);
+      var hint = jobListDurationHint(j);
       cards +=
         '<div class="card tap mb-8" onclick="openCrewJob(\'' + j.id + '\')">' +
           '<div class="between mb-8"><span class="pill ' + pill.cls + '">' + pill.label + '</span>' +
           '<span class="muted">' + j.whenShort + '</span></div>' +
           '<div class="strong">' + j.service + '</div>' +
-          '<p class="sub mt-8">' + j.customerAlias + '</p>' +
+          '<p class="sub mt-8">' + j.customerAlias + (hint ? ' · ' + hint : '') + '</p>' +
         '</div>';
     });
     if (!cards) {
@@ -3265,13 +3601,16 @@
       html += '<div class="card" style="border-style:dashed"><p class="sub">Nothing assigned. Owner Jobs → Assign Casey.</p></div>';
     } else {
       mine.forEach(function (j) {
-        var pill = jobStatusPill(j.status);
+        ensureJobStatusFields(j);
+        var pill = jobStatusPill(j);
+        var hint = jobListDurationHint(j);
         html +=
           '<div class="card tap mb-8" onclick="openCrewJob(\'' + j.id + '\')">' +
             '<div class="between mb-8"><span class="pill ' + pill.cls + '">' + pill.label + '</span>' +
             '<span class="muted">' + j.whenShort + '</span></div>' +
             '<div class="strong">' + j.service + '</div>' +
             '<div class="muted mt-8" style="font-size:12px">' + j.customerAlias + ' · ' + j.addressApprox + '</div>' +
+            (hint ? '<div class="muted mt-8" style="font-size:12px">' + hint + '</div>' : '') +
             '<div class="grant-id" style="margin-top:8px">' + j.id + '</div>' +
           '</div>';
       });
@@ -3306,8 +3645,11 @@
         '<div class="fact-row"><span class="muted">Area</span><span class="strong" style="font-size:13px">' + (j.addressApprox || 'Approx') + '</span></div>' +
         '<div class="fact-row" style="border:none"><span class="muted">Exact</span><span class="strong" style="font-size:12px">Locked · needs grant precision or job unlock</span></div>';
     }
-    var pill = jobStatusPill(j.status);
+    ensureJobStatusFields(j);
+    var pill = jobStatusPill(j);
     var phase = j.crewPhase || 'idle';
+    var phaseLabel = phase === 'idle' || !phase ? 'Scheduled · not started' : statusKeyLabel(phase === 'on_way' ? 'on_way' : phase);
+    var hint = jobListDurationHint(j);
     var checklist =
       '<div class="section-label">Execution</div>' +
       '<div class="card mb-12">' +
@@ -3322,7 +3664,8 @@
           (phase !== 'on_way' && j.status !== 'in_progress' ? 'disabled style="opacity:.5"' : '') +
           (j.status === 'completed' ? ' disabled style="opacity:.5"' : '') +
           ' onclick="crewAdvanceJob(\'completed\')">3 · Complete</button>' +
-        '<p class="muted mt-12" style="font-size:11px">Phase: ' + (phase === 'idle' || !phase ? 'not started' : phase) + '</p>' +
+        '<p class="muted mt-12" style="font-size:11px">Status: ' + phaseLabel + (hint ? ' · ' + hint : '') + '</p>' +
+        '<p class="muted mt-8" style="font-size:11px">Tapped wrong status? Ask Owner Al to reset — crew cannot undo.</p>' +
       '</div>';
 
     body.innerHTML =
@@ -3333,20 +3676,39 @@
       '<div class="section-label" style="margin-top:0">What you can see</div>' +
       '<div class="card field-preview mb-12">' + fields + '</div>' +
       checklist +
+      '<div class="section-label">Status history</div>' +
+      '<div class="card mb-12"><div class="access-tl">' + renderJobStatusTimeline(j) + '</div></div>' +
+      '<div class="banner info mb-12"><span>ℹ</span><span>Read-only timeline. Owner can reset mistaken advances from Business → Jobs.</span></div>' +
       '<p class="muted mt-8" style="font-size:11px;text-align:center">Job ' + j.id + (j.inquiryId ? ' · ' + j.inquiryId : '') + '</p>';
   }
 
   window.crewAdvanceJob = function (phase) {
     var j = findJob(activeCrewJobId);
     if (!j || j.assigneeId !== 'casey') { toast('Not your job'); return; }
+    ensureJobStatusFields(j);
     if (j.status === 'completed') { toast('Already completed · ' + j.id); return; }
+    var nowIso = new Date().toISOString();
     j.crewPhase = phase;
-    if (phase === 'started' || phase === 'on_way') {
+    if (phase === 'started') {
       j.status = 'in_progress';
-      toast(phase === 'started' ? 'Job started · ' + j.id : 'On site · ' + j.id);
+      j.startedAt = nowIso;
+      j.onTheWayAt = null;
+      j.completedAt = null;
+      appendStatusLog(j, 'started', 'casey', 'Casey Nguyen');
+      toast('Job started · ' + j.id);
+    } else if (phase === 'on_way') {
+      j.status = 'in_progress';
+      if (!j.startedAt) j.startedAt = nowIso;
+      j.onTheWayAt = nowIso;
+      j.completedAt = null;
+      appendStatusLog(j, 'on_way', 'casey', 'Casey Nguyen');
+      toast('On the way · ' + j.id);
     } else if (phase === 'completed') {
       j.status = 'completed';
       j.crewPhase = 'completed';
+      if (!j.startedAt) j.startedAt = nowIso;
+      j.completedAt = nowIso;
+      appendStatusLog(j, 'completed', 'casey', 'Casey Nguyen');
       if (j.inquiryId) {
         var g = findOutgoing(j.inquiryId);
         if (g) {
@@ -3360,6 +3722,8 @@
       toast('Completed · ' + j.id);
     }
     if (current === 'crew-job-detail') renderCrewJobDetail();
+    if (current === 'crew-jobs') renderCrewJobs();
+    if (current === 'crew-today') renderCrewToday();
   };
 
   function renderCrewMe() {
