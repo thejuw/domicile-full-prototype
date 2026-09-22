@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="description" content="Domicile Communities — HOA / property operations founder prototype (planning only)" />
+<title>Domicile · Communities Prototype</title>
+<link rel="stylesheet" href="app.css" />
+</head>
+<body>
+<div class="stage">
+  <aside class="coach">
+    <div class="badge-proto">Prototype · planning only · not production</div>
+    <h2>Domicile Communities</h2>
+    <p>HOA / rental / property ops click-through. Resident phone + manager desktop in one prototype.</p>
+    <div class="role-switch">
+      <button type="button" data-role="resident" class="on" onclick="setRole('resident')">Resident</button>
+      <button type="button" data-role="manager" onclick="setRole('manager')">Manager</button>
+    </div>
+    <div class="hint"><strong>60s path:</strong> Resident bills→pay honesty → maint → amenity · then Manager portfolio→exceptions→maintenance</div>
+    <div class="path">Resident · Cedar Grove HOA bills · Pay in app sheet</div>
+    <div class="path">Switch account → South Lamar rent (provider / track)</div>
+    <div class="path">Maintenance + amenity reserve</div>
+    <div class="path">Manager · Portfolio → Exceptions → Maintenance</div>
+    <p class="muted" style="margin-top:14px;font-size:11px;line-height:1.45">Fictional Austin data only. Source ledger honesty. Manager sees property relationships — not resident other homes/contacts/map history.</p>
+  </aside>
+
+  <!-- RESIDENT -->
+  <div class="ws ws-resident active" id="ws-resident">
+    <div class="phone" id="phone">
+      <div class="phone-notch"></div>
+      <div class="fab-demo">Prototype · planning only</div>
+      <div class="status-bar">
+        <span class="time">9:41</span>
+        <span class="status-icons">▌▌▌  Wi‑Fi  ████</span>
+      </div>
+      <div class="app">
+        <div class="crumb-bar">Places → Home → <strong>Community</strong></div>
+        <div class="screens" id="screens">
+          <section class="screen" data-screen="r-places" data-nav="places">
+            <div class="pad-lg">
+              <h1 class="h1">Places</h1>
+              <p class="sub mb-12">Homes you own or occupy.</p>
+              <div class="card tap mb-12" onclick="go('r-home-cedar')">
+                <div class="row gap-md">
+                  <div class="photo sm condo"></div>
+                  <div>
+                    <div class="strong" style="font-size:15px">Cedar Grove Condos</div>
+                    <div class="muted">Unit 204 · East Austin · Owner</div>
+                    <div class="chips mt-8"><span class="pill olive">HOA</span><span class="pill warn">Dues due</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card tap" onclick="go('r-home-lamar')">
+                <div class="row gap-md">
+                  <div class="photo sm flats"></div>
+                  <div>
+                    <div class="strong" style="font-size:15px">South Lamar Flats</div>
+                    <div class="muted">Apt 3B · South Lamar · Resident</div>
+                    <div class="chips mt-8"><span class="pill sky">Rent</span><span class="pill ghost">Track</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="r-home-cedar" data-nav="places">
+            <div class="topbar">
+              <button class="back" onclick="go('r-places')">‹ Places</button>
+              <span class="title">Home</span><span></span>
+            </div>
+            <div class="pad">
+              <div class="photo tall condo mb-12"><span class="photo-label">Cedar Grove · Unit 204</span></div>
+              <h1 class="h1" style="font-size:22px">Cedar Grove Condos</h1>
+              <p class="sub mb-16">Unit 204 · East Austin · you are owner &amp; resident</p>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <button class="card tap" style="text-align:left" onclick="go('r-community')"><div class="h3">Community</div><p class="muted mt-4">HOA · bills · amenities</p></button>
+                <button class="card tap" style="text-align:left" onclick="go('r-bills')"><div class="h3">Bills</div><p class="muted mt-4">$312 due Oct 1</p></button>
+                <button class="card tap" style="text-align:left" onclick="go('r-maint-new')"><div class="h3">Maintenance</div><p class="muted mt-4">Open request</p></button>
+                <button class="card tap" style="text-align:left" onclick="go('r-costs')"><div class="h3">Home costs</div><p class="muted mt-4">Dues vs escrow</p></button>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="r-home-lamar" data-nav="places">
+            <div class="topbar">
+              <button class="back" onclick="go('r-places')">‹ Places</button>
+              <span class="title">Home</span><span></span>
+            </div>
+            <div class="pad">
+              <div class="photo tall flats mb-12"><span class="photo-label">South Lamar · Apt 3B</span></div>
+              <h1 class="h1" style="font-size:22px">South Lamar Flats</h1>
+              <p class="sub mb-16">Apt 3B · rental · you are resident (not owner)</p>
+              <button class="btn btn-primary" onclick="switchAccount('lamar');go('r-community')">Open community for this home</button>
+            </div>
+          </section>
+          <section class="screen active" data-screen="r-community" data-nav="community">
+            <div class="pad-lg">
+              <div class="between mb-4">
+                <div>
+                  <div class="muted" style="font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase">Community</div>
+                  <h1 class="h1" style="font-size:22px;margin-top:2px">Your accounts</h1>
+                </div>
+                <span class="pill ghost">Sep 22</span>
+              </div>
+              <div class="acct-switch">
+                <button type="button" class="acct-chip on" data-acct="cedar" onclick="switchAccount('cedar')">
+                  <div class="name">Cedar Grove Condos</div>
+                  <div class="meta">Unit 204 · HOA</div>
+                </button>
+                <button type="button" class="acct-chip" data-acct="lamar" onclick="switchAccount('lamar')">
+                  <div class="name">South Lamar Flats</div>
+                  <div class="meta">Apt 3B · Rent</div>
+                </button>
+              </div>
+
+              <div data-acct-panel="cedar">
+                <div class="card mt-12 mb-12" style="background:linear-gradient(135deg,#f6ebe0,#eef3e8);border-color:#d8c8b4">
+                  <div class="between mb-8">
+                    <span class="pill warn">Due soon</span>
+                    <span class="freshness">Ledger fresh · 2h ago</span>
+                  </div>
+                  <div class="h2" style="margin:0">$312.00</div>
+                  <p class="sub mt-4">Sep HOA assessment · due Oct 1 · Cedar Grove Association</p>
+                  <button class="btn btn-primary btn-sm mt-12" style="width:auto" onclick="go('r-bills')">View bills &amp; pay</button>
+                </div>
+                <div class="section-label" style="margin-top:4px">Shortcuts</div>
+                <div class="stack">
+                  <div class="card tap" onclick="go('r-bills')"><div class="between"><div><div class="h3" style="margin:0">Bills &amp; payments</div><p class="muted mt-4">Statements · pay honesty</p></div><span>›</span></div></div>
+                  <div class="card tap" onclick="go('r-maint-new')"><div class="between"><div><div class="h3" style="margin:0">Maintenance</div><p class="muted mt-4">Submit · track status</p></div><span>›</span></div></div>
+                  <div class="card tap" onclick="go('r-amenities')"><div class="between"><div><div class="h3" style="margin:0">Amenities</div><p class="muted mt-4">Clubhouse · guest parking</p></div><span>›</span></div></div>
+                  <div class="card tap" onclick="go('r-notices')"><div class="between"><div><div class="h3" style="margin:0">Notices &amp; documents</div><p class="muted mt-4">Targeted to your unit</p></div><span>›</span></div></div>
+                  <div class="card tap" onclick="go('r-arch')"><div class="between"><div><div class="h3" style="margin:0">Architectural request</div><p class="muted mt-4">Submit · decision history</p></div><span>›</span></div></div>
+                  <div class="card tap" onclick="go('r-move')"><div class="between"><div><div class="h3" style="margin:0">Move-in / out checklist</div><p class="muted mt-4">Balances stay visible</p></div><span>›</span></div></div>
+                  <div class="card tap" onclick="go('r-costs')"><div class="between"><div><div class="h3" style="margin:0">Home-cost overview</div><p class="muted mt-4">Dues · escrow-aware</p></div><span>›</span></div></div>
+                </div>
+              </div>
+
+              <div data-acct-panel="lamar" class="hide">
+                <div class="card mt-12 mb-12">
+                  <div class="between mb-8">
+                    <span class="pill sky">Rent</span>
+                    <span class="freshness">Provider sync · 1d ago</span>
+                  </div>
+                  <div class="h2" style="margin:0">$1,850.00</div>
+                  <p class="sub mt-4">October rent · due Oct 1 · paid via AppFolio</p>
+                  <div class="banner info mt-12"><span>ℹ</span><span>Domicile tracks &amp; reminds — payment settles in the landlord’s provider, not a Domicile ledger.</span></div>
+                  <button class="btn btn-secondary btn-sm mt-12" style="width:auto" onclick="go('r-bills')">View bills &amp; pay options</button>
+                </div>
+                <div class="section-label" style="margin-top:4px">Shortcuts</div>
+                <div class="stack">
+                  <div class="card tap" onclick="go('r-bills')"><div class="between"><div><div class="h3" style="margin:0">Bills &amp; payments</div><p class="muted mt-4">Track · remind · provider</p></div><span>›</span></div></div>
+                  <div class="card tap" onclick="go('r-maint-new')"><div class="between"><div><div class="h3" style="margin:0">Maintenance</div><p class="muted mt-4">Via property manager</p></div><span>›</span></div></div>
+                  <div class="card tap" onclick="go('r-notices')"><div class="between"><div><div class="h3" style="margin:0">Notices</div><p class="muted mt-4">Building announcements</p></div><span>›</span></div></div>
+                  <div class="card tap" onclick="go('r-move')"><div class="between"><div><div class="h3" style="margin:0">Move-out checklist</div><p class="muted mt-4">No silent balance close</p></div><span>›</span></div></div>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="screen" data-screen="r-bills" data-nav="community">
+            <div class="topbar">
+              <button class="back" onclick="go('r-community')">‹ Community</button>
+              <span class="title">Bills &amp; payments</span><span></span>
+            </div>
+            <div class="pad">
+              <div class="segment" id="bill-seg">
+                <button type="button" class="on" data-seg="due" onclick="segBills('due')">Due soon</button>
+                <button type="button" data-seg="sched" onclick="segBills('sched')">Scheduled</button>
+                <button type="button" data-seg="hist" onclick="segBills('hist')">History</button>
+              </div>
+
+              <div data-bill-panel="due">
+                <div data-acct-panel="cedar">
+                  <div class="card tap mb-12" onclick="go('r-statement')">
+                    <div class="between mb-8">
+                      <span class="pill warn">Due Oct 1</span>
+                      <span class="freshness">Source HOA · 2h</span>
+                    </div>
+                    <div class="between">
+                      <div>
+                        <div class="h3" style="margin:0">Sep assessment</div>
+                        <p class="muted mt-4">Cedar Grove Association</p>
+                      </div>
+                      <div class="strong" style="font-size:18px">$312.00</div>
+                    </div>
+                  </div>
+                  <div class="section-label">How you can pay</div>
+                  <div class="pay-mode in-app">
+                    <div class="mode-label"><span class="pill ok">Pay in app</span></div>
+                    <div class="mode-desc">Domicile can collect for this HOA account. Opens checkout — funds settle to association payee.</div>
+                    <button class="btn btn-primary btn-sm" style="width:auto;margin-top:10px" onclick="openPaySheet()">Pay $312.00</button>
+                  </div>
+                  <div class="pay-mode provider">
+                    <div class="mode-label"><span class="pill sky">Pay through provider</span></div>
+                    <div class="mode-desc">Also accepted via association portal (CedarPay). Domicile will refresh the source ledger after sync.</div>
+                    <button class="btn btn-ghost btn-sm" style="width:auto;margin-top:10px" onclick="toast('Would open CedarPay (prototype)')">Open CedarPay</button>
+                  </div>
+                </div>
+                <div data-acct-panel="lamar" class="hide">
+                  <div class="card mb-12">
+                    <div class="between mb-8">
+                      <span class="pill sky">Due Oct 1</span>
+                      <span class="freshness stale">Provider · 1d</span>
+                    </div>
+                    <div class="between">
+                      <div>
+                        <div class="h3" style="margin:0">October rent</div>
+                        <p class="muted mt-4">South Lamar Property Co.</p>
+                      </div>
+                      <div class="strong" style="font-size:18px">$1,850.00</div>
+                    </div>
+                  </div>
+                  <div class="section-label">How you can pay</div>
+                  <div class="pay-mode provider">
+                    <div class="mode-label"><span class="pill sky">Pay through provider</span></div>
+                    <div class="mode-desc">Rent settles in AppFolio. Domicile does not invent a competing bank ledger.</div>
+                    <button class="btn btn-secondary btn-sm" style="width:auto;margin-top:10px" onclick="toast('Would open AppFolio (prototype)')">Open AppFolio</button>
+                  </div>
+                  <div class="pay-mode track">
+                    <div class="mode-label"><span class="pill ghost">Track and remind</span></div>
+                    <div class="mode-desc">No in-app checkout for this account. We’ll nudge you before due and mark settled when the provider confirms.</div>
+                    <button class="btn btn-ghost btn-sm" style="width:auto;margin-top:10px" onclick="toast('Reminder set for Sep 28')">Set reminder</button>
+                  </div>
+                </div>
+              </div>
+
+              <div data-bill-panel="sched" class="hide">
+                <div class="card">
+                  <div class="between mb-8"><span class="pill olive">Autopay</span><span class="muted">1st of month</span></div>
+                  <div class="h3" style="margin:0">Cedar Grove assessment</div>
+                  <p class="sub mt-8">Next run Oct 1 · $312 · checking ••4821 · Pay in app mandate</p>
+                </div>
+                <div class="banner info mt-12"><span>ℹ</span><span>Scheduled ≠ settled. Ledger posts only after processor confirms and source HOA syncs.</span></div>
+              </div>
+
+              <div data-bill-panel="hist" class="hide">
+                <div class="card tap mb-10" onclick="go('r-payment-state')">
+                  <div class="between mb-6">
+                    <span class="pill warn">Processing</span>
+                    <span class="muted">Sep 18</span>
+                  </div>
+                  <div class="between">
+                    <div>
+                      <div class="h3" style="margin:0">Special assessment</div>
+                      <p class="muted mt-4">Mid-reconcile · not ledger-posted yet</p>
+                    </div>
+                    <div class="strong">$150.00</div>
+                  </div>
+                </div>
+                <div class="card mb-10">
+                  <div class="between mb-6"><span class="pill ok">Settled</span><span class="muted">Aug 1</span></div>
+                  <div class="between"><div><div class="h3" style="margin:0">Aug assessment</div><p class="muted mt-4">Posted to source ledger</p></div><div class="strong">$312.00</div></div>
+                </div>
+                <div class="card">
+                  <div class="between mb-6"><span class="pill ok">Settled</span><span class="muted">Jul 1</span></div>
+                  <div class="between"><div><div class="h3" style="margin:0">Jul assessment</div><p class="muted mt-4">Posted to source ledger</p></div><div class="strong">$312.00</div></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="r-statement" data-nav="community">
+            <div class="topbar">
+              <button class="back" onclick="go('r-bills')">‹ Bills</button>
+              <span class="title">Statement</span><span></span>
+            </div>
+            <div class="pad">
+              <div class="between mb-8">
+                <h1 class="h1" style="font-size:20px">Sep 2026</h1>
+                <span class="freshness">Fresh · 2h ago</span>
+              </div>
+              <p class="sub mb-12">Itemized from <strong>source HOA ledger</strong> · Cedar Grove Association. Domicile does not invent a competing bank ledger.</p>
+              <div class="card mb-12">
+                <div class="quote-line"><span>Charge source</span><span>HOA assessment</span></div>
+                <div class="quote-line"><span>Period</span><span>Sep 1 – Sep 30</span></div>
+                <div class="quote-line"><span>Base dues</span><span>$285.00</span></div>
+                <div class="quote-line"><span>Reserve contribution</span><span>$27.00</span></div>
+                <div class="quote-line sub"><span>Credit · early-pay (none)</span><span>$0.00</span></div>
+                <div class="quote-line"><span>Prior balance</span><span>$0.00</span></div>
+                <div class="quote-line total"><span>Amount due</span><span>$312.00</span></div>
+                <div class="quote-line sub"><span>Payee</span><span>Cedar Grove Association</span></div>
+                <div class="quote-line sub"><span>Due</span><span>Oct 1, 2026</span></div>
+              </div>
+              <button class="btn btn-primary" onclick="openPaySheet()">Pay in app · $312.00</button>
+              <button class="btn btn-ghost mt-8" style="width:100%" onclick="go('r-payment-state')">View recent payment states</button>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="r-payment-state" data-nav="community">
+            <div class="topbar">
+              <button class="back" onclick="go('r-bills')">‹ Bills</button>
+              <span class="title">Payment status</span><span></span>
+            </div>
+            <div class="pad">
+              <h1 class="h1" style="font-size:20px">Special assessment</h1>
+              <p class="sub mb-12">$150.00 · initiated Sep 18 · mid-reconcile</p>
+              <div class="pay-states">
+                <div class="pay-state done">Initiated<br/>Sep 18</div>
+                <div class="pay-state mid">Processing<br/>now</div>
+                <div class="pay-state">Settled</div>
+                <div class="pay-state">Ledger<br/>posted</div>
+              </div>
+              <div class="banner warn mb-12"><span>⚠</span><span><strong>Initiated ≠ processing ≠ settled ≠ ledger posted.</strong> Your bank may show a hold while the association source ledger still shows open.</span></div>
+              <div class="card mb-12">
+                <div class="timeline">
+                  <div class="tl-item done"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">Initiated</div><div class="tl-sub">You authorized ACH · checking ••4821 · Sep 18, 9:14 AM</div></div></div>
+                  <div class="tl-item now"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">Processing</div><div class="tl-sub">Processor accepted · awaiting settlement window (1–3 biz days)</div></div></div>
+                  <div class="tl-item"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">Settled</div><div class="tl-sub">Funds land with payee · Cedar Grove Association</div></div></div>
+                  <div class="tl-item"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">Ledger posted</div><div class="tl-sub">Source HOA ledger marks this charge paid · then Domicile refreshes</div></div></div>
+                </div>
+              </div>
+              <p class="muted">This payment is deliberately shown mid-reconcile for demo honesty.</p>
+            </div>
+          </section>
+          <section class="screen" data-screen="r-maint-new" data-nav="community">
+            <div class="topbar">
+              <button class="back" onclick="go('r-community')">‹ Community</button>
+              <span class="title">New request</span><span></span>
+            </div>
+            <div class="pad">
+              <h1 class="h1" style="font-size:20px">Maintenance</h1>
+              <p class="sub mb-12">Cedar Grove · Unit 204</p>
+              <div class="field mb-8">
+                <label>Category</label>
+                <select><option>Plumbing</option><option>HVAC</option><option>Electrical</option><option>Appliance</option><option>Other</option></select>
+              </div>
+              <div class="field mb-8">
+                <label>Describe the issue</label>
+                <textarea>Kitchen sink slow drain; water backs up after dishwasher runs.</textarea>
+              </div>
+              <div class="section-label" style="margin-top:4px">Photos</div>
+              <div class="row gap-md mb-12">
+                <div class="photo-slot filled" onclick="togglePhoto(this)" title="Placeholder photo"></div>
+                <div class="photo-slot" onclick="togglePhoto(this)">＋</div>
+                <div class="photo-slot" onclick="togglePhoto(this)">＋</div>
+              </div>
+              <div class="section-label">Permission to enter</div>
+              <div class="banner info mb-8"><span>ℹ</span><span>Separate from permanent address access. This grants entry only for this work order’s appointment window.</span></div>
+              <div class="check-row mb-8">
+                <input type="checkbox" id="pte" checked />
+                <label for="pte">Allow entry if I’m not home during the appointment window</label>
+              </div>
+              <div class="field-row mb-8">
+                <div class="field"><label>Window start</label><input value="Thu Sep 25 · 9:00 AM" /></div>
+                <div class="field"><label>Window end</label><input value="Thu Sep 25 · 12:00 PM" /></div>
+              </div>
+              <div class="field mb-12">
+                <label>Entry notes</label>
+                <input value="Use lobby code · knock first · dog crated" />
+              </div>
+              <button class="btn btn-primary" onclick="submitMaint()">Submit request</button>
+              <button class="btn btn-ghost mt-8" style="width:100%" onclick="go('r-maint-status')">View open request status</button>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="r-maint-status" data-nav="community">
+            <div class="topbar">
+              <button class="back" onclick="go('r-community')">‹ Community</button>
+              <span class="title">Request #CG-1842</span><span></span>
+            </div>
+            <div class="pad">
+              <div class="between mb-8"><span class="pill sky">Assigned</span><span class="muted">Updated 40m ago</span></div>
+              <h1 class="h1" style="font-size:20px">Kitchen slow drain</h1>
+              <p class="sub mb-16">Plumbing · Unit 204</p>
+              <div class="card mb-12">
+                <div class="timeline">
+                  <div class="tl-item done"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">Submitted</div><div class="tl-sub">Sep 22 · 2:10 PM · with photos</div></div></div>
+                  <div class="tl-item done"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">Triaged</div><div class="tl-sub">Priority normal · plumbing queue</div></div></div>
+                  <div class="tl-item now"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">Assigned</div><div class="tl-sub">Rio Plumbing · Thu 9:00–12:00 window</div></div></div>
+                  <div class="tl-item"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">On site / complete</div><div class="tl-sub">Pending visit</div></div></div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="h3">Access for this visit</div>
+                <p class="sub mt-8">Permission-to-enter: yes · window only · not permanent address access</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="r-amenities" data-nav="community">
+            <div class="topbar">
+              <button class="back" onclick="go('r-community')">‹ Community</button>
+              <span class="title">Amenities</span><span></span>
+            </div>
+            <div class="pad">
+              <div class="photo med club mb-12"><span class="photo-label">Clubhouse</span></div>
+              <h1 class="h1" style="font-size:20px">Reserve</h1>
+              <p class="sub mb-12">Rules &amp; capacity enforced by association.</p>
+              <div class="card mb-12">
+                <div class="between mb-8">
+                  <div class="h3" style="margin:0">Clubhouse</div>
+                  <span class="pill olive">Capacity 40</span>
+                </div>
+                <p class="sub mb-8">4-hour blocks · residents + 2 guests · no amplified music after 9 PM · $50 clean deposit</p>
+                <div class="section-label" style="margin-top:4px">Sat Sep 27</div>
+                <div class="amenity-slot"><span>10:00 AM – 2:00 PM</span><button class="btn btn-sm btn-secondary" style="width:auto" onclick="reserveAmenity('Clubhouse Sat 10–2')">Reserve</button></div>
+                <div class="amenity-slot taken"><span>2:00 PM – 6:00 PM</span><span class="pill ghost">Full</span></div>
+                <div class="amenity-slot"><span>6:00 PM – 10:00 PM</span><button class="btn btn-sm btn-secondary" style="width:auto" onclick="reserveAmenity('Clubhouse Sat 6–10')">Reserve</button></div>
+              </div>
+              <div class="card mb-12">
+                <div class="between mb-8">
+                  <div class="h3" style="margin:0">Guest parking · Spot G4</div>
+                  <span class="pill olive">1 overnight</span>
+                </div>
+                <p class="sub mb-8">Max 2 nights / week · plate required · not for residents’ primary cars</p>
+                <div class="field mb-8"><label>Guest plate</label><input value="TX 7XK-291" /></div>
+                <button class="btn btn-secondary btn-sm" style="width:auto" onclick="reserveAmenity('Guest parking G4')">Reserve overnight</button>
+              </div>
+              <div class="section-label">Your reservations</div>
+              <div class="card">
+                <div class="between">
+                  <div>
+                    <div class="h3" style="margin:0">Clubhouse</div>
+                    <p class="muted mt-4">Fri Sep 26 · 6–10 PM · 12 of 40</p>
+                  </div>
+                  <button class="btn btn-ghost btn-sm" style="width:auto" onclick="cancelAmenity()">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section class="screen" data-screen="r-notices" data-nav="community">
+            <div class="topbar">
+              <button class="back" onclick="go('r-community')">‹ Community</button>
+              <span class="title">Notices</span><span></span>
+            </div>
+            <div class="pad">
+              <div class="banner private mb-12"><span>🔒</span><span>Targeted to authorized recipients for your unit — not a mailing-list blast. Your contact isn’t shared with other residents.</span></div>
+              <div class="card mb-10">
+                <div class="between mb-6"><span class="pill sage">Board</span><span class="muted">Sep 20</span></div>
+                <div class="h3">Pool heater maintenance</div>
+                <p class="sub mt-8">Pool closed Tue Sep 23 · 8 AM–2 PM. Access fob still works for gym.</p>
+              </div>
+              <div class="card mb-10">
+                <div class="between mb-6"><span class="pill sky">Document</span><span class="muted">Sep 12</span></div>
+                <div class="h3">2026 budget packet</div>
+                <p class="sub mt-8">PDF · 18 pages · visible to owners of record only</p>
+                <button class="btn btn-ghost btn-sm mt-10" style="width:auto" onclick="toast('Would open PDF (prototype)')">Open document</button>
+              </div>
+              <div class="card">
+                <div class="between mb-6"><span class="pill warn">Unit 204</span><span class="muted">Sep 8</span></div>
+                <div class="h3">Violation notice · resolved</div>
+                <p class="sub mt-8">Balcony storage — cured Sep 10. No fine posted.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="r-arch" data-nav="community">
+            <div class="topbar">
+              <button class="back" onclick="go('r-community')">‹ Community</button>
+              <span class="title">Architectural</span><span></span>
+            </div>
+            <div class="pad">
+              <h1 class="h1" style="font-size:20px">New request</h1>
+              <p class="sub mb-12">Exterior / common-area impacting changes need board review.</p>
+              <div class="field mb-8"><label>Request type</label>
+                <select><option>Balcony screen</option><option>Window replacement</option><option>EV charger</option><option>Other</option></select>
+              </div>
+              <div class="field mb-8"><label>Description</label>
+                <textarea>Install bronze retractable balcony screen per association guidelines, facing courtyard.</textarea>
+              </div>
+              <div class="row gap-md mb-12">
+                <div class="photo-slot" onclick="togglePhoto(this)">＋</div>
+                <div class="photo-slot" onclick="togglePhoto(this)">＋</div>
+              </div>
+              <button class="btn btn-primary" onclick="submitArch()">Submit for review</button>
+              <button class="btn btn-ghost mt-8" style="width:100%" onclick="go('r-arch-history')">Decision history</button>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="r-arch-history" data-nav="community">
+            <div class="topbar">
+              <button class="back" onclick="go('r-arch')">‹ Request</button>
+              <span class="title">Decisions</span><span></span>
+            </div>
+            <div class="pad">
+              <div class="card mb-10">
+                <div class="between mb-6"><span class="pill warn">In review</span><span class="muted">Sep 22</span></div>
+                <div class="h3">Balcony screen</div>
+                <p class="sub mt-8">Submitted today · typical 10–14 day review</p>
+              </div>
+              <div class="card mb-10">
+                <div class="between mb-6"><span class="pill ok">Approved</span><span class="muted">Mar 4</span></div>
+                <div class="h3">EV charger · reserved stall</div>
+                <p class="sub mt-8">Conditions: Level 2 only · electrician licensed in Travis Co.</p>
+              </div>
+              <div class="card">
+                <div class="between mb-6"><span class="pill danger">Denied</span><span class="muted">Nov 2025</span></div>
+                <div class="h3">Rooftop satellite</div>
+                <p class="sub mt-8">Conflicts with roof warranty · see policy §4.2</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="r-move" data-nav="community">
+            <div class="topbar">
+              <button class="back" onclick="go('r-community')">‹ Community</button>
+              <span class="title">Move checklist</span><span></span>
+            </div>
+            <div class="pad">
+              <h1 class="h1" style="font-size:20px">Move-out · Unit 204</h1>
+              <p class="sub mb-12">Checklist does <strong>not</strong> silently close unsettled balances.</p>
+              <div class="banner danger mb-12"><span>⛔</span><span>Open balance $312 (Sep dues) blocks final clearance. Paying or transferring responsibility is required.</span></div>
+              <div class="checklist-item"><input type="checkbox" checked onchange="toggleCheck(this)" /><div><div class="strong">Forwarding address on file</div><div class="muted">Received Sep 15</div></div></div>
+              <div class="checklist-item"><input type="checkbox" checked onchange="toggleCheck(this)" /><div><div class="strong">Fob &amp; parking pass returned</div><div class="muted">Lobby desk · Sep 20</div></div></div>
+              <div class="checklist-item"><input type="checkbox" onchange="toggleCheck(this)" /><div><div class="strong">Final walkthrough scheduled</div><div class="muted">Pick a slot with management</div></div></div>
+              <div class="checklist-item blocked"><input type="checkbox" onchange="toggleCheck(this)" /><div><div class="strong">Settle open balances</div><div class="muted">$312 dues · cannot check off while open</div></div></div>
+              <div class="checklist-item"><input type="checkbox" onchange="toggleCheck(this)" /><div><div class="strong">Access revoked after clearance</div><div class="muted">Only after balances + walkthrough</div></div></div>
+              <button class="btn btn-secondary mt-12" onclick="go('r-bills')">Pay open balance</button>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="r-costs" data-nav="community">
+            <div class="topbar">
+              <button class="back" onclick="go('r-community')">‹ Community</button>
+              <span class="title">Home costs</span><span></span>
+            </div>
+            <div class="pad">
+              <h1 class="h1" style="font-size:20px">Cost overview</h1>
+              <p class="sub mb-12">Cedar Grove · Unit 204 · trailing 12 mo</p>
+              <div class="card mb-12">
+                <div class="quote-line"><span>HOA dues (paid)</span><span>$3,420</span></div>
+                <div class="quote-line"><span>Special assessments</span><span>$150</span></div>
+                <div class="quote-line"><span>Utilities (unit)</span><span>$1,280</span></div>
+                <div class="quote-line total"><span>Tracked here</span><span>$4,850</span></div>
+              </div>
+              <div class="banner info"><span>ℹ</span><span><strong>Escrow-aware:</strong> Your mortgage escrow already includes property tax &amp; insurance — those are <em>not</em> double-counted in this overview.</span></div>
+              <div class="card mt-12">
+                <div class="h3">Escrow (mortgage)</div>
+                <p class="sub mt-8">Tax + insurance ~$410/mo collected by lender · shown for context only · not a Domicile charge</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="r-today" data-nav="today">
+            <div class="pad-lg">
+              <div class="muted" style="font-size:12px">Tuesday, Sep 22</div>
+              <h1 class="h1">Today</h1>
+              <p class="sub mb-12">Community actions that need you.</p>
+              <div class="card tap mb-10" onclick="go('r-bills')">
+                <div class="between"><div><div class="h3" style="margin:0">HOA dues due Oct 1</div><p class="muted mt-4">Cedar Grove · $312</p></div><span class="pill warn">Pay</span></div>
+              </div>
+              <div class="card tap mb-10" onclick="go('r-maint-status')">
+                <div class="between"><div><div class="h3" style="margin:0">Maint · kitchen drain</div><p class="muted mt-4">Assigned · Thu window</p></div><span class="pill sky">Open</span></div>
+              </div>
+              <div class="card tap" onclick="go('r-amenities')">
+                <div class="between"><div><div class="h3" style="margin:0">Clubhouse Fri 6–10 PM</div><p class="muted mt-4">Your reservation</p></div><span class="pill olive">Booked</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="screen" data-screen="r-you" data-nav="you">
+            <div class="pad-lg">
+              <h1 class="h1">You</h1>
+              <p class="sub mb-12">Alex Rivera · fictional demo persona</p>
+              <div class="card mb-10">
+                <div class="h3">Roles at Cedar Grove</div>
+                <div class="role-tags mt-8">
+                  <span class="pill olive">Owner</span>
+                  <span class="pill sage">Resident</span>
+                  <span class="pill">Payer</span>
+                </div>
+                <p class="muted mt-8">Roles are not collapsed — owner ≠ resident ≠ payer when they differ.</p>
+              </div>
+              <div class="card mb-10">
+                <div class="h3">Roles at South Lamar</div>
+                <div class="role-tags mt-8">
+                  <span class="pill sage">Resident</span>
+                  <span class="pill sky">Payer (rent)</span>
+                </div>
+              </div>
+              <button class="btn btn-secondary" onclick="setRole('manager')">Switch to Manager workspace</button>
+            </div>
+          </section>
+
+        </div>
+
+        <nav class="bottom-nav">
+          <button class="nav-item" data-nav="today" onclick="navTo('today')"><span class="ico">◎</span>Today</button>
+          <button class="nav-item" data-nav="places" onclick="navTo('places')"><span class="ico">⌂</span>Places</button>
+          <button class="nav-item active" data-nav="community" onclick="navTo('community')"><span class="ico">◈</span>Community</button>
+          <button class="nav-item" data-nav="you" onclick="navTo('you')"><span class="ico">☺</span>You</button>
+        </nav>
+
+        <div class="sheet-overlay" id="pay-overlay" onclick="closePaySheet()"></div>
+        <div class="sheet" id="pay-sheet">
+          <div class="sheet-handle"></div>
+          <h2 class="h2">Pay in app</h2>
+          <p class="sub mb-12">Cedar Grove Association · Sep assessment</p>
+          <div class="card dense mb-12">
+            <div class="quote-line total" style="border:0;margin:0;padding:0"><span>Amount</span><span>$312.00</span></div>
+            <div class="quote-line sub"><span>Method</span><span>ACH · checking ••4821</span></div>
+            <div class="quote-line sub"><span>Payee</span><span>Cedar Grove Association</span></div>
+          </div>
+          <div class="banner info mb-12"><span>ℹ</span><span>After you confirm: status becomes <em>initiated</em>, then processing → settled → ledger posted. This is not instant ledger clearance.</span></div>
+          <button class="btn btn-primary" onclick="submitPay()">Confirm payment</button>
+          <button class="btn btn-ghost mt-8" style="width:100%" onclick="closePaySheet()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ws ws-manager" id="ws-manager">
+    <div class="mgr-shell">
+      <div class="mgr-proto">Prototype · planning only</div>
+      <aside class="mgr-side">
+        <div class="mgr-brand">
+          <div class="logo">Domicile · Ops</div>
+          <div class="sub">Cedar Grove + portfolio<br/>Manager sees property relationships only</div>
+        </div>
+        <button class="mgr-nav-item on" data-mnav="m-portfolio" onclick="goMgr('m-portfolio')">▦ Portfolio</button>
+        <button class="mgr-nav-item" data-mnav="m-residents" onclick="goMgr('m-residents')">☺ Residents &amp; owners</button>
+        <button class="mgr-nav-item" data-mnav="m-accounts" onclick="goMgr('m-accounts')">☰ Accounts</button>
+        <button class="mgr-nav-item" data-mnav="m-exceptions" onclick="goMgr('m-exceptions')">⚠ Exceptions <span class="badge">3</span></button>
+        <button class="mgr-nav-item" data-mnav="m-maintenance" onclick="goMgr('m-maintenance')">🔧 Maintenance</button>
+        <button class="mgr-nav-item" data-mnav="m-community" onclick="goMgr('m-community')">◈ Community</button>
+        <button class="mgr-nav-item" data-mnav="m-move" onclick="goMgr('m-move')">⇄ Move-in/out</button>
+        <button class="mgr-nav-item" data-mnav="m-admin" onclick="goMgr('m-admin')">⚙ Administration</button>
+        <div class="mgr-privacy">Privacy chrome: you manage linked properties only — not a resident’s other homes, contacts, or map history.</div>
+      </aside>
+      <div class="mgr-main">
+        <div class="mgr-top">
+          <div>
+            <div class="title" id="mgr-title">Portfolio</div>
+            <div class="meta">Signed in as Jordan Lee · Property Manager</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="width:auto" onclick="setRole('resident')">← Resident view</button>
+        </div>
+        <div class="mgr-body">
+
+          <div class="mgr-screen active" data-mscreen="m-portfolio">
+            <div class="grid-3 mb-16">
+              <div class="kpi-card" onclick="goMgr('m-accounts')">
+                <div class="kpi-n" style="color:var(--warn)">$48.2k</div>
+                <div class="kpi-l">Open balances</div>
+                <div class="kpi-s">Across 2 properties · source ledgers</div>
+              </div>
+              <div class="kpi-card" onclick="goMgr('m-maintenance')">
+                <div class="kpi-n" style="color:var(--sky)">14</div>
+                <div class="kpi-l">Open work orders</div>
+                <div class="kpi-s">3 unassigned · 2 overdue</div>
+              </div>
+              <div class="kpi-card" onclick="goMgr('m-exceptions')">
+                <div class="kpi-n" style="color:var(--danger)">3</div>
+                <div class="kpi-l">Exceptions</div>
+                <div class="kpi-s">Needs owner + next action</div>
+              </div>
+            </div>
+            <div class="section-label" style="margin-top:0">Properties</div>
+            <div class="grid-2">
+              <div class="card tap" onclick="goMgr('m-residents')">
+                <div class="row gap-md">
+                  <div class="photo sm condo"></div>
+                  <div>
+                    <div class="h3" style="margin:0">Cedar Grove Condos</div>
+                    <p class="muted mt-4">84 units · HOA · East Austin</p>
+                    <div class="chips mt-8"><span class="pill warn">$12.4k open</span><span class="pill sky">6 WOs</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="row gap-md">
+                  <div class="photo sm flats"></div>
+                  <div>
+                    <div class="h3" style="margin:0">South Lamar Flats</div>
+                    <p class="muted mt-4">48 units · rental · PM mandate</p>
+                    <div class="chips mt-8"><span class="pill ghost">$35.8k open</span><span class="pill sky">8 WOs</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="section-label">Attention</div>
+            <div class="card dense tap mb-8" onclick="goMgr('m-exceptions')">
+              <div class="between"><div><span class="strong">Unmatched payment · Unit 204</span><div class="muted mt-4">$150 ACH · not linked to charge</div></div><span class="pill warn">Exception</span></div>
+            </div>
+            <div class="card dense tap" onclick="goMgr('m-maintenance')">
+              <div class="between"><div><span class="strong">WO #CG-1842 kitchen drain</span><div class="muted mt-4">Assigned Rio · Thu window</div></div><span class="pill sky">Active</span></div>
+            </div>
+          </div>
+
+          <div class="mgr-screen" data-mscreen="m-residents">
+            <div class="between mb-12">
+              <div>
+                <h2 class="h2" style="margin:0">Cedar Grove Condos</h2>
+                <p class="muted mt-4">Roles kept distinct — resident · owner · payer</p>
+              </div>
+              <span class="pill ghost">84 units</span>
+            </div>
+            <div class="banner private mb-12"><span>🔒</span><span>Showing people linked to this property only. No cross-portfolio “other homes,” contacts graph, or map history.</span></div>
+            <div class="card">
+              <div class="list-row">
+                <div class="avatar">AR</div>
+                <div class="body">
+                  <div class="name">Alex Rivera · Unit 204</div>
+                  <div class="meta">alex.r@example.demo · fictional</div>
+                  <div class="role-tags">
+                    <span class="pill olive">Owner</span>
+                    <span class="pill sage">Resident</span>
+                    <span class="pill">Payer</span>
+                  </div>
+                </div>
+              </div>
+              <div class="list-row">
+                <div class="avatar">MK</div>
+                <div class="body">
+                  <div class="name">Maya Kim · Unit 204</div>
+                  <div class="meta">Household member · not on title</div>
+                  <div class="role-tags">
+                    <span class="pill sage">Resident</span>
+                    <span class="pill ghost">Not payer</span>
+                  </div>
+                </div>
+              </div>
+              <div class="list-row">
+                <div class="avatar">JT</div>
+                <div class="body">
+                  <div class="name">Jordan Torres · Unit 118</div>
+                  <div class="meta">Investor owner · lives elsewhere</div>
+                  <div class="role-tags">
+                    <span class="pill olive">Owner</span>
+                    <span class="pill">Payer</span>
+                    <span class="pill ghost">Not resident</span>
+                  </div>
+                </div>
+              </div>
+              <div class="list-row">
+                <div class="avatar">SL</div>
+                <div class="body">
+                  <div class="name">Sam Lee · Unit 118</div>
+                  <div class="meta">Tenant · rent via owner arrangement</div>
+                  <div class="role-tags">
+                    <span class="pill sage">Resident</span>
+                    <span class="pill ghost">Not owner</span>
+                    <span class="pill ghost">Not HOA payer</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mgr-screen" data-mscreen="m-accounts">
+            <div class="between mb-12">
+              <div>
+                <h2 class="h2" style="margin:0">Source HOA ledger</h2>
+                <p class="muted mt-4">Cedar Grove Association · Domicile mirrors — does not invent a bank ledger</p>
+              </div>
+              <span class="freshness">Synced 2h ago</span>
+            </div>
+            <div class="banner info mb-12"><span>ℹ</span><span>Charges below are itemized from the association’s authoritative ledger. Freshness reflects last successful sync.</span></div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead>
+                  <tr><th>Unit</th><th>Charge</th><th>Period</th><th>Amount</th><th>Balance</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>204</td><td>Assessment<br/><span class="muted">HOA dues</span></td><td>Sep 2026</td><td>$312.00</td><td>$312.00</td><td><span class="pill warn">Open</span></td></tr>
+                  <tr><td>204</td><td>Special assess.<br/><span class="muted">Roof reserve</span></td><td>Sep 2026</td><td>$150.00</td><td>$150.00</td><td><span class="pill sky">Payment processing</span></td></tr>
+                  <tr><td>118</td><td>Assessment</td><td>Sep 2026</td><td>$312.00</td><td>$0.00</td><td><span class="pill ok">Posted paid</span></td></tr>
+                  <tr><td>310</td><td>Late fee</td><td>Aug 2026</td><td>$25.00</td><td>$25.00</td><td><span class="pill danger">Delinquent</span></td></tr>
+                  <tr><td>056</td><td>Assessment</td><td>Sep 2026</td><td>$312.00</td><td>$0.00</td><td><span class="pill ok">Posted paid</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="muted mt-12">Credits &amp; payee on each line live in source system; Domicile displays with provenance.</p>
+          </div>
+
+          <div class="mgr-screen" data-mscreen="m-exceptions">
+            <h2 class="h2">Exception queue</h2>
+            <p class="sub mb-16">Each exception has an owner and a next action — nothing silent.</p>
+            <div class="exc-card">
+              <div class="between mb-4">
+                <span class="pill warn">Unmatched payment</span>
+                <span class="muted">Owner · Jordan Lee</span>
+              </div>
+              <div class="exc-title">$150 ACH · Unit 204</div>
+              <div class="exc-meta">Initiated by Alex Rivera Sep 18 · processor settled · source ledger still shows special assessment open. Likely timing gap before ledger post.</div>
+              <div class="exc-actions">
+                <button class="btn btn-sm btn-primary" style="width:auto" onclick="mgrAction('Matched to special assessment · awaiting ledger post')">Match to charge</button>
+                <button class="btn btn-sm btn-ghost" style="width:auto" onclick="mgrAction('Nudged source sync')">Force sync</button>
+              </div>
+            </div>
+            <div class="exc-card sync">
+              <div class="between mb-4">
+                <span class="pill danger">Sync failure</span>
+                <span class="muted">Owner · Ops on-call</span>
+              </div>
+              <div class="exc-title">CedarPay ledger pull failed</div>
+              <div class="exc-meta">Last success 26h ago · auth token expired on provider side. Balances may be stale in resident views.</div>
+              <div class="exc-actions">
+                <button class="btn btn-sm btn-primary" style="width:auto" onclick="mgrAction('Re-auth flow started (prototype)')">Re-authorize</button>
+                <button class="btn btn-sm btn-ghost" style="width:auto" onclick="mgrAction('Posted stale banner to residents')">Notify residents</button>
+              </div>
+            </div>
+            <div class="exc-card unassigned">
+              <div class="between mb-4">
+                <span class="pill sky">Unassigned request</span>
+                <span class="muted">Owner · Front desk</span>
+              </div>
+              <div class="exc-title">WO #CG-1855 · hallway light B2</div>
+              <div class="exc-meta">Submitted by resident Unit 210 · triage complete · no vendor assigned after 18h SLA.</div>
+              <div class="exc-actions">
+                <button class="btn btn-sm btn-primary" style="width:auto" onclick="goMgr('m-maintenance');mgrAction('Opened maintenance to assign')">Assign vendor</button>
+                <button class="btn btn-sm btn-ghost" style="width:auto" onclick="mgrAction('SLA clock paused · waiting parts')">Defer</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mgr-screen" data-mscreen="m-maintenance">
+            <div class="between mb-12">
+              <h2 class="h2" style="margin:0">Maintenance queue</h2>
+              <div class="segment" style="margin:0;width:280px">
+                <button type="button" class="on">All</button>
+                <button type="button" onclick="mgrAction('Filter: unassigned')">Unassigned</button>
+                <button type="button" onclick="mgrAction('Filter: mine')">Mine</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data">
+                <thead><tr><th>ID</th><th>Unit / issue</th><th>Stage</th><th>Assignee</th><th>Window</th><th></th></tr></thead>
+                <tbody>
+                  <tr class="tap" onclick="openMgrModal('modal-wo')">
+                    <td>CG-1842</td><td>204 · Kitchen drain<br/><span class="muted">Plumbing</span></td>
+                    <td><span class="pill sky">Assigned</span></td>
+                    <td>Rio Plumbing</td>
+                    <td>Thu 9–12</td>
+                    <td><button class="btn btn-sm btn-ghost" style="width:auto" onclick="event.stopPropagation();openMgrModal('modal-wo')">Open</button></td>
+                  </tr>
+                  <tr>
+                    <td>CG-1855</td><td>Common · Hall light B2<br/><span class="muted">Electrical</span></td>
+                    <td><span class="pill warn">Triaged</span></td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td><button class="btn btn-sm btn-secondary" style="width:auto" onclick="mgrAction('Assigned BrightSpark Electric')">Assign</button></td>
+                  </tr>
+                  <tr>
+                    <td>CG-1831</td><td>310 · AC not cooling<br/><span class="muted">HVAC</span></td>
+                    <td><span class="pill ok">Complete</span></td>
+                    <td>CoolAir ATX</td>
+                    <td>Done Sep 19</td>
+                    <td><button class="btn btn-sm btn-ghost" style="width:auto" onclick="mgrAction('Marked closed')">Close</button></td>
+                  </tr>
+                  <tr>
+                    <td>CG-1820</td><td>056 · Dishwasher leak<br/><span class="muted">Appliance</span></td>
+                    <td><span class="pill danger">Overdue</span></td>
+                    <td>HomeFix</td>
+                    <td>Was Sep 18</td>
+                    <td><button class="btn btn-sm btn-ghost" style="width:auto" onclick="mgrAction('Escalated to supervisor')">Escalate</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="muted mt-12">Flow: triage → assign → status. Permission-to-enter is per work order, not permanent access.</p>
+          </div>
+          <div class="mgr-screen" data-mscreen="m-community">
+            <div class="grid-2">
+              <div>
+                <h2 class="h2">Notice composer</h2>
+                <p class="sub mb-12">Audience picker · authorized recipients only</p>
+                <div class="field mb-8"><label>Subject</label><input value="Pool heater maintenance Tue" /></div>
+                <div class="field mb-8"><label>Body</label><textarea>Pool closed Tuesday 8 AM–2 PM for heater service. Gym remains open.</textarea></div>
+                <div class="section-label">Audience</div>
+                <div>
+                  <button type="button" class="audience-chip on" onclick="toggleAudience(this)">All residents · Cedar Grove</button>
+                  <button type="button" class="audience-chip" onclick="toggleAudience(this)">Owners of record only</button>
+                  <button type="button" class="audience-chip" onclick="toggleAudience(this)">Building B</button>
+                  <button type="button" class="audience-chip locked" onclick="toggleAudience(this)">All Domicile users nearby</button>
+                </div>
+                <div class="banner private mt-12 mb-12"><span>🔒</span><span>Cannot target contacts outside mandate. No mailing-list leak to unrelated residents or other properties.</span></div>
+                <button class="btn btn-primary" style="width:auto" onclick="mgrAction('Notice queued to authorized recipients')">Send notice</button>
+              </div>
+              <div>
+                <h2 class="h2">Amenity calendar</h2>
+                <p class="sub mb-12">Clubhouse · September</p>
+                <div class="card">
+                  <div class="cal-mini mb-12">
+                    <div class="cal-dow">S</div><div class="cal-dow">M</div><div class="cal-dow">T</div><div class="cal-dow">W</div><div class="cal-dow">T</div><div class="cal-dow">F</div><div class="cal-dow">S</div>
+                    <div class="cal-day off">30</div><div class="cal-day off">31</div>
+                    <div class="cal-day avail">1</div><div class="cal-day avail">2</div><div class="cal-day booked">3</div><div class="cal-day avail">4</div><div class="cal-day booked">5</div>
+                    <div class="cal-day avail">6</div><div class="cal-day avail">7</div><div class="cal-day avail">8</div><div class="cal-day booked">9</div><div class="cal-day avail">10</div><div class="cal-day avail">11</div><div class="cal-day full">12</div>
+                    <div class="cal-day avail">13</div><div class="cal-day avail">14</div><div class="cal-day avail">15</div><div class="cal-day avail">16</div><div class="cal-day booked">17</div><div class="cal-day avail">18</div><div class="cal-day avail">19</div>
+                    <div class="cal-day avail">20</div><div class="cal-day avail">21</div><div class="cal-day avail">22</div><div class="cal-day avail">23</div><div class="cal-day avail">24</div><div class="cal-day booked">25</div><div class="cal-day booked">26</div>
+                    <div class="cal-day avail">27</div><div class="cal-day avail">28</div><div class="cal-day avail">29</div><div class="cal-day avail">30</div><div class="cal-day off">1</div><div class="cal-day off">2</div><div class="cal-day off">3</div>
+                  </div>
+                  <div class="amenity-slot"><span>Fri 26 · 6–10 · Rivera 204</span><span class="pill olive">12/40</span></div>
+                  <div class="amenity-slot taken"><span>Sat 27 · 2–6 · Torres party</span><span class="pill ghost">Full</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mgr-screen" data-mscreen="m-move">
+            <h2 class="h2">Unit turnover · 204</h2>
+            <p class="sub mb-12">Alex Rivera move-out · access change only after clearance</p>
+            <div class="banner danger mb-12"><span>⛔</span><span>Unsettled $312 dues — checklist cannot silently close or redirect debt. Clearance blocked until balance resolved.</span></div>
+            <div class="grid-2">
+              <div class="card">
+                <div class="h3 mb-12">Turnover checklist</div>
+                <div class="checklist-item"><input type="checkbox" checked /><div><div class="strong">Forwarding address</div></div></div>
+                <div class="checklist-item"><input type="checkbox" checked /><div><div class="strong">Keys / fobs logged in</div></div></div>
+                <div class="checklist-item"><input type="checkbox" /><div><div class="strong">Walkthrough complete</div></div></div>
+                <div class="checklist-item blocked"><input type="checkbox" onchange="toggleCheck(this)" /><div><div class="strong">Balances settled</div><div class="muted">$312 open — blocked</div></div></div>
+                <div class="checklist-item"><input type="checkbox" disabled /><div><div class="strong">Access revoked</div><div class="muted">Unlocks after clearance</div></div></div>
+              </div>
+              <div class="card">
+                <div class="h3 mb-12">Access change</div>
+                <div class="quote-line"><span>Current fobs</span><span>2 active</span></div>
+                <div class="quote-line"><span>Guest codes</span><span>1 expiring Fri</span></div>
+                <div class="quote-line"><span>Parking</span><span>Stall 204-A</span></div>
+                <button class="btn btn-ghost btn-sm mt-12 disabled" style="width:100%" disabled>Revoke access (blocked)</button>
+                <p class="muted mt-8">No silent debt redirect to new resident. Incoming move-in waits on clearance.</p>
+                <button class="btn btn-secondary btn-sm mt-12" style="width:auto" onclick="mgrAction('Opened Unit 204 bills for collection')">Pursue balance</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mgr-screen" data-mscreen="m-admin">
+            <h2 class="h2">Administration</h2>
+            <p class="sub mb-16">Mandate scope · branding · modules — property relationships only</p>
+            <div class="grid-2 mb-12">
+              <div class="card">
+                <div class="h3">Mandate scope</div>
+                <p class="sub mt-8">Jordan Lee · Property Manager</p>
+                <div class="chips mt-12">
+                  <span class="pill olive">Cedar Grove Condos</span>
+                  <span class="pill olive">South Lamar Flats</span>
+                </div>
+                <p class="muted mt-12">Not in mandate: Holly Grove, East Cesar Chavez personal homes, or any resident’s non-linked places.</p>
+              </div>
+              <div class="card">
+                <div class="h3">Co-brand hint</div>
+                <div class="row gap-md mt-12">
+                  <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#b5673d,#6a7a55)"></div>
+                  <div>
+                    <div class="strong">Cedar Grove × Domicile</div>
+                    <p class="muted mt-4">Resident app shows association mark beside Domicile wordmark</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card mb-12">
+              <div class="h3 mb-12">Modules enabled</div>
+              <div class="quote-line"><span>Bills &amp; source ledger</span><span class="pill ok">On</span></div>
+              <div class="quote-line"><span>Pay in app (HOA)</span><span class="pill ok">On</span></div>
+              <div class="quote-line"><span>Maintenance</span><span class="pill ok">On</span></div>
+              <div class="quote-line"><span>Amenities</span><span class="pill ok">On</span></div>
+              <div class="quote-line"><span>Architectural review</span><span class="pill ok">On</span></div>
+              <div class="quote-line"><span>Rent collection (Lamar)</span><span class="pill sky">Track only</span></div>
+            </div>
+            <div class="banner private"><span>🔒</span><span><strong>Manager privacy:</strong> You see people and accounts linked to mandated properties. You do not see a resident’s other homes, personal contacts, or map history.</span></div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="mgr-modal-overlay" id="modal-wo" onclick="if(event.target===this)closeMgrModal('modal-wo')">
+        <div class="mgr-modal">
+          <div class="between mb-12">
+            <h2 class="h2" style="margin:0">WO #CG-1842</h2>
+            <button class="btn btn-ghost btn-sm" style="width:auto" onclick="closeMgrModal('modal-wo')">Close</button>
+          </div>
+          <span class="pill sky">Assigned</span>
+          <p class="sub mt-12 mb-12">Unit 204 · Kitchen slow drain · Plumbing</p>
+          <div class="timeline">
+            <div class="tl-item done"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">Submitted</div><div class="tl-sub">Resident · photos attached</div></div></div>
+            <div class="tl-item done"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">Triaged</div><div class="tl-sub">Normal priority</div></div></div>
+            <div class="tl-item now"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">Assigned · Rio Plumbing</div><div class="tl-sub">Thu 9:00–12:00 · PTE granted for window</div></div></div>
+            <div class="tl-item"><div class="tl-dot"></div><div class="tl-body"><div class="tl-title">Complete</div><div class="tl-sub">Pending</div></div></div>
+          </div>
+          <div class="btn-row mt-16">
+            <button class="btn btn-secondary btn-sm" onclick="mgrAction('Status → On site')">Mark on site</button>
+            <button class="btn btn-ghost btn-sm" onclick="mgrAction('Reassigned')">Reassign</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
