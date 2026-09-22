@@ -7,7 +7,7 @@
 
   const YOU_SCREENS = {
     'ledger': 1, 'move-planning': 1, 'move-checklist': 1, 'move-draft': 1, 'move-usps': 1,
-    'permissions': 1, 'connections': 1, 'connected-services': 1, 'connected-service-detail': 1, 'support': 1
+    'permissions': 1, 'permission-detail': 1, 'connections': 1, 'connected-services': 1, 'connected-service-detail': 1, 'support': 1
   };
 
   window.go = function (name) {
@@ -41,7 +41,9 @@
     if (name === 'move-usps') syncUspsUi();
     if (name === 'connected-services') renderConnectedServices();
     if (name === 'connected-service-detail') renderServiceDetail();
-    if (name === 'you' || name === 'today') updateConnectedServicesSummaries();
+    if (name === 'permissions') renderPermissionsHub();
+    if (name === 'permission-detail') renderPermissionDetail();
+    if (name === 'you' || name === 'today') { updateConnectedServicesSummaries(); updatePermissionsSummaries(); }
   };
 
   window.navTo = function (tab) {
@@ -1050,6 +1052,901 @@
     toast('Request noted (prototype) — no partner outreach');
   };
 
+  /* ========== Permissions & sharing (MAP demo · not live grants) ========== */
+  var personalSharingPaused = false;
+  var permTab = 'shared';
+  var activeGrantId = null;
+  var activeGrantKind = 'out'; // out | in
+  var publicMapOn = false;
+  var publicHandleMode = 'message'; // message | off
+  var pubDraft = { loc: 'ecc', prec: 'approx', dur: 'weekend' };
+  var shareDraft = {
+    step: 1,
+    recipient: null,
+    selection: 'follow',
+    placeId: 'place_ecc',
+    precision: 'approx',
+    purpose: 'Visit',
+    duration: 'fri'
+  };
+
+  var PLACE_LABELS = {
+    place_ecc: 'East Cesar Chavez Cottage',
+    place_sl: 'South Lamar loft',
+    place_lobby: 'Building lobby'
+  };
+
+  var DEMO_RECIPIENTS = [
+    { handle: '@maya', name: 'Maya Chen', accountId: 'acct_maya_91c2', initials: 'MC', color: '#2F5D50' },
+    { handle: '@devon', name: 'Devon Okoro', accountId: 'acct_devon_4a11', initials: 'DO', color: '#3A4F6A' },
+    { handle: '@jordan', name: 'Jordan R.', accountId: 'acct_jordan_77e0', initials: 'JR', color: '#6a7a55' }
+  ];
+
+  var outgoingGrants = [
+    {
+      id: 'grant_maya_4c2e',
+      name: 'Maya Chen',
+      handle: '@maya',
+      accountId: 'acct_maya_91c2',
+      initials: 'MC',
+      color: '#2F5D50',
+      class: 'peer',
+      precision: 'approx',
+      selection: 'follow',
+      placeId: null,
+      purpose: 'Meet up / visit',
+      status: 'active',
+      startIso: '2026-09-20T09:00:00-05:00',
+      endIso: '2026-09-25T20:00:00-05:00',
+      endLabel: 'Fri Sep 25, 8:00 PM CT',
+      countdown: 'Expires Fri Sep 25',
+      endingSoon: true,
+      instructions: null,
+      history: [
+        { title: 'Opened map card', sub: 'Tue Sep 22 · 2:14 PM CT · approximate area shown', denied: false },
+        { title: 'Viewed approximate neighborhood', sub: 'Mon Sep 21 · 6:02 PM CT · no street/unit', denied: false },
+        { title: 'Link redeemed on wrong account', sub: 'Sun Sep 20 · 11:40 AM CT · denied — account mismatch', denied: true },
+        { title: 'Grant created', sub: 'Sat Sep 20 · 9:00 AM CT · purpose Meet up / visit', denied: false }
+      ]
+    },
+    {
+      id: 'grant_devon_8a1f',
+      name: 'Devon Okoro',
+      handle: '@devon',
+      accountId: 'acct_devon_4a11',
+      initials: 'DO',
+      color: '#3A4F6A',
+      class: 'peer',
+      precision: 'exact',
+      selection: 'fixed',
+      placeId: 'place_ecc',
+      purpose: 'Package handoff',
+      status: 'scheduled',
+      startIso: '2026-09-28T08:00:00-05:00',
+      endIso: '2026-09-28T18:00:00-05:00',
+      endLabel: 'Mon Sep 28, 6:00 PM CT',
+      countdown: 'Starts Mon Sep 28 · 8:00 AM CT',
+      endingSoon: false,
+      instructions: 'Leave at side gate — code shared separately if needed',
+      history: [
+        { title: 'Grant scheduled', sub: 'Tue Sep 22 · 10:05 AM CT · not yet active', denied: false },
+        { title: 'Fixed address version selected', sub: 'East Cesar Chavez Cottage · version pinned', denied: false }
+      ]
+    },
+    {
+      id: 'grant_jordan_2b90',
+      name: 'Jordan R.',
+      handle: '@jordan',
+      accountId: 'acct_jordan_77e0',
+      initials: 'JR',
+      color: '#6a7a55',
+      class: 'household',
+      precision: 'exact',
+      selection: 'follow',
+      placeId: null,
+      purpose: 'Household member',
+      status: 'household',
+      startIso: '2026-01-01T00:00:00-06:00',
+      endIso: null,
+      endLabel: 'Ongoing · review by Dec 1, 2026',
+      countdown: 'Review Dec 1 · household role (not unlimited wallet)',
+      endingSoon: false,
+      instructions: null,
+      history: [
+        { title: 'Opened home map card', sub: 'Mon Sep 21 · 8:12 AM CT', denied: false },
+        { title: 'Role confirmed', sub: 'Household member · quarterly review set', denied: false }
+      ]
+    },
+    {
+      id: 'grant_ccc_task_9e3c',
+      name: 'Cedar Creek Courier',
+      handle: '@cedarcreek',
+      accountId: 'acct_ccc_job_441',
+      initials: 'CC',
+      color: '#C45C26',
+      class: 'task',
+      precision: 'exact',
+      selection: 'fixed',
+      placeId: 'place_ecc',
+      purpose: 'Delivery destination · job #CC-2041',
+      status: 'task',
+      startIso: '2026-09-22T14:00:00-05:00',
+      endIso: null,
+      endLabel: 'Ends when job completes',
+      countdown: 'Task-scoped · active job',
+      endingSoon: false,
+      instructions: 'Front porch · no gate code in this grant',
+      history: [
+        { title: 'Driver opened destination card', sub: 'Tue Sep 22 · 4:51 PM CT · job-scoped', denied: false },
+        { title: 'Task grant issued', sub: 'Tue Sep 22 · 2:00 PM CT · ends on job complete', denied: false }
+      ]
+    },
+    {
+      id: 'grant_priya_0d55',
+      name: 'Priya Nair',
+      handle: '@priya',
+      accountId: 'acct_priya_33ab',
+      initials: 'PN',
+      color: '#5a7a8a',
+      class: 'peer',
+      precision: 'approx',
+      selection: 'follow',
+      placeId: null,
+      purpose: 'Coffee meetup',
+      status: 'expired',
+      startIso: '2026-09-18T10:00:00-05:00',
+      endIso: '2026-09-21T20:00:00-05:00',
+      endLabel: 'Expired Mon Sep 21, 8:00 PM CT',
+      countdown: 'Expired yesterday',
+      endingSoon: false,
+      instructions: null,
+      history: [
+        { title: 'Grant expired', sub: 'Mon Sep 21 · 8:00 PM CT · auto-closed', denied: false },
+        { title: 'Viewed approximate area', sub: 'Sun Sep 20 · 3:22 PM CT', denied: false }
+      ]
+    }
+  ];
+
+  var incomingGrants = [
+    {
+      id: 'in_sam_7c01',
+      name: 'Sam Ortiz',
+      handle: '@sam',
+      accountId: 'acct_sam_12fe',
+      initials: 'SO',
+      color: '#2F6F4E',
+      class: 'peer',
+      precision: 'approx',
+      selection: 'follow',
+      purpose: 'Weekend hang',
+      status: 'active',
+      endLabel: 'Sun Sep 27, 9:00 PM CT',
+      countdown: 'Expires Sun',
+      history: [
+        { title: 'You opened their map card', sub: 'Tue Sep 22 · 1:05 PM CT · approximate only', denied: false }
+      ]
+    },
+    {
+      id: 'in_holly_evt_3a2',
+      name: 'Holly Grove events',
+      handle: '@hollygrove',
+      accountId: 'acct_hg_evt_88',
+      initials: 'HG',
+      color: '#6B5B4A',
+      class: 'event',
+      precision: 'venue',
+      selection: 'fixed',
+      purpose: 'Community BBQ · Sat',
+      status: 'active',
+      endLabel: 'Sat Sep 26, 10:00 PM CT',
+      countdown: 'Venue only · event class',
+      history: [
+        { title: 'Venue pin disclosed', sub: 'Event venue · not a home wallet', denied: false }
+      ]
+    },
+    {
+      id: 'in_lee_revoked',
+      name: 'Lee Park',
+      handle: '@lee',
+      accountId: 'acct_lee_90cd',
+      initials: 'LP',
+      color: '#78716C',
+      class: 'peer',
+      precision: 'exact',
+      selection: 'follow',
+      purpose: 'Drop-off',
+      status: 'revoked',
+      endLabel: 'Revoked Sep 19',
+      countdown: 'Revoked by sender',
+      history: [
+        { title: 'Access revoked by sender', sub: 'Fri Sep 19 · 4:30 PM CT', denied: true }
+      ]
+    }
+  ];
+
+  function findOutgoing(id) {
+    for (var i = 0; i < outgoingGrants.length; i++) if (outgoingGrants[i].id === id) return outgoingGrants[i];
+    return null;
+  }
+  function findIncoming(id) {
+    for (var i = 0; i < incomingGrants.length; i++) if (incomingGrants[i].id === id) return incomingGrants[i];
+    return null;
+  }
+
+  function effectiveOutgoingStatus(g) {
+    if (g.status === 'expired' || g.status === 'revoked') return g.status;
+    if (g.class === 'task') return 'task';
+    if (g.class === 'household') return personalSharingPaused ? 'paused' : 'household';
+    if (g.class === 'peer' && personalSharingPaused) return 'paused';
+    return g.status;
+  }
+
+  function statusLabel(st) {
+    return ({
+      active: 'Active', scheduled: 'Scheduled', expired: 'Expired',
+      task: 'Task', paused: 'Paused', household: 'Household', revoked: 'Revoked'
+    })[st] || st;
+  }
+
+  function precLabel(p) {
+    if (p === 'exact') return 'Exact pin';
+    if (p === 'venue') return 'Venue only';
+    return 'Approximate area';
+  }
+
+  function selLabel(s, placeId) {
+    if (s === 'fixed') return 'Fixed: ' + (PLACE_LABELS[placeId] || 'address version');
+    return 'Follow home';
+  }
+
+  function updatePermissionsSummaries() {
+    var active = 0, soon = 0;
+    outgoingGrants.forEach(function (g) {
+      var st = effectiveOutgoingStatus(g);
+      if (st === 'active' || st === 'scheduled' || st === 'task' || st === 'household') active++;
+      if (g.endingSoon && st !== 'expired' && st !== 'revoked') soon++;
+    });
+    var a = $('#perm-sum-active'); if (a) a.textContent = String(active);
+    var s = $('#perm-sum-soon'); if (s) s.textContent = String(soon);
+    var p = $('#perm-sum-pause'); if (p) p.textContent = personalSharingPaused ? 'Paused' : 'On';
+    var today = $('#today-perm-meta');
+    if (today) {
+      if (personalSharingPaused) today.textContent = 'Personal sharing paused · merchants unchanged';
+      else today.textContent = 'Maya · approx area · expires Fri';
+    }
+  }
+
+  window.goPermissionsTab = function (tab) {
+    permTab = tab || 'shared';
+    go('permissions');
+  };
+
+  window.setPermTab = function (tab) {
+    permTab = tab || 'shared';
+    $all('#perm-tabs .cs-filter').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-perm-tab') === permTab);
+    });
+    renderPermissionsHub();
+  };
+
+  window.togglePersonalSharingPause = function () {
+    personalSharingPaused = !personalSharingPaused;
+    syncPauseUi();
+    renderPermissionsHub();
+    updatePermissionsSummaries();
+    toast(personalSharingPaused
+      ? 'Paused sharing with people — merchant grants unchanged'
+      : 'Sharing with people active again');
+  };
+
+  function syncPauseUi() {
+    var tog = $('#perm-pause-toggle');
+    var sub = $('#perm-pause-sub');
+    var ban = $('#perm-pause-banner');
+    if (tog) {
+      tog.classList.toggle('on', !personalSharingPaused);
+      tog.classList.toggle('paused', personalSharingPaused);
+      tog.setAttribute('aria-pressed', personalSharingPaused ? 'true' : 'false');
+    }
+    if (sub) {
+      sub.textContent = personalSharingPaused
+        ? 'Paused · peer & public-personal suspended'
+        : 'Active · peer & public-personal grants live';
+    }
+    if (ban) ban.classList.toggle('hide', !personalSharingPaused);
+  }
+
+  function renderPermissionsHub() {
+    syncPauseUi();
+    updatePermissionsSummaries();
+    $all('#perm-tabs .cs-filter').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-perm-tab') === permTab);
+    });
+    var list = $('#perm-list');
+    if (!list) return;
+    list.innerHTML = '';
+    if (permTab === 'shared') renderOutgoingList(list);
+    else if (permTab === 'incoming') renderIncomingList(list);
+    else renderPublicPanel(list);
+  }
+
+  function renderOutgoingList(list) {
+    var note = document.createElement('div');
+    note.className = 'banner private mb-12';
+    note.innerHTML = '<span>◎</span><span>Grants bind to <strong>stable accounts</strong>, not mutable handles. Renaming preserves grants; aliases do not inherit. Peer grants require expiry (CT).</span>';
+    list.appendChild(note);
+    outgoingGrants.forEach(function (g) {
+      list.appendChild(grantCard(g, 'out'));
+    });
+  }
+
+  function renderIncomingList(list) {
+    var note = document.createElement('div');
+    note.className = 'banner private mb-12';
+    note.innerHTML = '<span>◎</span><span>Incoming grants to <strong>AL</strong>. Redemption checks your account + grant + pause. Forwarded links do not confer access.</span>';
+    list.appendChild(note);
+    incomingGrants.forEach(function (g) {
+      list.appendChild(grantCard(g, 'in'));
+    });
+  }
+
+  function renderPublicPanel(list) {
+    var html = '';
+    html += '<div class="banner private mb-12"><span>◎</span><span>Public handle lookup resolves to <strong>message / profile only</strong> by default — not an address. Public map visibility defaults <strong>off</strong>.</span></div>';
+    html += '<div class="card pub-card mb-12">';
+    html += '<div class="between mb-8"><div><div class="strong" style="font-size:14px">Public handle @al</div>';
+    html += '<div class="muted">Discoverability · Message only / Off map</div></div>';
+    html += '<span class="pill ghost">' + (publicHandleMode === 'message' ? 'Message only' : 'Off') + '</span></div>';
+    html += '<div class="chip-row mt-8">';
+    html += '<button type="button" class="purpose-chip' + (publicHandleMode === 'message' ? ' on' : '') + '" onclick="setPublicHandle(\'message\')">Message only</button>';
+    html += '<button type="button" class="purpose-chip' + (publicHandleMode === 'off' ? ' on' : '') + '" onclick="setPublicHandle(\'off\')">Off</button>';
+    html += '</div>';
+    html += '<p class="muted mt-12" style="font-size:11px;line-height:1.4">A handle, AI answer, or public pin does not grant unrelated authority.</p>';
+    html += '</div>';
+
+    html += '<div class="card pub-card mb-12">';
+    html += '<div class="between mb-8"><div><div class="strong" style="font-size:14px">Public map publication</div>';
+    html += '<div class="muted">Default off · never silent wallet publish</div></div>';
+    html += '<span class="pill ' + (publicMapOn ? 'sage' : 'ghost') + '">' + (publicMapOn ? 'On (demo)' : 'Off') + '</span></div>';
+    if (publicMapOn) {
+      html += '<p class="sub mb-8">Published: ' + (pubDraft.loc === 'sl' ? 'South Lamar' : 'East Cesar Chavez') + ' · ' + (pubDraft.prec === 'exact' ? 'Exact' : 'Approximate') + ' · window set</p>';
+      html += '<button class="btn btn-secondary btn-sm" style="width:auto" onclick="turnPublicMapOff()">Turn off</button>';
+    } else {
+      html += '<button class="btn btn-secondary btn-sm" style="width:auto" onclick="openPublicMapSheet()">Publish on map…</button>';
+    }
+    html += '</div>';
+
+    html += '<div class="banner info mb-8"><span>ℹ</span><span><strong>Distinguisher:</strong> Public off ≠ peer grants revoked ≠ Pause sharing with people. Three separate controls.</span></div>';
+    html += '<div class="banner private"><span>◎</span><span>Disabling public visibility does not revoke existing peer grants. Pause suspends peer/public-personal only.</span></div>';
+    list.innerHTML = html;
+  }
+
+  function grantCard(g, kind) {
+    var el = document.createElement('div');
+    var st = kind === 'out' ? effectiveOutgoingStatus(g) : g.status;
+    var cls = 'grant-card';
+    if (st === 'expired' || st === 'revoked') cls += ' expired-state';
+    if (st === 'paused') cls += ' paused-state';
+    el.className = cls;
+    var metaBits = [precLabel(g.precision)];
+    if (kind === 'out') metaBits.push(g.selection === 'fixed' ? 'Fixed' : 'Follow home');
+    metaBits.push(g.purpose);
+    el.innerHTML =
+      '<div class="grant-avatar" style="background:' + g.color + '">' + g.initials + '</div>' +
+      '<div class="grant-body">' +
+        '<div class="grant-name-row">' +
+          '<div class="grant-name">' + g.name + '</div>' +
+          '<span class="g-status ' + st + '">' + statusLabel(st) + '</span>' +
+        '</div>' +
+        '<div class="grant-meta">' + metaBits.join(' · ') + '</div>' +
+        '<div class="grant-chips">' +
+          '<span class="prec-pill ' + (g.precision === 'exact' ? 'exact' : 'approx') + '">' + precLabel(g.precision) + '</span>' +
+          (kind === 'out' ? '<span class="sel-pill">' + (g.selection === 'fixed' ? 'Fixed' : 'Follow') + '</span>' : '') +
+          '<span class="sel-pill">' + g.countdown + '</span>' +
+        '</div>' +
+        '<div class="grant-id">' + g.id + '</div>' +
+      '</div>' +
+      '<span class="y-chev">›</span>';
+    el.addEventListener('click', function () { openGrantDetail(g.id, kind); });
+    return el;
+  }
+
+  window.openGrantDetail = function (id, kind) {
+    activeGrantId = id;
+    activeGrantKind = kind || 'out';
+    go('permission-detail');
+  };
+
+  function renderPermissionDetail() {
+    var body = $('#pd-body');
+    var title = $('#pd-title');
+    if (!body) return;
+    if (activeGrantKind === 'in') {
+      renderIncomingDetail(body, title);
+      return;
+    }
+    var g = findOutgoing(activeGrantId);
+    if (!g) { body.innerHTML = '<p class="sub">Grant not found.</p>'; return; }
+    var st = effectiveOutgoingStatus(g);
+    if (title) title.textContent = g.name;
+
+    var fieldsHtml;
+    if (g.precision === 'approx') {
+      fieldsHtml =
+        '<div class="fact-row"><span class="muted">Disclosure</span><span class="strong" style="font-size:13px">Approximate neighborhood only</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Geometry</span><span class="strong" style="font-size:13px">Area blob · no street / unit / exact pin</span></div>';
+    } else {
+      var pl = g.selection === 'fixed' && g.placeId ? placeById(g.placeId) : PLACE_HOME;
+      fieldsHtml =
+        '<div class="fact-row"><span class="muted">Street</span><span class="strong" style="font-size:13px">' + pl.street + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Unit</span><span class="strong" style="font-size:13px">' + pl.unit + '</span></div>' +
+        '<div class="fact-row"><span class="muted">City</span><span class="strong" style="font-size:13px">' + pl.city + ', ' + pl.zip + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Honesty</span><span class="strong" style="font-size:12px">Exact fields bound to this grant only</span></div>';
+    }
+
+    var followOn = g.selection === 'follow' ? ' on' : '';
+    var fixedOn = g.selection === 'fixed' ? ' on' : '';
+    var exactOn = g.precision === 'exact' ? ' on' : '';
+    var approxOn = g.precision === 'approx' ? ' on' : '';
+
+    body.innerHTML =
+      '<div class="between mb-8"><span class="pill ghost">Prototype / demo</span><span class="g-status ' + st + '">' + statusLabel(st) + '</span></div>' +
+      '<div class="pd-hero">' +
+        '<div class="grant-avatar" style="background:' + g.color + '">' + g.initials + '</div>' +
+        '<div>' +
+          '<div class="strong" style="font-size:18px;font-family:var(--font-display)">' + g.name + '</div>' +
+          '<div class="muted" style="font-size:12px;margin-top:2px">' + g.handle + ' · account ' + g.accountId + '</div>' +
+          '<p class="muted mt-8" style="font-size:11px;line-height:1.35">Grants bind to this account ID. Renaming the handle preserves the grant; aliases do not inherit it.</p>' +
+        '</div>' +
+      '</div>' +
+
+      (st === 'paused' ? '<div class="banner warn mb-12"><span>⏸</span><span>Paused by your personal-sharing pause. Merchant grants elsewhere are unchanged.</span></div>' : '') +
+
+      '<div class="section-label" style="margin-top:0">Purpose &amp; fields</div>' +
+      '<div class="card mb-8" style="padding:12px 14px"><div class="strong" style="font-size:13px">' + g.purpose + '</div></div>' +
+      '<div class="card field-preview mb-12">' + fieldsHtml + '</div>' +
+
+      '<div class="section-label">Selection policy</div>' +
+      '<div class="policy-option' + followOn + '" onclick="setGrantSelection(\'follow\')">' +
+        '<div class="po-radio"></div>' +
+        '<div><div class="po-title">Follow home</div><div class="po-sub">recipient_route · tracks current home destination</div></div>' +
+      '</div>' +
+      '<div class="policy-option' + fixedOn + '" onclick="setGrantSelection(\'fixed\')">' +
+        '<div class="po-radio"></div>' +
+        '<div><div class="po-title">Fixed address version</div><div class="po-sub">' + (PLACE_LABELS[g.placeId] || PLACE_HOME.label) + ' · pinned version</div></div>' +
+      '</div>' +
+
+      '<div class="section-label">Precision</div>' +
+      '<div class="policy-option' + exactOn + '" onclick="setGrantPrecision(\'exact\')">' +
+        '<div class="po-radio"></div>' +
+        '<div><div class="po-title">Exact pin</div><div class="po-sub">Street / unit when grant allows</div></div>' +
+      '</div>' +
+      '<div class="policy-option' + approxOn + '" onclick="setGrantPrecision(\'approx\')">' +
+        '<div class="po-radio"></div>' +
+        '<div><div class="po-title">Approximate area</div><div class="po-sub">Never leaks exact geometry in previews</div></div>' +
+      '</div>' +
+
+      '<div class="section-label">Time window</div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Start</span><span class="strong" style="font-size:12px">' + formatGrantStart(g) + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">End</span><span class="strong" style="font-size:12px">' + g.endLabel + '</span></div>' +
+      '</div>' +
+      '<p class="muted mb-12" style="font-size:11px">Timezone: America/Chicago (CT). Future-address and historical access are separate and default-denied.</p>' +
+
+      (g.instructions ?
+        '<div class="section-label">Instructions</div><div class="card mb-12"><p class="sub">' + g.instructions + '</p><p class="muted mt-8" style="font-size:11px">Gate codes are permissioned separately — not implied by destination grants.</p></div>' : '') +
+
+      '<div class="section-label">Actions</div>' +
+      '<button class="btn btn-primary" onclick="openPreviewSheet()">Preview as recipient</button>' +
+      (g.status === 'expired'
+        ? '<button class="btn btn-secondary mt-8" onclick="extendGrant()">Extend</button>'
+        : '<button class="btn btn-secondary mt-8" onclick="extendGrant()">Extend</button>') +
+      '<button class="btn btn-secondary mt-8" onclick="copyRecipientLink()">Copy recipient-bound link</button>' +
+      '<button class="btn btn-secondary mt-8" onclick="openQrSheet()">Show QR</button>' +
+      (g.class !== 'task' && g.status !== 'expired'
+        ? '<button class="btn btn-ghost mt-8" style="width:100%;color:var(--danger)" onclick="openRevokeSheet()">Revoke</button>'
+        : (g.status === 'expired' ? '<p class="muted mt-8" style="font-size:11px;text-align:center">Expired — use Extend to create a new window.</p>' : '')) +
+
+      '<div class="section-label">Access history</div>' +
+      '<div class="card mb-8"><div class="access-tl">' + renderHistory(g.history) + '</div></div>' +
+      '<p class="muted mb-12" style="font-size:11px;text-align:center;line-height:1.45">Audit metadata only — no raw address dump. Pairwise ID <strong>' + g.id + '</strong></p>' +
+      '<p class="muted" style="font-size:11px;text-align:center">Prototype / demo · not a live grant</p>';
+  }
+
+  function formatGrantStart(g) {
+    if (!g.startIso) return '—';
+    if (g.status === 'scheduled') return 'Mon Sep 28, 8:00 AM CT';
+    if (g.class === 'household') return 'Ongoing since Jan 2026';
+    if (g.class === 'task') return 'Tue Sep 22, 2:00 PM CT';
+    return 'Sat Sep 20, 9:00 AM CT';
+  }
+
+  function renderHistory(rows) {
+    if (!rows || !rows.length) return '<p class="sub">No resolutions yet.</p>';
+    return rows.map(function (r) {
+      return '<div class="access-row' + (r.denied ? ' denied' : '') + '">' +
+        '<div class="ar-title">' + r.title + '</div>' +
+        '<div class="ar-sub">' + r.sub + '</div></div>';
+    }).join('');
+  }
+
+  function renderIncomingDetail(body, title) {
+    var g = findIncoming(activeGrantId);
+    if (!g) { body.innerHTML = '<p class="sub">Grant not found.</p>'; return; }
+    if (title) title.textContent = g.name;
+    var previewNote = g.precision === 'approx' || g.precision === 'venue'
+      ? 'Approximate / venue only — no exact home geometry'
+      : 'Exact fields if grant still active';
+    body.innerHTML =
+      '<div class="between mb-8"><span class="pill ghost">Incoming · demo</span><span class="g-status ' + g.status + '">' + statusLabel(g.status) + '</span></div>' +
+      '<div class="pd-hero">' +
+        '<div class="grant-avatar" style="background:' + g.color + '">' + g.initials + '</div>' +
+        '<div>' +
+          '<div class="strong" style="font-size:18px;font-family:var(--font-display)">' + g.name + '</div>' +
+          '<div class="muted" style="font-size:12px">' + g.handle + ' → you (AL)</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card field-preview mb-12">' +
+        '<div class="fact-row"><span class="muted">Purpose</span><span class="strong" style="font-size:13px">' + g.purpose + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Precision</span><span class="strong" style="font-size:13px">' + precLabel(g.precision) + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Window</span><span class="strong" style="font-size:12px">' + g.endLabel + '</span></div>' +
+      '</div>' +
+      '<div class="banner private mb-12"><span>◎</span><span>' + previewNote + '. Class: ' + g.class + '.</span></div>' +
+      (g.status === 'active'
+        ? '<button class="btn btn-primary" onclick="previewIncoming()">Preview</button>' +
+          '<button class="btn btn-secondary mt-8" onclick="requestIncomingExtend()">Request extend</button>' +
+          '<button class="btn btn-ghost mt-8" style="width:100%;color:var(--danger)" onclick="declineIncoming()">Decline</button>'
+        : '<p class="sub mb-12">This incoming grant is no longer usable.</p>') +
+      '<div class="section-label">Access history</div>' +
+      '<div class="card"><div class="access-tl">' + renderHistory(g.history) + '</div></div>';
+  }
+
+  window.setGrantSelection = function (mode) {
+    var g = findOutgoing(activeGrantId);
+    if (!g || g.status === 'expired') { toast('Expired grants are read-only — Extend first'); return; }
+    g.selection = mode;
+    if (mode === 'fixed' && !g.placeId) g.placeId = 'place_ecc';
+    renderPermissionDetail();
+    toast(mode === 'follow' ? 'Selection: Follow home (demo)' : 'Selection: Fixed address version (demo)');
+  };
+
+  window.setGrantPrecision = function (mode) {
+    var g = findOutgoing(activeGrantId);
+    if (!g || g.status === 'expired') { toast('Expired grants are read-only — Extend first'); return; }
+    g.precision = mode;
+    renderPermissionDetail();
+    toast(mode === 'exact' ? 'Precision: Exact pin (demo)' : 'Precision: Approximate area (demo)');
+  };
+
+  window.extendGrant = function () {
+    var g = findOutgoing(activeGrantId);
+    if (!g) return;
+    g.status = 'active';
+    g.endIso = '2026-09-28T20:00:00-05:00';
+    g.endLabel = 'Sun Sep 28, 8:00 PM CT';
+    g.countdown = 'Expires Sun Sep 28';
+    g.endingSoon = true;
+    g.history.unshift({ title: 'Grant extended', sub: 'Tue Sep 22 · just now · new end Sun Sep 28 CT', denied: false });
+    renderPermissionDetail();
+    updatePermissionsSummaries();
+    toast('Extended through Sun Sep 28 CT (demo)');
+  };
+
+  window.copyRecipientLink = function () {
+    var g = findOutgoing(activeGrantId);
+    if (!g) return;
+    var token = 'dml.link/r/' + g.id.replace('grant_', 'x7k') + '…';
+    toast('Copied ' + token);
+    setTimeout(function () {
+      toast('Forwarding does not transfer ' + g.name + "'s grant");
+    }, 2300);
+  };
+
+  window.openQrSheet = function () {
+    var g = findOutgoing(activeGrantId);
+    if (!g) return;
+    var token = 'dml.link/r/' + g.id.replace('grant_', '') + '_opaque';
+    var box = $('#perm-qr-box');
+    var tok = $('#perm-qr-token');
+    if (tok) tok.textContent = token;
+    if (box) {
+      // Simple placeholder QR-like SVG (not a real encoder)
+      var cells = '';
+      var seed = g.id.length;
+      for (var y = 0; y < 11; y++) {
+        for (var x = 0; x < 11; x++) {
+          var on = ((x * 7 + y * 13 + seed) % 5) !== 0;
+          if (x < 3 && y < 3) on = true;
+          if (x > 7 && y < 3) on = true;
+          if (x < 3 && y > 7) on = true;
+          if (on) cells += '<rect x="' + (x * 14 + 8) + '" y="' + (y * 14 + 8) + '" width="12" height="12" fill="#1C1917"/>';
+        }
+      }
+      box.innerHTML = '<svg viewBox="0 0 170 170" xmlns="http://www.w3.org/2000/svg"><rect width="170" height="170" fill="#F7F4EF"/>' + cells + '</svg>';
+    }
+    $('#perm-qr-backdrop').classList.add('show');
+    $('#perm-qr-sheet').classList.add('show');
+  };
+  window.closeQrSheet = function () {
+    $('#perm-qr-backdrop').classList.remove('show');
+    $('#perm-qr-sheet').classList.remove('show');
+  };
+
+  window.openPreviewSheet = function () {
+    var g = findOutgoing(activeGrantId);
+    if (!g) return;
+    var box = $('#perm-preview-body');
+    var approx = g.precision === 'approx';
+    var html = '<div class="share-preview-card mb-12">';
+    html += '<div class="muted mb-8" style="font-size:11px">As ' + g.name + ' would see</div>';
+    if (approx) {
+      html += '<div class="map-canvas" style="height:120px;margin-bottom:10px;border-radius:12px">' +
+        '<div class="map-blob" style="top:30%;left:28%;width:90px;height:70px"><span>Approx area</span></div>' +
+        '</div>';
+      html += '<div class="strong" style="font-size:14px">Neighborhood area · Austin</div>';
+      html += '<p class="muted mt-8" style="font-size:12px">No street, unit, or exact pin. Approximate never leaks exact geometry.</p>';
+    } else {
+      var pl = g.selection === 'fixed' && g.placeId ? placeById(g.placeId) : PLACE_HOME;
+      html += '<div class="strong" style="font-size:14px">' + pl.label + '</div>';
+      html += '<div class="muted mt-8">' + pl.street + ' · ' + pl.unit + '</div>';
+      html += '<div class="muted">' + pl.city + ', ' + pl.zip + '</div>';
+    }
+    html += '<div class="muted mt-12" style="font-size:11px">Purpose: ' + g.purpose + ' · until ' + g.endLabel + '</div>';
+    html += '</div>';
+    html += '<div class="banner private"><span>◎</span><span>Preview honors precision + pause + account binding. Wrong-account redemption is denied.</span></div>';
+    if (box) box.innerHTML = html;
+    $('#perm-preview-backdrop').classList.add('show');
+    $('#perm-preview-sheet').classList.add('show');
+  };
+  window.closePreviewSheet = function () {
+    $('#perm-preview-backdrop').classList.remove('show');
+    $('#perm-preview-sheet').classList.remove('show');
+  };
+
+  window.openRevokeSheet = function () {
+    var g = findOutgoing(activeGrantId);
+    if (!g) return;
+    var who = $('#perm-revoke-who');
+    if (who) who.textContent = 'Stop access for ' + g.name + ' (' + g.handle + '). Pairwise ' + g.id + '.';
+    $('#perm-revoke-backdrop').classList.add('show');
+    $('#perm-revoke-sheet').classList.add('show');
+  };
+  window.closeRevokeSheet = function () {
+    $('#perm-revoke-backdrop').classList.remove('show');
+    $('#perm-revoke-sheet').classList.remove('show');
+  };
+  window.confirmRevokeGrant = function () {
+    var g = findOutgoing(activeGrantId);
+    if (!g) return;
+    g.status = 'expired';
+    g.countdown = 'Revoked just now';
+    g.endLabel = 'Revoked Tue Sep 22 CT';
+    g.endingSoon = false;
+    g.history.unshift({ title: 'Grant revoked by you', sub: 'Tue Sep 22 · just now · copies/screenshots not recalled', denied: true });
+    closeRevokeSheet();
+    renderPermissionDetail();
+    updatePermissionsSummaries();
+    toast('Revoked — copies they already have cannot be recalled');
+  };
+
+  window.previewIncoming = function () {
+    var g = findIncoming(activeGrantId);
+    if (!g) return;
+    toast(g.precision === 'exact' ? 'Preview exact (if still active)' : 'Preview approximate / venue only');
+  };
+  window.requestIncomingExtend = function () {
+    toast('Extend request sent (demo)');
+  };
+  window.declineIncoming = function () {
+    var g = findIncoming(activeGrantId);
+    if (!g) return;
+    g.status = 'revoked';
+    g.countdown = 'Declined by you';
+    renderPermissionDetail();
+    toast('Declined incoming grant (demo)');
+  };
+
+  window.setPublicHandle = function (mode) {
+    publicHandleMode = mode;
+    renderPermissionsHub();
+    toast(mode === 'message' ? 'Handle: Message only (no address)' : 'Handle discoverability off');
+  };
+
+  window.openPublicMapSheet = function () {
+    $('#perm-public-backdrop').classList.add('show');
+    $('#perm-public-sheet').classList.add('show');
+  };
+  window.closePublicMapSheet = function () {
+    $('#perm-public-backdrop').classList.remove('show');
+    $('#perm-public-sheet').classList.remove('show');
+  };
+  window.pickPubLoc = function (btn) {
+    pubDraft.loc = btn.getAttribute('data-pub-loc');
+    $all('#perm-public-sheet [data-pub-loc]').forEach(function (b) { b.classList.toggle('on', b === btn); });
+  };
+  window.pickPubPrec = function (btn) {
+    pubDraft.prec = btn.getAttribute('data-pub-prec');
+    $all('#perm-public-sheet [data-pub-prec]').forEach(function (b) { b.classList.toggle('on', b === btn); });
+  };
+  window.pickPubDur = function (btn) {
+    pubDraft.dur = btn.getAttribute('data-pub-dur');
+    $all('#perm-public-sheet [data-pub-dur]').forEach(function (b) { b.classList.toggle('on', b === btn); });
+  };
+  window.confirmPublicMapOn = function () {
+    publicMapOn = true;
+    closePublicMapSheet();
+    renderPermissionsHub();
+    toast('Public map on (demo) — location + precision + window set');
+  };
+  window.turnPublicMapOff = function () {
+    publicMapOn = false;
+    renderPermissionsHub();
+    toast('Public map off — peer grants unchanged');
+  };
+
+  /* —— Share wizard —— */
+  window.openShareWizard = function () {
+    shareDraft = { step: 1, recipient: null, selection: 'follow', placeId: 'place_ecc', precision: 'approx', purpose: 'Visit', duration: 'fri' };
+    renderShareWizard();
+    $('#share-wizard-backdrop').classList.add('show');
+    $('#share-wizard-sheet').classList.add('show');
+  };
+  window.closeShareWizard = function () {
+    $('#share-wizard-backdrop').classList.remove('show');
+    $('#share-wizard-sheet').classList.remove('show');
+  };
+
+  function renderShareWizard() {
+    var box = $('#share-wizard-steps');
+    if (!box) return;
+    var s = shareDraft.step;
+    var html = '<div class="muted mb-12" style="font-size:11px">Step ' + s + ' of 7</div>';
+    if (s === 1) {
+      html += '<div class="share-step-label">Recipient</div>';
+      html += '<div class="field mb-8"><label>Search handle</label><input id="share-handle-input" placeholder="@maya" value="@maya" oninput="filterShareRecipients(this.value)" /></div>';
+      html += '<div id="share-recipient-hits"></div>';
+    } else if (s === 2) {
+      html += '<div class="share-step-label">Destination</div>';
+      html += '<div class="policy-option' + (shareDraft.selection === 'follow' ? ' on' : '') + '" onclick="sharePickSelection(\'follow\')"><div class="po-radio"></div><div><div class="po-title">Follow current home</div><div class="po-sub">' + PLACE_HOME.label + '</div></div></div>';
+      html += '<div class="policy-option' + (shareDraft.selection === 'fixed' ? ' on' : '') + '" onclick="sharePickSelection(\'fixed\')"><div class="po-radio"></div><div><div class="po-title">Fixed address version</div><div class="po-sub">Pick a place below</div></div></div>';
+      if (shareDraft.selection === 'fixed') {
+        html += '<div class="chip-row mt-8">';
+        ['place_ecc', 'place_sl', 'place_lobby'].forEach(function (pid) {
+          html += '<button type="button" class="purpose-chip' + (shareDraft.placeId === pid ? ' on' : '') + '" onclick="sharePickPlace(\'' + pid + '\')">' + PLACE_LABELS[pid] + '</button>';
+        });
+        html += '</div>';
+      }
+    } else if (s === 3) {
+      html += '<div class="share-step-label">Precision</div>';
+      html += '<div class="policy-option' + (shareDraft.precision === 'exact' ? ' on' : '') + '" onclick="sharePickPrecision(\'exact\')"><div class="po-radio"></div><div><div class="po-title">Exact pin</div><div class="po-sub">Street / unit when allowed</div></div></div>';
+      html += '<div class="policy-option' + (shareDraft.precision === 'approx' ? ' on' : '') + '" onclick="sharePickPrecision(\'approx\')"><div class="po-radio"></div><div><div class="po-title">Approximate area</div><div class="po-sub">Neighborhood blob only</div></div></div>';
+    } else if (s === 4) {
+      html += '<div class="share-step-label">Purpose</div>';
+      html += '<div class="chip-row">';
+      ['Visit', 'Delivery handoff', 'Temporary stay', 'Other'].forEach(function (p) {
+        html += '<button type="button" class="purpose-chip' + (shareDraft.purpose === p ? ' on' : '') + '" onclick="sharePickPurpose(\'' + p + '\')">' + p + '</button>';
+      });
+      html += '</div>';
+    } else if (s === 5) {
+      html += '<div class="share-step-label">Duration</div>';
+      html += '<div class="chip-row">';
+      [{ id: 'fri', l: 'Until Fri evening' }, { id: '3d', l: '3 days' }, { id: 'custom', l: 'Custom' }].forEach(function (d) {
+        html += '<button type="button" class="purpose-chip' + (shareDraft.duration === d.id ? ' on' : '') + '" onclick="sharePickDuration(\'' + d.id + '\')">' + d.l + '</button>';
+      });
+      html += '</div>';
+      html += '<p class="muted mt-12" style="font-size:11px">Peer grants require expiry · times in America/Chicago (CT).</p>';
+    } else if (s === 6) {
+      var r = shareDraft.recipient;
+      html += '<div class="share-step-label">Preview</div>';
+      html += '<div class="share-preview-card">';
+      html += '<div class="strong">' + (r ? r.name : 'Recipient') + ' will see</div>';
+      if (shareDraft.precision === 'approx') {
+        html += '<p class="muted mt-8">Approximate neighborhood only · no exact pin</p>';
+      } else {
+        var pl = shareDraft.selection === 'fixed' ? placeById(shareDraft.placeId) : PLACE_HOME;
+        html += '<p class="muted mt-8">' + pl.street + ' · ' + pl.unit + '</p>';
+      }
+      html += '<p class="muted mt-8" style="font-size:11px">' + shareDraft.purpose + ' · ' + (shareDraft.selection === 'follow' ? 'Follow home' : 'Fixed') + ' · ' + durationLabel(shareDraft.duration) + '</p>';
+      html += '</div>';
+    } else if (s === 7) {
+      html += '<div class="share-step-label">Confirm</div>';
+      html += '<div class="banner private mb-12"><span>◎</span><span>Creates pairwise grant ID bound to account — not the mutable handle. Demo only.</span></div>';
+      html += '<button class="btn btn-primary" onclick="confirmShareWizard()">Confirm share</button>';
+      html += '<button class="btn btn-ghost mt-8" style="width:100%" onclick="closeShareWizard()">Cancel</button>';
+    }
+    if (s < 7) {
+      html += '<div class="wiz-nav">';
+      html += '<button class="btn btn-ghost" onclick="shareWizardBack()"' + (s === 1 ? ' disabled style="opacity:.4"' : '') + '>Back</button>';
+      html += '<button class="btn btn-primary" onclick="shareWizardNext()">Next</button>';
+      html += '</div>';
+    } else if (s === 7) {
+      html += '<div class="wiz-nav"><button class="btn btn-ghost" onclick="shareWizardBack()">Back</button></div>';
+    }
+    box.innerHTML = html;
+    if (s === 1) {
+      filterShareRecipients(($('#share-handle-input') && $('#share-handle-input').value) || '@maya');
+    }
+  }
+
+  function durationLabel(id) {
+    if (id === '3d') return '3 days';
+    if (id === 'custom') return 'Custom window';
+    return 'Until Fri evening';
+  }
+
+  window.filterShareRecipients = function (q) {
+    var box = $('#share-recipient-hits');
+    if (!box) return;
+    q = (q || '').toLowerCase();
+    box.innerHTML = '';
+    DEMO_RECIPIENTS.filter(function (r) {
+      return !q || r.handle.indexOf(q) >= 0 || r.name.toLowerCase().indexOf(q.replace('@', '')) >= 0;
+    }).forEach(function (r) {
+      var on = shareDraft.recipient && shareDraft.recipient.accountId === r.accountId;
+      var row = document.createElement('div');
+      row.className = 'handle-hit' + (on ? ' on' : '');
+      row.innerHTML = '<div class="grant-avatar" style="background:' + r.color + '">' + r.initials + '</div>' +
+        '<div class="flex-1"><div class="strong" style="font-size:13px">' + r.name + '</div>' +
+        '<div class="muted" style="font-size:11px">' + r.handle + ' · ' + r.accountId + '</div></div>' +
+        (on ? '<span class="pill sage">Selected</span>' : '');
+      row.addEventListener('click', function () {
+        shareDraft.recipient = r;
+        filterShareRecipients(q);
+      });
+      box.appendChild(row);
+    });
+  };
+
+  window.sharePickSelection = function (m) { shareDraft.selection = m; renderShareWizard(); };
+  window.sharePickPlace = function (pid) { shareDraft.placeId = pid; shareDraft.selection = 'fixed'; renderShareWizard(); };
+  window.sharePickPrecision = function (m) { shareDraft.precision = m; renderShareWizard(); };
+  window.sharePickPurpose = function (p) { shareDraft.purpose = p; renderShareWizard(); };
+  window.sharePickDuration = function (d) { shareDraft.duration = d; renderShareWizard(); };
+
+  window.shareWizardNext = function () {
+    if (shareDraft.step === 1 && !shareDraft.recipient) { toast('Confirm a recipient account'); return; }
+    if (shareDraft.step < 7) { shareDraft.step++; renderShareWizard(); }
+  };
+  window.shareWizardBack = function () {
+    if (shareDraft.step > 1) { shareDraft.step--; renderShareWizard(); }
+  };
+
+  window.confirmShareWizard = function () {
+    var r = shareDraft.recipient;
+    if (!r) { toast('Pick a recipient'); return; }
+    var nid = 'grant_' + r.handle.replace('@', '') + '_' + Math.floor(Math.random() * 9000 + 1000).toString(16);
+    var endLabel = shareDraft.duration === '3d' ? 'Fri Sep 25, 5:00 PM CT' : (shareDraft.duration === 'custom' ? 'Custom window (demo)' : 'Fri Sep 25, 8:00 PM CT');
+    outgoingGrants.unshift({
+      id: nid,
+      name: r.name,
+      handle: r.handle,
+      accountId: r.accountId,
+      initials: r.initials,
+      color: r.color,
+      class: 'peer',
+      precision: shareDraft.precision,
+      selection: shareDraft.selection,
+      placeId: shareDraft.selection === 'fixed' ? shareDraft.placeId : null,
+      purpose: shareDraft.purpose,
+      status: 'active',
+      startIso: '2026-09-22T17:49:00-05:00',
+      endIso: '2026-09-25T20:00:00-05:00',
+      endLabel: endLabel,
+      countdown: 'Expires Fri',
+      endingSoon: true,
+      instructions: null,
+      history: [
+        { title: 'Grant created', sub: 'Tue Sep 22 · just now · demo pairwise share', denied: false }
+      ]
+    });
+    closeShareWizard();
+    permTab = 'shared';
+    updatePermissionsSummaries();
+    toast('Shared with ' + r.name + ' · ' + nid);
+    openGrantDetail(nid, 'out');
+  };
+
+
     var toastTimer;
   window.toast = function (msg) {
     var t = $('#toast');
@@ -1062,6 +1959,7 @@
   function boot() {
     updateMoveOverview();
     updateConnectedServicesSummaries();
+    updatePermissionsSummaries();
     var hash = (location.hash || '').replace(/^#/, '');
     if (hash && $('[data-screen="' + hash + '"]')) {
       $all('.screen').forEach(function (s) { s.classList.remove('active'); });

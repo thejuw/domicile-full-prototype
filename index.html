@@ -23,7 +23,9 @@
     <div class="path">Places → East Cesar Chavez → Hosting dashboard</div>
     <div class="path">You → Ledger, Move planning, permissions</div>
     <div class="path">You → Connected services → Amazon detail → Update now</div>
+    <div class="path">You → Permissions &amp; sharing → grant detail → Pause / New share</div>
     <div class="hint" style="margin-top:8px"><strong>Connected services:</strong> demo connectors only (API / deep link / draft). Pairwise IDs — not real OAuth.</div>
+    <div class="hint"><strong>Permissions (MAP):</strong> peer grants need expiry · Pause ≠ revoke merchants · Public handle ≠ address · prototype only.</div>
     <p class="muted" style="margin-top:14px;font-size:11px;line-height:1.45">Private-cohort chrome. Exact address &amp; codes only after pre-arrival unlock. Guest ≠ household. Fictional Austin sample data.</p>
   </aside>
 
@@ -141,8 +143,14 @@
             </div>
 
             <div class="section-label">Quiet</div>
-            <div class="card">
-              <p class="sub">Map sharing is on for Maya (expires Fri). No other exceptions.</p>
+            <div class="card tap" onclick="goPermissionsTab('shared')">
+              <div class="between">
+                <div>
+                  <div class="strong" style="font-size:14px">Permissions &amp; sharing</div>
+                  <div class="muted" id="today-perm-meta">Maya · approx area · expires Fri</div>
+                </div>
+                <span class="y-chev">›</span>
+              </div>
             </div>
           </div>
         </section>
@@ -243,6 +251,16 @@
               <span>◎</span>
               <span><strong>Permissioned map.</strong> Counts and markers never reveal private people you shouldn’t see.</span>
             </div>
+            <div class="card tap mt-12" onclick="goPermissionsTab('incoming')">
+              <div class="between">
+                <div>
+                  <div class="strong" style="font-size:14px">Shared with me</div>
+                  <div class="muted">Incoming grants you can preview on map</div>
+                </div>
+                <span class="y-chev">›</span>
+              </div>
+            </div>
+            <button class="btn btn-secondary mt-8" style="width:100%" onclick="goPermissionsTab('shared')">Manage sharing</button>
           </div>
         </section>
 
@@ -1094,20 +1112,61 @@
         </section>
 
         <section class="screen" data-screen="permissions" data-nav="you">
-          <div class="topbar"><button class="back" onclick="go('you')">‹ You</button><span class="title">Permissions</span><span></span></div>
-          <div class="pad">
-            <p class="sub mb-12">Who can find your appropriate current destination.</p>
-            <div class="card mb-8">
-              <div class="between"><div><div class="strong">Maya</div><div class="muted">Approximate area · expires Fri</div></div><span class="pill sage">Active</span></div>
-            </div>
-            <div class="card mb-8">
-              <div class="between"><div><div class="strong">Cedar Creek Courier</div><div class="muted">Delivery destination · task-scoped</div></div><span class="pill ghost">Task</span></div>
-            </div>
-            <div class="card">
-              <div class="between"><div><div class="strong">Public handle lookup</div><div class="muted">@al resolves to message only</div></div><span class="pill ghost">Off map</span></div>
-            </div>
-            <div class="banner private mt-12"><span>◎</span><span>Grants bind to people, not mutable handles. Expiry is required for peer sharing.</span></div>
+          <div class="topbar">
+            <button class="back" onclick="go('you')">‹ You</button>
+            <span class="title">Permissions</span>
+            <button class="back" style="justify-self:end;font-size:20px;font-weight:500" onclick="openShareWizard()" aria-label="Share destination">+</button>
           </div>
+          <div class="pad">
+            <div class="between mb-8">
+              <span class="pill ghost">MAP demo</span>
+              <span class="muted" style="font-size:11px">Not live grants</span>
+            </div>
+            <h1 class="h1" style="font-size:22px">Permissions &amp; sharing</h1>
+            <p class="sub mb-12">Who can receive your appropriate destination — purpose, fields, precision, and time window bound together.</p>
+
+            <div class="card perm-pause-card mb-12" id="perm-pause-card">
+              <div class="between mb-8">
+                <div>
+                  <div class="strong" style="font-size:14px">Sharing with people</div>
+                  <div class="muted" id="perm-pause-sub">Active · peer &amp; public-personal grants live</div>
+                </div>
+                <button type="button" class="perm-toggle on" id="perm-pause-toggle" onclick="togglePersonalSharingPause()" aria-pressed="false" aria-label="Pause sharing with people">
+                  <span class="perm-toggle-knob"></span>
+                </button>
+              </div>
+              <div class="banner warn hide" id="perm-pause-banner" style="margin:0">
+                <span>⏸</span>
+                <span>Peer &amp; public-personal grants suspended. Merchant / confirmed service grants unchanged — <a href="#connected-services" onclick="event.preventDefault();go('connected-services')" style="font-weight:700;text-decoration:underline">Connected Services</a>.</span>
+              </div>
+            </div>
+
+            <div class="stat-row mb-12" id="perm-summary-strip">
+              <div class="stat"><div class="n" id="perm-sum-active">0</div><div class="l">Active</div></div>
+              <div class="stat"><div class="n" id="perm-sum-soon">0</div><div class="l">Ending soon</div></div>
+              <div class="stat"><div class="n" id="perm-sum-pause">On</div><div class="l">People share</div></div>
+            </div>
+
+            <div class="cs-filter-row mb-12" id="perm-tabs">
+              <button type="button" class="cs-filter on" data-perm-tab="shared" onclick="setPermTab('shared')">I've shared</button>
+              <button type="button" class="cs-filter" data-perm-tab="incoming" onclick="setPermTab('incoming')">Shared with me</button>
+              <button type="button" class="cs-filter" data-perm-tab="public" onclick="setPermTab('public')">Public &amp; handle</button>
+            </div>
+
+            <div id="perm-list"><!-- filled by JS --></div>
+
+            <button class="btn btn-primary mt-12" onclick="openShareWizard()">Share destination</button>
+            <p class="muted mt-12" style="font-size:11px;text-align:center;line-height:1.45">Pairwise grant IDs · prototype / demo · not real OAuth</p>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="permission-detail" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('permissions')">‹ Permissions</button>
+            <span class="title" id="pd-title">Grant</span>
+            <span></span>
+          </div>
+          <div class="pad" id="pd-body"><!-- filled by JS --></div>
         </section>
 
         <section class="screen" data-screen="connected-services" data-nav="you">
@@ -1524,6 +1583,69 @@ AL</div>
         <div id="add-service-catalog"><!-- filled by JS --></div>
         <button class="btn btn-ghost mt-8" style="width:100%" onclick="requestServiceIdea()">Request a service</button>
         <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeAddService()">Close</button>
+      </div>
+
+      <!-- Permissions sheets -->
+      <div class="sheet-backdrop" id="perm-revoke-backdrop" onclick="closeRevokeSheet()"></div>
+      <div class="sheet" id="perm-revoke-sheet" role="dialog" aria-modal="true" aria-labelledby="perm-revoke-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="perm-revoke-title" style="font-size:18px;margin-bottom:6px">Revoke access?</h2>
+        <p class="sub mb-12" id="perm-revoke-who">Stop this grant for the named recipient.</p>
+        <div class="banner warn mb-12"><span>⚠</span><span><strong>Honest limit:</strong> stopping access does not delete copies or screenshots they already made. Those cannot be recalled.</span></div>
+        <button class="btn btn-primary" style="background:var(--danger)" onclick="confirmRevokeGrant()">Revoke grant</button>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeRevokeSheet()">Keep access</button>
+      </div>
+
+      <div class="sheet-backdrop" id="perm-preview-backdrop" onclick="closePreviewSheet()"></div>
+      <div class="sheet" id="perm-preview-sheet" role="dialog" aria-modal="true" aria-labelledby="perm-preview-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="perm-preview-title" style="font-size:18px;margin-bottom:6px">Preview as recipient</h2>
+        <p class="sub mb-12">What they see under the current grant — approximate never leaks exact geometry.</p>
+        <div id="perm-preview-body"></div>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closePreviewSheet()">Close</button>
+      </div>
+
+      <div class="sheet-backdrop" id="perm-qr-backdrop" onclick="closeQrSheet()"></div>
+      <div class="sheet" id="perm-qr-sheet" role="dialog" aria-modal="true" aria-labelledby="perm-qr-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="perm-qr-title" style="font-size:18px;margin-bottom:6px">Recipient-bound QR</h2>
+        <p class="sub mb-12">Opaque ref for the named account. Forwarding does not transfer their grant.</p>
+        <div class="perm-qr-box" id="perm-qr-box"></div>
+        <p class="muted mt-12" style="font-size:11px;text-align:center;word-break:break-all" id="perm-qr-token"></p>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeQrSheet()">Close</button>
+      </div>
+
+      <div class="sheet-backdrop" id="perm-public-backdrop" onclick="closePublicMapSheet()"></div>
+      <div class="sheet" id="perm-public-sheet" role="dialog" aria-modal="true" aria-labelledby="perm-public-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="perm-public-title" style="font-size:18px;margin-bottom:6px">Publish on public map?</h2>
+        <p class="sub mb-12">Never silent. Choose location, precision, and time window — or stay off.</p>
+        <div class="section-label" style="margin-top:0">Location</div>
+        <div class="chip-row mb-12" id="pub-loc-chips">
+          <button type="button" class="purpose-chip on" data-pub-loc="ecc" onclick="pickPubLoc(this)">East Cesar Chavez</button>
+          <button type="button" class="purpose-chip" data-pub-loc="sl" onclick="pickPubLoc(this)">South Lamar</button>
+        </div>
+        <div class="section-label">Precision</div>
+        <div class="chip-row mb-12">
+          <button type="button" class="purpose-chip on" data-pub-prec="approx" onclick="pickPubPrec(this)">Approximate area</button>
+          <button type="button" class="purpose-chip" data-pub-prec="exact" onclick="pickPubPrec(this)">Exact pin</button>
+        </div>
+        <div class="section-label">Time window</div>
+        <div class="chip-row mb-16">
+          <button type="button" class="purpose-chip on" data-pub-dur="weekend" onclick="pickPubDur(this)">This weekend</button>
+          <button type="button" class="purpose-chip" data-pub-dur="7d" onclick="pickPubDur(this)">7 days</button>
+          <button type="button" class="purpose-chip" data-pub-dur="custom" onclick="pickPubDur(this)">Custom</button>
+        </div>
+        <button class="btn btn-primary" onclick="confirmPublicMapOn()">Publish (demo)</button>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closePublicMapSheet()">Cancel — stay off</button>
+      </div>
+
+      <div class="sheet-backdrop" id="share-wizard-backdrop" onclick="closeShareWizard()"></div>
+      <div class="sheet sheet-tall" id="share-wizard-sheet" role="dialog" aria-modal="true" aria-labelledby="share-wizard-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="share-wizard-title" style="font-size:18px;margin-bottom:6px">Share destination</h2>
+        <p class="sub mb-12">Demo wizard · binds to stable account ID, not a mutable handle.</p>
+        <div id="share-wizard-steps"></div>
       </div>
 
       <div class="toast" id="toast"></div>
