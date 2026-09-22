@@ -14,11 +14,11 @@ open /workspace/domicile-full-prototype/index.html
 python3 -m http.server 8765 --directory /workspace/domicile-full-prototype
 ```
 
-Then visit `http://localhost:8765/`. Hash routes work (e.g. `#stays-search`, `#host-dashboard`, `#ledger`, `#move-planning`, `#move-checklist`). Bottom nav remembers the last screen per tab.
+Then visit `http://localhost:8765/`. Hash routes work (e.g. `#stays-search`, `#host-dashboard`, `#ledger`, `#move-planning`, `#move-checklist`, `#connected-services`). Bottom nav remembers the last screen per tab.
 
 **Files:** `index.html` · `app.css` · `app.js` · this README.
 
-## Screen inventory (47)
+## Screen inventory (49)
 
 ### Shell tabs
 | Tab | Screens |
@@ -27,7 +27,7 @@ Then visit `http://localhost:8765/`. Hash routes work (e.g. `#stays-search`, `#h
 | **Map** | Permissioned faux MapLibre UI · layer toggles (destinations / businesses / events) · SVG city blobs |
 | **Places** | Homes list → **East Cesar Chavez Cottage** Home Profile → Household · Facts/assets · Spending · Bills · Community (HOA balance) · Maintenance · **Hosting** |
 | **Explore** | Hub → **Stays** · Services · Events · Packages · Sponsored (Ad-labeled) |
-| **You** | Identity · Trips · Hosting · Ledger · Permissions · Connections · Move planning · Support |
+| **You** | Identity · Trips · Hosting · Ledger · Permissions · **Connected services** · Move planning · Support |
 
 ### Stays — guest (Explore → Stays)
 Search → results list/map → listing → checkout (instant / request) → confirmation → Trips → pre-arrival lock → **Demo unlock** → address / house guide / code → messaging → active stay → checkout checklist → receipt / review
@@ -57,6 +57,9 @@ Places → Cottage → Hosting → Listing · Calendar · Reservation · Invite
 
 ### Home / community / move
 Places → Home → Community (HOA) · **Today or You → Move Planning** → checklist → AI draft (HOA) → confirm send · USPS handoff · You → Permissions
+
+### Connected services (~30s)
+**You → Connected services** → Amazon (API apply · Follow home · Applied OK) → pin South Lamar / follow home → **Update now** → Exclude/Include on Move Planning → back → Move card shows follow/pinned/excluded counts. Add sheet lists capability honesty (API / Deep link / Draft). Demo only — not real OAuth.
 
 ### Move Planning (AI-assisted sketch)
 Overview (East Cesar Chavez → South Lamar) → recipient checklist with channel/status chips → Assist draft preview (facts from Move Engine; you send) → USPS official-form handoff (never auto-filed) → Suggest missing recipients (DMV, voter reg demo tips)

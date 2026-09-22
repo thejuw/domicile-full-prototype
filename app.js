@@ -7,10 +7,11 @@
 
   const YOU_SCREENS = {
     'ledger': 1, 'move-planning': 1, 'move-checklist': 1, 'move-draft': 1, 'move-usps': 1,
-    'permissions': 1, 'connections': 1, 'support': 1
+    'permissions': 1, 'connections': 1, 'connected-services': 1, 'connected-service-detail': 1, 'support': 1
   };
 
   window.go = function (name) {
+    if (name === 'connections') name = 'connected-services';
     const next = $('[data-screen="' + name + '"]');
     if (!next) { console.warn('Missing screen:', name); return; }
     const prev = $('[data-screen="' + current + '"]');
@@ -36,8 +37,11 @@
     next.scrollTop = 0;
     try { history.replaceState(null, '', '#' + name); } catch (e) {}
     if (name === 'move-checklist') renderRecipients();
-    if (name === 'move-planning') updateMoveOverview();
+    if (name === 'move-planning') { updateMoveOverview(); updateConnectedServicesSummaries(); }
     if (name === 'move-usps') syncUspsUi();
+    if (name === 'connected-services') renderConnectedServices();
+    if (name === 'connected-service-detail') renderServiceDetail();
+    if (name === 'you' || name === 'today') updateConnectedServicesSummaries();
   };
 
   window.navTo = function (tab) {
@@ -465,7 +469,588 @@
     toast('USPS marked Confirmed — only because you said so');
   };
 
-  var toastTimer;
+  /* ========== Connected Services (demo connectors · not real OAuth) ========== */
+  var PLACE_HOME = {
+    id: 'place_ecc',
+    label: 'East Cesar Chavez Cottage',
+    street: '1204 E Cesar Chavez St',
+    unit: 'Unit 204',
+    city: 'Austin',
+    zip: '78702'
+  };
+  var PLACE_SOUTH = {
+    id: 'place_sl',
+    label: 'South Lamar loft',
+    street: '2110 S Lamar Blvd',
+    unit: 'Apt 3B',
+    city: 'Austin',
+    zip: '78704'
+  };
+  var PLACE_LOBBY = {
+    id: 'place_lobby',
+    label: 'Building lobby',
+    street: '1204 E Cesar Chavez St',
+    unit: 'Lobby / concierge',
+    city: 'Austin',
+    zip: '78702'
+  };
+
+  var CAP_LABEL = { api: 'API apply', deeplink: 'Deep link', draft: 'Draft / manual' };
+  var STATUS_CS_LABEL = {
+    connected: 'Connected',
+    'needs-reconnect': 'Needs reconnect',
+    'apply-pending': 'Apply pending',
+    'applied-ok': 'Applied · read-back OK',
+    failed: 'Failed',
+    excluded: 'Excluded from move'
+  };
+
+  var connectedServices = [
+    {
+      id: 'conn_amz_7f3a',
+      name: 'Amazon',
+      purpose: 'Subscribe & Save / delivery address',
+      initials: 'Az',
+      color: '#2F5D50',
+      capability: 'api',
+      routing: 'follow',
+      pinnedPlaceId: null,
+      status: 'applied-ok',
+      moveIncluded: true,
+      openOrders: 2,
+      readback: 'Merchant confirmed default address · 2h ago',
+      readbackKind: 'ok',
+      note: null,
+      catalog: true
+    },
+    {
+      id: 'conn_dd_9c21',
+      name: 'DoorDash',
+      purpose: 'Delivery address preference',
+      initials: 'DD',
+      color: '#C45C26',
+      capability: 'api',
+      routing: 'follow',
+      pinnedPlaceId: null,
+      status: 'connected',
+      moveIncluded: true,
+      openOrders: 0,
+      readback: 'Last sync OK · yesterday',
+      readbackKind: 'ok',
+      note: null,
+      catalog: true
+    },
+    {
+      id: 'conn_ubr_4e88',
+      name: 'Uber',
+      purpose: 'Pickup / dropoff preference',
+      initials: 'Ub',
+      color: '#1C1917',
+      capability: 'deeplink',
+      routing: 'follow',
+      pinnedPlaceId: null,
+      status: 'connected',
+      moveIncluded: true,
+      openOrders: 0,
+      readback: 'Deep link ready · opens Uber app',
+      readbackKind: 'pending',
+      note: 'Rides ≠ parcel delivery — destination preference only.',
+      catalog: true
+    },
+    {
+      id: 'conn_ue_2b19',
+      name: 'Uber Eats',
+      purpose: 'Food delivery address',
+      initials: 'UE',
+      color: '#5a7a8a',
+      capability: 'api',
+      routing: 'follow',
+      pinnedPlaceId: null,
+      status: 'connected',
+      moveIncluded: true,
+      openOrders: 1,
+      readback: 'Default address on file · 1d ago',
+      readbackKind: 'ok',
+      note: null,
+      catalog: true
+    },
+    {
+      id: 'conn_ic_6d40',
+      name: 'Instacart',
+      purpose: 'Grocery delivery address',
+      initials: 'Ic',
+      color: '#2F6F4E',
+      capability: 'api',
+      routing: 'pinned',
+      pinnedPlaceId: 'place_lobby',
+      status: 'connected',
+      moveIncluded: true,
+      openOrders: 0,
+      readback: 'Pinned override active · Building lobby',
+      readbackKind: 'ok',
+      note: 'Pinned example: Building lobby (not home door).',
+      catalog: true
+    },
+    {
+      id: 'conn_ups_1a55',
+      name: 'UPS My Choice',
+      purpose: 'Parcel delivery manager',
+      initials: 'UP',
+      color: '#5a4a2a',
+      capability: 'deeplink',
+      routing: 'follow',
+      pinnedPlaceId: null,
+      status: 'connected',
+      moveIncluded: true,
+      openOrders: 0,
+      readback: 'Opens UPS delivery preferences',
+      readbackKind: 'pending',
+      note: 'FedEx Delivery Manager–style deep link also available in catalog.',
+      catalog: true
+    },
+    {
+      id: 'conn_hf_8c02',
+      name: 'Harvest Box',
+      purpose: 'Meal kit · HelloFresh-like',
+      initials: 'HB',
+      color: '#6a7a55',
+      capability: 'draft',
+      routing: 'follow',
+      pinnedPlaceId: null,
+      status: 'apply-pending',
+      moveIncluded: true,
+      openOrders: 0,
+      readback: 'Draft ready — you confirm in merchant account',
+      readbackKind: 'pending',
+      note: 'No partner API. Domicile prepares a draft you apply manually.',
+      catalog: true
+    },
+    {
+      id: 'conn_tgt_3f71',
+      name: 'Target',
+      purpose: 'Same-day / ship-to address',
+      initials: 'Tg',
+      color: '#B91C1C',
+      capability: 'api',
+      routing: 'follow',
+      pinnedPlaceId: null,
+      status: 'needs-reconnect',
+      moveIncluded: true,
+      openOrders: 0,
+      readback: 'Token expired · reconnect required (demo)',
+      readbackKind: 'warn',
+      note: 'Demo reconnect state — not a real OAuth failure.',
+      catalog: true
+    },
+    {
+      id: 'conn_chy_0e44',
+      name: 'Chewy',
+      purpose: 'Pet supply autoship',
+      initials: 'Ch',
+      color: '#3A4F6A',
+      capability: 'api',
+      routing: 'follow',
+      pinnedPlaceId: null,
+      status: 'excluded',
+      moveIncluded: false,
+      openOrders: 0,
+      readback: 'Excluded from current move plan',
+      readbackKind: 'pending',
+      note: 'Tied to Move Planning — keep shipping to current home until you include.',
+      catalog: true
+    }
+  ];
+
+  var catalogExtras = [
+    {
+      id: 'cat_fdx',
+      name: 'FedEx Delivery Manager',
+      purpose: 'Parcel delivery preferences',
+      initials: 'Fx',
+      color: '#4a2060',
+      capability: 'deeplink',
+      connected: false
+    },
+    {
+      id: 'cat_wal',
+      name: 'Walmart',
+      purpose: 'Delivery & pickup address',
+      initials: 'Wm',
+      color: '#0071ce',
+      capability: 'api',
+      connected: false
+    }
+  ];
+
+  var csFilter = 'all';
+  var activeServiceId = 'conn_amz_7f3a';
+  var updateFailNext = false;
+
+  function findService(id) {
+    for (var i = 0; i < connectedServices.length; i++) {
+      if (connectedServices[i].id === id) return connectedServices[i];
+    }
+    return null;
+  }
+
+  function placeById(id) {
+    if (id === PLACE_SOUTH.id) return PLACE_SOUTH;
+    if (id === PLACE_LOBBY.id) return PLACE_LOBBY;
+    return PLACE_HOME;
+  }
+
+  function effectivePlace(svc) {
+    if (svc.routing === 'pinned' && svc.pinnedPlaceId) return placeById(svc.pinnedPlaceId);
+    return PLACE_HOME;
+  }
+
+  function csMoveStats() {
+    var follow = 0, pinned = 0, excluded = 0;
+    connectedServices.forEach(function (s) {
+      if (!s.moveIncluded) excluded++;
+      else if (s.routing === 'pinned') pinned++;
+      else follow++;
+    });
+    return { follow: follow, pinned: pinned, excluded: excluded };
+  }
+
+  function updateConnectedServicesSummaries() {
+    var st = csMoveStats();
+    var line = st.follow + ' services follow this move · ' + st.pinned + ' pinned · ' + st.excluded + ' excluded';
+    var el = $('#move-cs-summary');
+    if (el) el.textContent = line;
+    var today = $('#today-cs-meta');
+    if (today) today.textContent = st.follow + ' follow · ' + st.pinned + ' pinned · ' + st.excluded + ' excluded';
+    var you = $('#you-cs-meta');
+    if (you) you.textContent = String(connectedServices.length);
+  }
+
+  window.filterConnectedServices = function (mode) {
+    csFilter = mode || 'all';
+    $all('.cs-filter').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-cs-filter') === csFilter);
+    });
+    renderConnectedServices();
+  };
+
+  function passesFilter(s) {
+    if (csFilter === 'follow') return s.routing === 'follow' && s.moveIncluded;
+    if (csFilter === 'pinned') return s.routing === 'pinned';
+    if (csFilter === 'move') return s.moveIncluded;
+    return true;
+  }
+
+  function renderConnectedServices() {
+    var list = $('#cs-list');
+    if (!list) return;
+    list.innerHTML = '';
+    connectedServices.filter(passesFilter).forEach(function (s) {
+      list.appendChild(serviceCard(s));
+    });
+    if (!list.children.length) {
+      list.innerHTML = '<div class="card"><p class="sub">No services in this filter.</p></div>';
+    }
+    updateConnectedServicesSummaries();
+  }
+
+  function serviceCard(s) {
+    var el = document.createElement('div');
+    var extraCls = '';
+    if (!s.moveIncluded || s.status === 'excluded') extraCls += ' excluded-state';
+    if (s.status === 'needs-reconnect') extraCls += ' needs-reconnect';
+    el.className = 'cs-card' + extraCls;
+    el.setAttribute('data-id', s.id);
+    var routeLabel = s.routing === 'pinned'
+      ? ('Pinned: ' + (placeById(s.pinnedPlaceId).label))
+      : 'Follow home';
+    var stLabel = (!s.moveIncluded) ? STATUS_CS_LABEL.excluded : STATUS_CS_LABEL[s.status];
+    var stCls = (!s.moveIncluded) ? 'excluded' : s.status;
+    el.innerHTML =
+      '<div class="cs-logo" style="background:' + s.color + '">' + s.initials + '</div>' +
+      '<div class="cs-body">' +
+        '<div class="cs-name-row"><div class="cs-name">' + s.name + '</div><span class="y-chev">›</span></div>' +
+        '<div class="cs-purpose">' + s.purpose + '</div>' +
+        '<div class="cs-chips">' +
+          '<span class="cap-badge ' + s.capability + '">' + CAP_LABEL[s.capability] + '</span>' +
+          '<span class="route-chip ' + (s.routing === 'pinned' ? 'pinned' : '') + '">' + routeLabel + '</span>' +
+          '<span class="cs-status ' + stCls + '">' + stLabel + '</span>' +
+        '</div>' +
+        (s.note ? '<div class="cs-note">' + s.note + '</div>' : '') +
+        '<div class="cs-id">ID ' + s.id + '</div>' +
+      '</div>';
+    el.addEventListener('click', function () { openServiceDetail(s.id); });
+    return el;
+  }
+
+  window.openServiceDetail = function (id) {
+    activeServiceId = id;
+    go('connected-service-detail');
+  };
+
+  function renderServiceDetail() {
+    var s = findService(activeServiceId);
+    var body = $('#csd-body');
+    var title = $('#csd-title');
+    if (!s || !body) return;
+    if (title) title.textContent = s.name;
+    var place = effectivePlace(s);
+    var routeFollowOn = s.routing === 'follow' ? ' on' : '';
+    var routePinOn = s.routing === 'pinned' ? ' on' : '';
+    var pinPlace = s.pinnedPlaceId ? placeById(s.pinnedPlaceId) : PLACE_SOUTH;
+    var rbCls = s.readbackKind === 'ok' ? '' : (s.readbackKind === 'fail' ? 'fail' : (s.readbackKind === 'warn' ? 'warn' : 'pending'));
+    var includeLabel = s.moveIncluded ? 'Exclude from Move Planning' : 'Include in Move Planning';
+    var stLabel = (!s.moveIncluded) ? STATUS_CS_LABEL.excluded : STATUS_CS_LABEL[s.status];
+
+    body.innerHTML =
+      '<div class="csd-hero">' +
+        '<div class="cs-logo" style="background:' + s.color + '">' + s.initials + '</div>' +
+        '<div>' +
+          '<div class="strong" style="font-size:18px;font-family:var(--font-display)">' + s.name + '</div>' +
+          '<div class="muted" style="font-size:12px;margin-top:2px">' + s.purpose + '</div>' +
+          '<div class="cs-chips" style="margin-top:8px">' +
+            '<span class="cap-badge ' + s.capability + '">' + CAP_LABEL[s.capability] + '</span>' +
+            '<span class="cs-status ' + (s.moveIncluded ? s.status : 'excluded') + '">' + stLabel + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="readback-strip ' + rbCls + '"><span>●</span><span id="csd-readback">' + s.readback + '</span></div>' +
+
+      '<div class="section-label" style="margin-top:0">What they receive</div>' +
+      '<div class="card field-preview mb-12">' +
+        '<div class="fact-row"><span class="muted">Street</span><span class="strong" style="font-size:13px">' + place.street + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Unit</span><span class="strong" style="font-size:13px">' + place.unit + '</span></div>' +
+        '<div class="fact-row"><span class="muted">City</span><span class="strong" style="font-size:13px">' + place.city + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">ZIP</span><span class="strong" style="font-size:13px">' + place.zip + '</span></div>' +
+      '</div>' +
+      '<p class="muted mb-12" style="font-size:11px;line-height:1.4">Preview fields only — no phone dump. Pairwise ID <strong>' + s.id + '</strong> (not a raw handle).</p>' +
+
+      '<div class="section-label">Selection policy</div>' +
+      '<div class="policy-option' + routeFollowOn + '" onclick="setServiceRouting(\'follow\')">' +
+        '<div class="po-radio"></div>' +
+        '<div><div class="po-title">Follow my home updates</div>' +
+        '<div class="po-sub">' + PLACE_HOME.label + ' · wallet / home destination</div></div>' +
+      '</div>' +
+      '<div class="policy-option' + routePinOn + '" onclick="setServiceRouting(\'pinned\')">' +
+        '<div class="po-radio"></div>' +
+        '<div><div class="po-title">Pin this place</div>' +
+        '<div class="po-sub">' + pinPlace.label + ' · override (demo: South Lamar or lobby)</div></div>' +
+      '</div>' +
+      (s.routing === 'pinned' ?
+        '<div class="card mb-12" style="padding:10px 12px">' +
+          '<div class="muted mb-8" style="font-size:11px">Pinned destination</div>' +
+          '<button class="btn btn-ghost btn-sm" style="width:auto;margin-right:6px" onclick="event.stopPropagation();pinServicePlace(\'place_sl\')">South Lamar loft</button>' +
+          '<button class="btn btn-ghost btn-sm" style="width:auto;margin-right:6px" onclick="event.stopPropagation();pinServicePlace(\'place_lobby\')">Building lobby</button>' +
+          '<button class="btn btn-ghost btn-sm" style="width:auto" onclick="event.stopPropagation();pinServicePlace(\'place_ecc\')">East Cesar Chavez</button>' +
+        '</div>' : '') +
+
+      '<div class="banner info mb-12"><span>ℹ</span><span><strong>Effective for:</strong> Future deliveries only. Confirmed in-flight orders keep their checkout address.</span></div>' +
+      '<div class="card mb-12">' +
+        '<div class="between"><div><div class="strong" style="font-size:13px">Confirmed in-flight orders</div>' +
+        '<div class="muted mt-8">' + (s.openOrders || 0) + ' open order' + ((s.openOrders === 1) ? '' : 's') + ' keep their checkout address</div></div>' +
+        '<span class="pill ghost">Immutable</span></div>' +
+      '</div>' +
+      '<div class="banner private mb-12"><span>◎</span><span>Personal-sharing pause does <strong>not</strong> cancel this merchant grant.</span></div>' +
+
+      '<button class="btn btn-primary" onclick="updateServiceNow()">' +
+        (s.capability === 'deeplink' ? 'Open deep link (demo)' : (s.capability === 'draft' ? 'Prepare draft (demo)' : 'Update now')) +
+      '</button>' +
+      '<button class="btn btn-secondary mt-8" onclick="toggleServiceMoveInclude()">' + includeLabel + '</button>' +
+      '<button class="btn btn-ghost mt-8" style="width:100%;color:var(--danger)" onclick="disconnectService()">Disconnect</button>' +
+      '<p class="muted mt-12" style="font-size:11px;text-align:center;line-height:1.45">Planning prototype · synthetic connector · no real partner API</p>';
+  }
+
+  window.setServiceRouting = function (mode) {
+    var s = findService(activeServiceId);
+    if (!s) return;
+    s.routing = mode;
+    if (mode === 'pinned' && !s.pinnedPlaceId) {
+      s.pinnedPlaceId = (s.name === 'Instacart') ? 'place_lobby' : 'place_sl';
+    }
+    if (mode === 'follow') {
+      s.readback = 'Following home · ' + PLACE_HOME.label;
+      s.readbackKind = 'ok';
+    } else {
+      s.readback = 'Pinned · ' + placeById(s.pinnedPlaceId).label;
+      s.readbackKind = 'ok';
+    }
+    renderServiceDetail();
+    updateConnectedServicesSummaries();
+    toast(mode === 'follow' ? 'Routing: follow home updates' : 'Routing: pinned place');
+  };
+
+  window.pinServicePlace = function (placeId) {
+    var s = findService(activeServiceId);
+    if (!s) return;
+    s.routing = 'pinned';
+    s.pinnedPlaceId = placeId;
+    s.readback = 'Pinned · ' + placeById(placeId).label;
+    s.readbackKind = 'ok';
+    renderServiceDetail();
+    updateConnectedServicesSummaries();
+    toast('Pinned: ' + placeById(placeId).label);
+  };
+
+  window.updateServiceNow = function () {
+    var s = findService(activeServiceId);
+    if (!s) return;
+    if (s.status === 'needs-reconnect') {
+      s.status = 'connected';
+      s.readback = 'Reconnected (demo) · ready to apply';
+      s.readbackKind = 'ok';
+      renderServiceDetail();
+      toast('Demo reconnect OK — still not real OAuth');
+      return;
+    }
+    if (s.capability === 'deeplink') {
+      s.readback = 'Deep link handed off · confirm in provider app';
+      s.readbackKind = 'pending';
+      s.status = 'apply-pending';
+      renderServiceDetail();
+      toast('Would open ' + s.name + ' (prototype deep link)');
+      return;
+    }
+    if (s.capability === 'draft') {
+      s.readback = 'Draft prepared · apply manually in merchant account';
+      s.readbackKind = 'pending';
+      s.status = 'apply-pending';
+      renderServiceDetail();
+      toast('Draft / manual path — you finish in merchant UI');
+      return;
+    }
+    // Toggle demo success/fail for API
+    if (updateFailNext) {
+      updateFailNext = false;
+      s.status = 'failed';
+      s.readback = 'Merchant rejected apply · try again (demo fail)';
+      s.readbackKind = 'fail';
+      renderServiceDetail();
+      toast('Demo apply failed — read-back shows failure');
+    } else {
+      updateFailNext = true;
+      s.status = 'applied-ok';
+      s.readback = 'Merchant confirmed default address · just now';
+      s.readbackKind = 'ok';
+      renderServiceDetail();
+      toast('Applied · merchant read-back OK (demo)');
+    }
+  };
+
+  window.toggleServiceMoveInclude = function () {
+    var s = findService(activeServiceId);
+    if (!s) return;
+    s.moveIncluded = !s.moveIncluded;
+    if (!s.moveIncluded) {
+      s.status = 'excluded';
+      s.readback = 'Excluded from current move plan';
+      s.readbackKind = 'pending';
+      toast('Excluded from Move Planning — open orders unchanged');
+    } else {
+      s.status = 'connected';
+      s.readback = 'Included for future deliveries on this move';
+      s.readbackKind = 'ok';
+      toast('Included in Move Planning');
+    }
+    renderServiceDetail();
+    updateConnectedServicesSummaries();
+  };
+
+  window.disconnectService = function () {
+    var s = findService(activeServiceId);
+    if (!s) return;
+    connectedServices = connectedServices.filter(function (x) { return x.id !== s.id; });
+    updateConnectedServicesSummaries();
+    toast('Disconnected ' + s.name + ' (demo grant revoked)');
+    go('connected-services');
+  };
+
+  window.openAddService = function () {
+    renderAddCatalog();
+    $('#add-service-backdrop').classList.add('show');
+    $('#add-service-sheet').classList.add('show');
+  };
+  window.closeAddService = function () {
+    $('#add-service-backdrop').classList.remove('show');
+    $('#add-service-sheet').classList.remove('show');
+  };
+
+  function renderAddCatalog() {
+    var box = $('#add-service-catalog');
+    if (!box) return;
+    box.innerHTML = '';
+    var card = document.createElement('div');
+    card.className = 'card mb-8';
+    var rows = '';
+    connectedServices.forEach(function (s) {
+      rows += catalogRow(s, true);
+    });
+    catalogExtras.forEach(function (c) {
+      var already = connectedServices.some(function (s) { return s.name === c.name; });
+      rows += catalogRow(c, already);
+    });
+    card.innerHTML = rows;
+    box.appendChild(card);
+  }
+
+  function catalogRow(item, connected) {
+    return (
+      '<div class="add-svc-row" onclick="' + (connected ? 'closeAddService();openServiceDetail(\'' + item.id + '\')' : 'connectCatalogService(\'' + item.id + '\')') + '">' +
+        '<div class="cs-logo" style="background:' + item.color + '">' + item.initials + '</div>' +
+        '<div class="flex-1">' +
+          '<div class="strong" style="font-size:13px">' + item.name + '</div>' +
+          '<div class="muted" style="font-size:11px">' + item.purpose + '</div>' +
+          '<div class="cs-chips" style="margin-top:6px">' +
+            '<span class="cap-badge ' + item.capability + '">' + CAP_LABEL[item.capability] + '</span>' +
+            (connected ? '<span class="cs-status connected">Connected</span>' : '<span class="pill ghost">Available</span>') +
+          '</div>' +
+        '</div>' +
+        '<span class="y-chev">›</span>' +
+      '</div>'
+    );
+  }
+
+  window.connectCatalogService = function (catId) {
+    var extra = null;
+    for (var i = 0; i < catalogExtras.length; i++) {
+      if (catalogExtras[i].id === catId) { extra = catalogExtras[i]; break; }
+    }
+    if (!extra) { toast('Already in your list'); return; }
+    if (connectedServices.some(function (s) { return s.name === extra.name; })) {
+      toast('Already connected');
+      closeAddService();
+      return;
+    }
+    var nid = 'conn_' + catId.replace('cat_', '') + '_' + Math.floor(Math.random() * 9000 + 1000);
+    connectedServices.push({
+      id: nid,
+      name: extra.name,
+      purpose: extra.purpose,
+      initials: extra.initials,
+      color: extra.color,
+      capability: extra.capability,
+      routing: 'follow',
+      pinnedPlaceId: null,
+      status: 'connected',
+      moveIncluded: true,
+      openOrders: 0,
+      readback: 'Connected (demo) · not real OAuth',
+      readbackKind: 'ok',
+      note: 'Synthetic connector — capability: ' + CAP_LABEL[extra.capability],
+      catalog: true
+    });
+    catalogExtras = catalogExtras.filter(function (c) { return c.id !== catId; });
+    closeAddService();
+    updateConnectedServicesSummaries();
+    toast('Connected ' + extra.name + ' (demo)');
+    openServiceDetail(nid);
+  };
+
+  window.requestServiceIdea = function () {
+    closeAddService();
+    toast('Request noted (prototype) — no partner outreach');
+  };
+
+    var toastTimer;
   window.toast = function (msg) {
     var t = $('#toast');
     t.textContent = msg;
@@ -476,6 +1061,7 @@
 
   function boot() {
     updateMoveOverview();
+    updateConnectedServicesSummaries();
     var hash = (location.hash || '').replace(/^#/, '');
     if (hash && $('[data-screen="' + hash + '"]')) {
       $all('.screen').forEach(function (s) { s.classList.remove('active'); });

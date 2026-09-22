@@ -22,6 +22,8 @@
     <div class="path">Explore → Stays → Oak &amp; Waller → Instant book → Trips unlock</div>
     <div class="path">Places → East Cesar Chavez → Hosting dashboard</div>
     <div class="path">You → Ledger, Move planning, permissions</div>
+    <div class="path">You → Connected services → Amazon detail → Update now</div>
+    <div class="hint" style="margin-top:8px"><strong>Connected services:</strong> demo connectors only (API / deep link / draft). Pairwise IDs — not real OAuth.</div>
     <p class="muted" style="margin-top:14px;font-size:11px;line-height:1.45">Private-cohort chrome. Exact address &amp; codes only after pre-arrival unlock. Guest ≠ household. Fictional Austin sample data.</p>
   </aside>
 
@@ -123,6 +125,18 @@
                     <div class="progress-bar"><span style="width:38%"></span></div>
                   </div>
                 </div>
+              </div>
+            </div>
+            <div class="card tap mb-8" style="margin-top:8px" onclick="go('connected-services')">
+              <div class="between">
+                <div class="row gap-md">
+                  <div class="spend-ico" style="background:var(--accent-soft);font-size:16px">↔</div>
+                  <div>
+                    <div class="strong" style="font-size:14px">Connected services</div>
+                    <div class="muted" id="today-cs-meta">Services that use your destination</div>
+                  </div>
+                </div>
+                <span class="y-chev">›</span>
               </div>
             </div>
 
@@ -1026,7 +1040,7 @@
             </div>
             <div class="card mb-8">
               <div class="you-row" onclick="go('permissions')"><span>◎</span><span class="y-label">Permissions &amp; sharing</span><span class="y-chev">›</span></div>
-              <div class="you-row" onclick="go('connections')"><span>↔</span><span class="y-label">Connections</span><span class="y-chev">›</span></div>
+              <div class="you-row" onclick="go('connected-services')"><span>↔</span><span class="y-label">Connected services</span><span class="y-meta" id="you-cs-meta">9</span><span class="y-chev">›</span></div>
               <div class="you-row" onclick="go('move-planning')"><span>→</span><span class="y-label">Move planning</span><span class="y-meta" id="you-move-meta">3/8</span><span class="y-chev">›</span></div>
             </div>
             <div class="card">
@@ -1096,15 +1110,44 @@
           </div>
         </section>
 
-        <section class="screen" data-screen="connections" data-nav="you">
-          <div class="topbar"><button class="back" onclick="go('you')">‹ You</button><span class="title">Connections</span><span></span></div>
+        <section class="screen" data-screen="connected-services" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('you')">‹ You</button>
+            <span class="title">Connected</span>
+            <button class="back" style="justify-self:end;font-size:20px;font-weight:500" onclick="openAddService()" aria-label="Add a service">+</button>
+          </div>
           <div class="pad">
-            <div class="card mb-8"><div class="between"><span class="strong">Austin Energy</span><span class="muted">Utility</span></div><p class="muted mt-8">Linked for bill reminders</p></div>
-            <div class="card mb-8"><div class="between"><span class="strong">Holly Grove Association</span><span class="muted">Community</span></div><p class="muted mt-8">Balance read-back</p></div>
-            <div class="card mb-8"><div class="between"><span class="strong">Cedar &amp; Stone Clean</span><span class="muted">Service</span></div><p class="muted mt-8">Jobs &amp; inquiries</p></div>
-            <div class="card"><div class="between"><span class="strong">Riverbend Insurance</span><span class="muted">Partner</span></div><p class="muted mt-8">Policy observations only</p></div>
+            <div class="between mb-8">
+              <span class="pill ghost">Demo connectors</span>
+              <span class="muted" style="font-size:11px">Not real OAuth</span>
+            </div>
+            <h1 class="h1" style="font-size:22px">Services that use your destination</h1>
+            <p class="sub mb-12">DELIVERY profile keeps future preferences current. Confirmed orders and excluded routes stay intact. Personal-sharing pause does not cancel merchant grants.</p>
+            <div class="banner private mb-12"><span>◎</span><span><strong>Capability honesty:</strong> user permission ≠ provider API access. Each card shows API apply, Deep link, or Draft / manual.</span></div>
+            <div class="cs-filter-row mb-12">
+              <button type="button" class="cs-filter on" data-cs-filter="all" onclick="filterConnectedServices('all')">All</button>
+              <button type="button" class="cs-filter" data-cs-filter="follow" onclick="filterConnectedServices('follow')">Follow home</button>
+              <button type="button" class="cs-filter" data-cs-filter="pinned" onclick="filterConnectedServices('pinned')">Pinned</button>
+              <button type="button" class="cs-filter" data-cs-filter="move" onclick="filterConnectedServices('move')">On this move</button>
+            </div>
+            <div id="cs-list"><!-- filled by JS --></div>
+            <button class="btn btn-secondary mt-8" style="width:100%" onclick="openAddService()">Add a service</button>
+            <button class="btn btn-ghost mt-8" style="width:100%" onclick="go('move-planning')">Open Move Planning</button>
+            <p class="muted mt-12" style="font-size:11px;text-align:center;line-height:1.45">Pairwise connection IDs · synthetic demo merchants</p>
           </div>
         </section>
+
+        <section class="screen" data-screen="connected-service-detail" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('connected-services')">‹ Services</button>
+            <span class="title" id="csd-title">Service</span>
+            <span></span>
+          </div>
+          <div class="pad" id="csd-body"><!-- filled by JS --></div>
+        </section>
+
+        <!-- keep legacy hash -->
+        <section class="screen" data-screen="connections" data-nav="you" hidden aria-hidden="true"></section>
 
         <section class="screen" data-screen="move-planning" data-nav="you">
           <div class="topbar"><button class="back" onclick="go('you')">‹ You</button><span class="title">Move Planning</span><span></span></div>
@@ -1145,6 +1188,16 @@
             </div>
 
             <div class="banner private mb-12"><span>◎</span><span><strong>Selected vs excluded:</strong> confirmed orders don’t silently move. You choose who gets an update job.</span></div>
+
+            <div class="card tap mb-12 cs-move-card" onclick="go('connected-services')">
+              <div class="between mb-8">
+                <span class="pill sage">DELIVERY profile</span>
+                <span class="y-chev">›</span>
+              </div>
+              <div class="strong" style="font-size:14px;margin-bottom:4px">Connected services on this move</div>
+              <div class="muted" id="move-cs-summary">3 services follow this move · 1 pinned · 1 excluded</div>
+              <p class="muted mt-8" style="font-size:11px;line-height:1.4">Future deliveries only. Confirmed in-flight orders keep their checkout address.</p>
+            </div>
 
             <button class="btn btn-primary" onclick="go('move-checklist')">Open recipient checklist</button>
             <button class="btn btn-secondary mt-8" onclick="go('move-usps')">USPS change of address</button>
@@ -1461,6 +1514,16 @@ AL</div>
         </div>
         <button class="btn btn-primary" onclick="continueUspsDemo()">Open official form (demo)</button>
         <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeUspsExternal()">Stay in Domicile</button>
+      </div>
+
+      <div class="sheet-backdrop" id="add-service-backdrop" onclick="closeAddService()"></div>
+      <div class="sheet" id="add-service-sheet" role="dialog" aria-modal="true" aria-labelledby="add-service-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="add-service-title" style="font-size:18px;margin-bottom:6px">Add a service</h2>
+        <p class="sub mb-12">Catalog of demo connectors. Capability shown honestly — not partner OAuth.</p>
+        <div id="add-service-catalog"><!-- filled by JS --></div>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="requestServiceIdea()">Request a service</button>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeAddService()">Close</button>
       </div>
 
       <div class="toast" id="toast"></div>
