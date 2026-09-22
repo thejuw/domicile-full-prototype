@@ -14,7 +14,7 @@ open /workspace/domicile-full-prototype/index.html
 python3 -m http.server 8765 --directory /workspace/domicile-full-prototype
 ```
 
-Then visit `http://localhost:8765/`. Hash routes work (e.g. `#stays-search`, `#host-dashboard`, `#ledger`, `#move-planning`, `#move-checklist`, `#connected-services`, `#permissions`, `#permission-detail`). Bottom nav remembers the last screen per tab.
+Then visit `http://localhost:8765/`. Hash routes work (e.g. `#stays-search`, `#host-dashboard`, `#ledger`, `#move-planning`, `#move-checklist`, `#connected-services`, `#permissions`, `#permission-detail`, `#service-inquiry`). Bottom nav remembers the last screen per tab.
 
 **Files:** `index.html` · `app.css` · `app.js` · this README.
 
@@ -62,9 +62,14 @@ Places → Home → Community (HOA) · **Today or You → Move Planning** → ch
 **You → Connected services** → Amazon (API apply · Follow home · Applied OK) → pin South Lamar / follow home → **Update now** → Exclude/Include on Move Planning → back → Move card shows follow/pinned/excluded counts. Add sheet lists capability honesty (API / Deep link / Draft). Demo only — not real OAuth.
 
 ### Permissions & sharing (~30s · MAP)
-**You → Permissions & sharing** (or Today Quiet card / Map → Manage sharing) → pause **Sharing with people** (merchant grants unchanged → Connected Services) → **I've shared** → Maya / Devon / Jordan / Cedar Creek task / Priya expired → grant detail (precision, Follow vs Fixed, CT window, preview / extend / revoke / recipient-bound link+QR, access history) → **Shared with me** → **Public & handle** (@al message-only; public map off by default) → **Share destination** wizard. Pairwise IDs (`grant_maya_4c2e`) · prototype only — not live OAuth.
+**You → Permissions & sharing** (or Today Quiet card / Map → Manage sharing) → pause **Sharing with people** (merchant & **inquiry** grants unchanged → Connected Services) → **I've shared** → Maya / Devon / Jordan / Cedar Creek task / **Cedar & Stone inquiry** / Priya expired → grant detail (precision, Follow vs Fixed, CT window, preview / extend / revoke / recipient-bound link+QR, access history) → **Shared with me** → **Public & handle** (@al message-only; public map off by default) → **Share destination** wizard. Pairwise IDs (`grant_maya_4c2e`, `grant_inq_cedar_7a2f`) · prototype only — not live OAuth.
 
 Kit notes honored: authenticated recipient + purpose + fields/precision + time window + selection policy; grants bind to stable accounts not handles; peer expiry (CT); approximate never leaks exact geometry; Follow home vs Fixed version; future/historical default-denied; personal-sharing pause ≠ merchant revoke ≠ public off; recipient-bound links/QR (forwarding ≠ grant); public handle ≠ address; audit history without raw address dump; revoke honesty on screenshots; demo labeling throughout.
+
+### Private inquiry disclosure (~30s · Explore → Services)
+**Explore → Services** (banner: matched privately · businesses not notified until inquire) → **Cedar & Stone Clean Co.** → **Send private inquiry** → disclosure sheet (locked recipient, service, window, owned place vs view-only Maya, approx ON / exact OFF, inquiry alias “River Guest” vs @al, notes, provider preview without street) → **Submit** → toast with opaque grant id (no street) → **permission-detail** for `grant_inq_cedar_7a2f` (Approve exact / Not now · Preview as provider · Revoke). Pause sharing with people does **not** pause inquiry rows. Quote ≠ booking. **Single-demo:** submit refreshes the seeded Cedar inquiry id rather than spawning duplicates.
+
+Kit (P40/P41/P43) honored: browsing ≠ leads; one provider only; explicit disclosure; default approx area; identity ≠ address; inquiry-scoped alias; no forward of view-only places; quote ≠ booking; opaque toast refs; revoke blocks new disclosure (copies not recalled); personal pause ≠ inquiry cancel; prototype labeling.
 
 ### Move Planning (AI-assisted sketch)
 Overview (East Cesar Chavez → South Lamar) → recipient checklist with channel/status chips → Assist draft preview (facts from Move Engine; you send) → USPS official-form handoff (never auto-filed) → Suggest missing recipients (DMV, voter reg demo tips)

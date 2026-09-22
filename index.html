@@ -476,7 +476,8 @@
         <section class="screen" data-screen="services-list" data-nav="explore">
           <div class="topbar"><button class="back" onclick="go('explore')">‹ Explore</button><span class="title">Services</span><span></span></div>
           <div class="pad">
-            <p class="sub mb-12">Discover cleaners and home care near your places.</p>
+            <div class="banner private mb-12"><span>◎</span><span><strong>Matched privately to your place</strong> · businesses are not notified until you inquire. Browsing does not create leads.</span></div>
+            <p class="sub mb-12">Discover cleaners and home care near your places. Prototype / demo.</p>
             <div class="listing-card" onclick="go('service-detail')">
               <div class="photo sm service"></div>
               <div class="meta">
@@ -512,18 +513,120 @@
               <div class="quote-line"><span>Standard deep clean</span><span class="strong">$145–190</span></div>
               <div class="quote-line"><span>Turnover (Stays)</span><span>$95–120</span></div>
             </div>
+            <div class="banner info mb-12"><span>ℹ</span><span>Opening this listing did <strong>not</strong> notify Cedar &amp; Stone. Only a private inquiry creates a Permissions grant.</span></div>
             <button class="btn btn-primary" onclick="go('service-inquiry')">Send private inquiry</button>
+            <p class="muted mt-12" style="font-size:11px;text-align:center">Goes to this provider only · quote ≠ booking · prototype</p>
           </div>
         </section>
 
         <section class="screen" data-screen="service-inquiry" data-nav="explore">
-          <div class="topbar"><button class="back" onclick="go('service-detail')">‹ Service</button><span class="title">Inquiry</span><span></span></div>
+          <div class="topbar"><button class="back" onclick="go('service-detail')">‹ Service</button><span class="title">Private inquiry</span><span></span></div>
           <div class="pad">
-            <p class="sub mb-12">Private message to Cedar &amp; Stone — not a public review or marketplace post.</p>
-            <div class="field mb-8"><label>Place</label><select><option>East Cesar Chavez Cottage</option></select></div>
-            <div class="field mb-8"><label>Preferred window</label><input value="Thu Sep 25 · morning" /></div>
-            <div class="field mb-16"><label>Notes</label><textarea>Deep clean before next host arrival. Pets: none. Lockbox OK.</textarea></div>
-            <button class="btn btn-primary" onclick="sendInquiry()">Send inquiry</button>
+            <div class="between mb-8">
+              <span class="pill ghost">Prototype / demo</span>
+              <span class="pill sage">One provider</span>
+            </div>
+            <h1 class="h1" style="font-size:20px;margin-bottom:6px">Disclosure before send</h1>
+            <p class="sub mb-12">Explicit sheet for Cedar &amp; Stone only — competitors never see this. Quote ≠ booking.</p>
+
+            <div class="section-label" style="margin-top:0">To</div>
+            <div class="card mb-12" style="padding:12px 14px">
+              <div class="between">
+                <div>
+                  <div class="strong" style="font-size:14px">Cedar &amp; Stone Clean Co.</div>
+                  <div class="muted" style="font-size:11px;margin-top:2px">Locked recipient · acct_cedar_stone_01</div>
+                </div>
+                <span class="pill ghost">Only</span>
+              </div>
+            </div>
+
+            <div class="section-label">Service need</div>
+            <div class="chip-row mb-12" id="inq-service-chips">
+              <button type="button" class="purpose-chip on" data-inq-svc="Deep clean" onclick="inqPickService(this)">Deep clean</button>
+              <button type="button" class="purpose-chip" data-inq-svc="Turnover" onclick="inqPickService(this)">Turnover</button>
+              <button type="button" class="purpose-chip" data-inq-svc="Recurring" onclick="inqPickService(this)">Recurring</button>
+            </div>
+
+            <div class="section-label">Requested window</div>
+            <div class="field mb-12">
+              <label>Date · time of day</label>
+              <input id="inq-window" value="Thu Sep 25 · morning" oninput="inqSyncPreview()" />
+            </div>
+
+            <div class="section-label">Place (owned / authorized-for-onward)</div>
+            <div class="policy-option on mb-8" id="inq-place-ecc" onclick="inqPickPlace('place_ecc')">
+              <div class="po-radio"></div>
+              <div>
+                <div class="po-title">East Cesar Chavez Cottage</div>
+                <div class="po-sub">Owned · you may disclose onward for this inquiry</div>
+              </div>
+            </div>
+            <div class="policy-option disabled mb-12" id="inq-place-maya" aria-disabled="true" title="View-only places cannot be forwarded">
+              <div class="po-radio"></div>
+              <div>
+                <div class="po-title">Maya’s place</div>
+                <div class="po-sub">View-only — can’t forward. Destination shared with you for viewing only.</div>
+              </div>
+            </div>
+
+            <div class="section-label">What they receive now</div>
+            <div class="card mb-12" style="padding:4px 14px">
+              <div class="inq-check-row">
+                <div>
+                  <div class="strong" style="font-size:13px">Approximate area / serves-this-zone</div>
+                  <div class="muted" style="font-size:11px">Default · coverage zone, not street</div>
+                </div>
+                <button type="button" class="perm-toggle on" id="inq-tog-approx" onclick="inqToggle('approx')" aria-pressed="true" aria-label="Approximate area"><span class="perm-toggle-knob"></span></button>
+              </div>
+              <div class="inq-check-row">
+                <div>
+                  <div class="strong" style="font-size:13px">Exact street + unit</div>
+                  <div class="muted" style="font-size:11px">Off · provider can request later</div>
+                </div>
+                <button type="button" class="perm-toggle" id="inq-tog-exact" onclick="inqToggle('exact')" aria-pressed="false" aria-label="Exact street"><span class="perm-toggle-knob"></span></button>
+              </div>
+              <div class="inq-check-row">
+                <div>
+                  <div class="strong" style="font-size:13px">Access notes</div>
+                  <div class="muted" style="font-size:11px">Optional · does not imply exact pin</div>
+                </div>
+                <button type="button" class="perm-toggle" id="inq-tog-access" onclick="inqToggle('access')" aria-pressed="false" aria-label="Access notes"><span class="perm-toggle-knob"></span></button>
+              </div>
+            </div>
+
+            <div class="section-label">Identity (separate from address)</div>
+            <div class="policy-option on mb-8" id="inq-id-alias" onclick="inqPickIdentity('alias')">
+              <div class="po-radio"></div>
+              <div>
+                <div class="po-title">Inquiry alias “River Guest”</div>
+                <div class="po-sub">Thread-only pseudonym · not bearer · does not resolve @al / wallet</div>
+              </div>
+            </div>
+            <div class="policy-option mb-12" id="inq-id-handle" onclick="inqPickIdentity('handle')">
+              <div class="po-radio"></div>
+              <div>
+                <div class="po-title">Share usual @al</div>
+                <div class="po-sub">Confirm · handle ≠ address disclosure</div>
+              </div>
+            </div>
+
+            <div class="section-label">Notes</div>
+            <div class="field mb-12">
+              <label>Message to provider</label>
+              <textarea id="inq-notes" rows="3" oninput="inqSyncPreview()">Deep clean before next host arrival. Pets: none. Lockbox OK if you later receive exact access.</textarea>
+            </div>
+
+            <div class="section-label">Preview as provider</div>
+            <div class="share-preview-card mb-16" id="inq-preview-card">
+              <div class="muted mb-8" style="font-size:11px">What Cedar &amp; Stone sees now</div>
+              <div class="strong" style="font-size:14px" id="inq-prev-area">East Austin · serves-this-zone (approx)</div>
+              <div class="muted mt-8" style="font-size:12px" id="inq-prev-id">From: River Guest (inquiry alias)</div>
+              <div class="muted" style="font-size:12px" id="inq-prev-svc">Deep clean · Thu Sep 25 · morning</div>
+              <p class="muted mt-8" style="font-size:11px;line-height:1.4">No street or unit in this disclosure. Exact address is a separate later grant request.</p>
+            </div>
+
+            <button class="btn btn-primary" onclick="sendInquiry()">Submit private inquiry</button>
+            <p class="muted mt-12" style="font-size:11px;text-align:center;line-height:1.45">Creates an inquiry-class Permissions grant · not a confirmed appointment · demo</p>
           </div>
         </section>
 
@@ -1137,7 +1240,7 @@
               </div>
               <div class="banner warn hide" id="perm-pause-banner" style="margin:0">
                 <span>⏸</span>
-                <span>Peer &amp; public-personal grants suspended. Merchant / confirmed service grants unchanged — <a href="#connected-services" onclick="event.preventDefault();go('connected-services')" style="font-weight:700;text-decoration:underline">Connected Services</a>.</span>
+                <span>Peer &amp; public-personal grants suspended. Merchant, inquiry, and task grants unchanged — <a href="#connected-services" onclick="event.preventDefault();go('connected-services')" style="font-weight:700;text-decoration:underline">Connected Services</a> · inquiry-class rows stay active.</span>
               </div>
             </div>
 

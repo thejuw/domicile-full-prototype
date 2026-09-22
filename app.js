@@ -43,6 +43,7 @@
     if (name === 'connected-service-detail') renderServiceDetail();
     if (name === 'permissions') renderPermissionsHub();
     if (name === 'permission-detail') renderPermissionDetail();
+    if (name === 'service-inquiry') syncInquiryFormUi();
     if (name === 'you' || name === 'today') { updateConnectedServicesSummaries(); updatePermissionsSummaries(); }
   };
 
@@ -143,9 +144,170 @@
     el.textContent = el.classList.contains('off') ? '' : '✓';
   };
 
+  /* ========== Private inquiry disclosure (Services → Permissions) ========== */
+  var inquiryDraft = {
+    service: 'Deep clean',
+    window: 'Thu Sep 25 · morning',
+    placeId: 'place_ecc',
+    approx: true,
+    exact: false,
+    access: false,
+    identity: 'alias', // alias | handle
+    notes: 'Deep clean before next host arrival. Pets: none. Lockbox OK if you later receive exact access.',
+    exactRequested: true // seed demo: provider already asked
+  };
+
+  var INQUIRY_SEED_ID = 'grant_inq_cedar_7a2f';
+
+  function syncInquiryFormUi() {
+    var d = inquiryDraft;
+    $all('#inq-service-chips .purpose-chip').forEach(function (b) {
+      b.classList.toggle('on', b.getAttribute('data-inq-svc') === d.service);
+    });
+    var win = $('#inq-window'); if (win && document.activeElement !== win) win.value = d.window;
+    var notes = $('#inq-notes'); if (notes && document.activeElement !== notes) notes.value = d.notes;
+    var ecc = $('#inq-place-ecc'); if (ecc) ecc.classList.toggle('on', d.placeId === 'place_ecc');
+    var alias = $('#inq-id-alias'); if (alias) alias.classList.toggle('on', d.identity === 'alias');
+    var handle = $('#inq-id-handle'); if (handle) handle.classList.toggle('on', d.identity === 'handle');
+    syncInqToggle('inq-tog-approx', d.approx);
+    syncInqToggle('inq-tog-exact', d.exact);
+    syncInqToggle('inq-tog-access', d.access);
+    if (typeof window.inqSyncPreview === 'function') window.inqSyncPreview();
+  }
+
+  function syncInqToggle(id, on) {
+    var el = $('#' + id);
+    if (!el) return;
+    el.classList.toggle('on', !!on);
+    el.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
+  window.inqPickService = function (btn) {
+    inquiryDraft.service = btn.getAttribute('data-inq-svc') || 'Deep clean';
+    syncInquiryFormUi();
+  };
+  window.inqPickPlace = function (pid) {
+    if (pid !== 'place_ecc') {
+      toast('View-only places can’t be forwarded for inquiry');
+      return;
+    }
+    inquiryDraft.placeId = pid;
+    syncInquiryFormUi();
+  };
+  window.inqPickIdentity = function (mode) {
+    if (mode === 'handle') {
+      // soft confirm via toast; still selectable
+      toast('Confirm: sharing usual @al (handle ≠ address)');
+    }
+    inquiryDraft.identity = mode;
+    syncInquiryFormUi();
+  };
+  window.inqToggle = function (key) {
+    if (key === 'approx') {
+      // Approximate stays the kit default; turning off alone is discouraged
+      inquiryDraft.approx = !inquiryDraft.approx;
+      if (!inquiryDraft.approx && !inquiryDraft.exact) {
+        inquiryDraft.approx = true;
+        toast('Keep approximate area on, or turn on exact street');
+      }
+    } else if (key === 'exact') {
+      inquiryDraft.exact = !inquiryDraft.exact;
+      if (inquiryDraft.exact) inquiryDraft.approx = true; // exact includes zone; both can show
+    } else if (key === 'access') {
+      inquiryDraft.access = !inquiryDraft.access;
+    }
+    syncInquiryFormUi();
+  };
+  window.inqSyncPreview = function () {
+    var winEl = $('#inq-window');
+    var notesEl = $('#inq-notes');
+    if (winEl) inquiryDraft.window = winEl.value;
+    if (notesEl) inquiryDraft.notes = notesEl.value;
+    var area = $('#inq-prev-area');
+    var idEl = $('#inq-prev-id');
+    var svc = $('#inq-prev-svc');
+    if (area) {
+      if (inquiryDraft.exact) area.textContent = 'Exact street requested in this submit (demo) · East Cesar Chavez Cottage';
+      else area.textContent = 'East Austin · serves-this-zone (approx)';
+    }
+    if (idEl) {
+      idEl.textContent = inquiryDraft.identity === 'alias'
+        ? 'From: River Guest (inquiry alias)'
+        : 'From: @al (usual handle)';
+    }
+    if (svc) svc.textContent = inquiryDraft.service + ' · ' + inquiryDraft.window;
+  };
+
   window.sendInquiry = function () {
-    toast('Inquiry sent to Cedar & Stone Clean Co.');
-    setTimeout(function () { go('services-list'); }, 900);
+    inqSyncPreview();
+    if (!inquiryDraft.approx && !inquiryDraft.exact) {
+      toast('Choose destination precision before send');
+      return;
+    }
+    // Single-demo path: refresh seeded Cedar inquiry (grant_inq_cedar_7a2f) so hub stays coherent.
+    var g = findOutgoing(INQUIRY_SEED_ID);
+    var precision = inquiryDraft.exact ? 'exact' : 'approx';
+    var identityLabel = inquiryDraft.identity === 'alias' ? 'River Guest (inquiry alias)' : '@al';
+    var hist = [
+      { title: 'Inquiry submitted', sub: 'Tue Sep 22 · just now · ' + inquiryDraft.service + ' · opaque ref', denied: false },
+      { title: precision === 'exact' ? 'Exact street disclosed' : 'Approx area disclosed', sub: 'East Cesar Chavez zone · identity ' + identityLabel, denied: false }
+    ];
+    if (!inquiryDraft.exact) {
+      hist.push({ title: 'Exact address requested (pending)', sub: 'Provider may ask · separate grant step', denied: false });
+    }
+    if (g) {
+      g.purpose = inquiryDraft.service + ' quote';
+      g.precision = precision;
+      g.selection = 'fixed';
+      g.placeId = inquiryDraft.placeId;
+      g.status = 'active';
+      g.inquiryStatus = 'submitted';
+      g.windowLabel = inquiryDraft.window;
+      g.identityMode = inquiryDraft.identity;
+      g.identityLabel = identityLabel;
+      g.accessNotes = !!inquiryDraft.access;
+      g.notes = inquiryDraft.notes;
+      g.exactRequested = !inquiryDraft.exact;
+      g.countdown = 'Inquiry · expires Oct 6';
+      g.endLabel = 'Demo expiry · Mon Oct 6, 2026 CT';
+      g.endingSoon = false;
+      g.history = hist.concat([
+        { title: 'Prior seed history cleared for demo resubmit', sub: 'Prototype · not a live merchant API', denied: false }
+      ]);
+    } else {
+      g = {
+        id: INQUIRY_SEED_ID,
+        name: 'Cedar & Stone Clean Co.',
+        handle: '@cedarstone',
+        accountId: 'acct_cedar_stone_01',
+        initials: 'CS',
+        color: '#2F5D50',
+        class: 'inquiry',
+        precision: precision,
+        selection: 'fixed',
+        placeId: inquiryDraft.placeId,
+        purpose: inquiryDraft.service + ' quote',
+        status: 'active',
+        inquiryStatus: 'submitted',
+        windowLabel: inquiryDraft.window,
+        identityMode: inquiryDraft.identity,
+        identityLabel: identityLabel,
+        accessNotes: !!inquiryDraft.access,
+        notes: inquiryDraft.notes,
+        exactRequested: !inquiryDraft.exact,
+        startIso: '2026-09-22T18:00:00-05:00',
+        endIso: '2026-10-06T20:00:00-05:00',
+        endLabel: 'Demo expiry · Mon Oct 6, 2026 CT',
+        countdown: 'Inquiry · expires Oct 6',
+        endingSoon: false,
+        instructions: null,
+        history: hist
+      };
+      outgoingGrants.unshift(g);
+    }
+    updatePermissionsSummaries();
+    toast('Inquiry sent · grant ' + INQUIRY_SEED_ID);
+    openGrantDetail(INQUIRY_SEED_ID, 'out');
   };
 
   window.rsvpEvent = function () {
@@ -1182,6 +1344,38 @@
       ]
     },
     {
+      id: 'grant_inq_cedar_7a2f',
+      name: 'Cedar & Stone Clean Co.',
+      handle: '@cedarstone',
+      accountId: 'acct_cedar_stone_01',
+      initials: 'CS',
+      color: '#2F5D50',
+      class: 'inquiry',
+      precision: 'approx',
+      selection: 'fixed',
+      placeId: 'place_ecc',
+      purpose: 'Deep clean quote',
+      status: 'active',
+      inquiryStatus: 'submitted',
+      windowLabel: 'Thu Sep 25 · morning',
+      identityMode: 'alias',
+      identityLabel: 'River Guest (inquiry alias)',
+      accessNotes: false,
+      notes: 'Deep clean before next host arrival.',
+      exactRequested: true,
+      startIso: '2026-09-21T11:00:00-05:00',
+      endIso: '2026-10-06T20:00:00-05:00',
+      endLabel: 'Demo expiry · Mon Oct 6, 2026 CT',
+      countdown: 'Inquiry · expires Oct 6',
+      endingSoon: false,
+      instructions: null,
+      history: [
+        { title: 'Exact address requested (pending)', sub: 'Mon Sep 22 · 9:40 AM CT · provider ask · not yet approved', denied: false },
+        { title: 'Approx area disclosed', sub: 'Sun Sep 21 · 11:05 AM CT · East Austin zone · no street', denied: false },
+        { title: 'Inquiry submitted', sub: 'Sun Sep 21 · 11:00 AM CT · Deep clean quote · opaque ref', denied: false }
+      ]
+    },
+    {
       id: 'grant_priya_0d55',
       name: 'Priya Nair',
       handle: '@priya',
@@ -1275,6 +1469,8 @@
 
   function effectiveOutgoingStatus(g) {
     if (g.status === 'expired' || g.status === 'revoked') return g.status;
+    // Inquiry / task / merchant-style grants are NOT affected by personal Pause sharing with people
+    if (g.class === 'inquiry') return g.status === 'active' ? 'inquiry' : g.status;
     if (g.class === 'task') return 'task';
     if (g.class === 'household') return personalSharingPaused ? 'paused' : 'household';
     if (g.class === 'peer' && personalSharingPaused) return 'paused';
@@ -1284,7 +1480,8 @@
   function statusLabel(st) {
     return ({
       active: 'Active', scheduled: 'Scheduled', expired: 'Expired',
-      task: 'Task', paused: 'Paused', household: 'Household', revoked: 'Revoked'
+      task: 'Task', paused: 'Paused', household: 'Household', revoked: 'Revoked',
+      inquiry: 'Inquiry'
     })[st] || st;
   }
 
@@ -1303,7 +1500,7 @@
     var active = 0, soon = 0;
     outgoingGrants.forEach(function (g) {
       var st = effectiveOutgoingStatus(g);
-      if (st === 'active' || st === 'scheduled' || st === 'task' || st === 'household') active++;
+      if (st === 'active' || st === 'scheduled' || st === 'task' || st === 'household' || st === 'inquiry') active++;
       if (g.endingSoon && st !== 'expired' && st !== 'revoked') soon++;
     });
     var a = $('#perm-sum-active'); if (a) a.textContent = String(active);
@@ -1335,7 +1532,7 @@
     renderPermissionsHub();
     updatePermissionsSummaries();
     toast(personalSharingPaused
-      ? 'Paused sharing with people — merchant grants unchanged'
+      ? 'Paused sharing with people — merchants & inquiries unchanged'
       : 'Sharing with people active again');
   };
 
@@ -1421,6 +1618,12 @@
     list.innerHTML = html;
   }
 
+
+  function inquiryStatusLabel(g) {
+    var s = (g && g.inquiryStatus) || 'submitted';
+    return ({ submitted: 'Submitted', needs_info: 'Needs info', quoted: 'Quoted', active: 'Active' })[s] || s;
+  }
+
   function grantCard(g, kind) {
     var el = document.createElement('div');
     var st = kind === 'out' ? effectiveOutgoingStatus(g) : g.status;
@@ -1429,7 +1632,8 @@
     if (st === 'paused') cls += ' paused-state';
     el.className = cls;
     var metaBits = [precLabel(g.precision)];
-    if (kind === 'out') metaBits.push(g.selection === 'fixed' ? 'Fixed' : 'Follow home');
+    if (kind === 'out' && g.class !== 'inquiry') metaBits.push(g.selection === 'fixed' ? 'Fixed' : 'Follow home');
+    if (g.class === 'inquiry') metaBits.push('Place: ' + (PLACE_LABELS[g.placeId] || 'ECC'));
     metaBits.push(g.purpose);
     el.innerHTML =
       '<div class="grant-avatar" style="background:' + g.color + '">' + g.initials + '</div>' +
@@ -1440,8 +1644,10 @@
         '</div>' +
         '<div class="grant-meta">' + metaBits.join(' · ') + '</div>' +
         '<div class="grant-chips">' +
+          (g.class === 'inquiry' ? '<span class="class-pill-inq">Inquiry</span>' : '') +
           '<span class="prec-pill ' + (g.precision === 'exact' ? 'exact' : 'approx') + '">' + precLabel(g.precision) + '</span>' +
-          (kind === 'out' ? '<span class="sel-pill">' + (g.selection === 'fixed' ? 'Fixed' : 'Follow') + '</span>' : '') +
+          (kind === 'out' && g.class !== 'inquiry' ? '<span class="sel-pill">' + (g.selection === 'fixed' ? 'Fixed' : 'Follow') + '</span>' : '') +
+          (g.class === 'inquiry' ? '<span class="sel-pill">' + inquiryStatusLabel(g) + '</span>' : '') +
           '<span class="sel-pill">' + g.countdown + '</span>' +
         '</div>' +
         '<div class="grant-id">' + g.id + '</div>' +
@@ -1467,6 +1673,10 @@
     }
     var g = findOutgoing(activeGrantId);
     if (!g) { body.innerHTML = '<p class="sub">Grant not found.</p>'; return; }
+    if (g.class === 'inquiry') {
+      renderInquiryDetail(body, title, g);
+      return;
+    }
     var st = effectiveOutgoingStatus(g);
     if (title) title.textContent = g.name;
 
@@ -1558,8 +1768,150 @@
     if (g.status === 'scheduled') return 'Mon Sep 28, 8:00 AM CT';
     if (g.class === 'household') return 'Ongoing since Jan 2026';
     if (g.class === 'task') return 'Tue Sep 22, 2:00 PM CT';
+    if (g.class === 'inquiry') return 'Inquiry window · ' + (g.windowLabel || 'Thu Sep 25 · morning');
     return 'Sat Sep 20, 9:00 AM CT';
   }
+
+  function renderInquiryDetail(body, title, g) {
+    var st = effectiveOutgoingStatus(g);
+    if (title) title.textContent = g.name;
+    var placeLabel = PLACE_LABELS[g.placeId] || 'East Cesar Chavez Cottage';
+    var fieldsHtml;
+    if (g.precision === 'approx') {
+      fieldsHtml =
+        '<div class="fact-row"><span class="muted">Disclosure</span><span class="strong" style="font-size:13px">Approximate area / serves-this-zone</span></div>' +
+        '<div class="fact-row"><span class="muted">Place ref</span><span class="strong" style="font-size:13px">' + placeLabel + ' (owned)</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Geometry</span><span class="strong" style="font-size:13px">Coverage zone · no street / unit</span></div>';
+    } else {
+      var pl = placeById(g.placeId);
+      fieldsHtml =
+        '<div class="fact-row"><span class="muted">Street</span><span class="strong" style="font-size:13px">' + pl.street + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Unit</span><span class="strong" style="font-size:13px">' + pl.unit + '</span></div>' +
+        '<div class="fact-row"><span class="muted">City</span><span class="strong" style="font-size:13px">' + pl.city + ', ' + pl.zip + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Honesty</span><span class="strong" style="font-size:12px">Exact bound to this inquiry only</span></div>';
+    }
+
+    var exactCard = '';
+    if (g.exactRequested && g.precision !== 'exact' && g.status !== 'expired' && g.status !== 'revoked') {
+      exactCard =
+        '<div class="card mb-12" style="border-color:#c2d6c5;background:linear-gradient(160deg,#FFFCFA 0%,var(--accent-soft) 100%)">' +
+          '<div class="strong" style="font-size:13px;margin-bottom:6px">Cedar &amp; Stone requested exact street for the quote</div>' +
+          '<p class="muted mb-12" style="font-size:11px;line-height:1.4">Separate from identity. Approving upgrades this inquiry grant’s destination precision only.</p>' +
+          '<div style="display:flex;gap:8px">' +
+            '<button class="btn btn-primary btn-sm" style="flex:1;width:auto" onclick="approveInquiryExact()">Approve exact address</button>' +
+            '<button class="btn btn-secondary btn-sm" style="flex:1;width:auto" onclick="declineInquiryExact()">Not now</button>' +
+          '</div>' +
+        '</div>';
+    }
+
+    body.innerHTML =
+      '<div class="between mb-8"><span class="pill ghost">Prototype / demo</span><span class="g-status inquiry">Inquiry</span></div>' +
+      '<div class="pd-hero">' +
+        '<div class="grant-avatar" style="background:' + g.color + '">' + g.initials + '</div>' +
+        '<div>' +
+          '<div class="strong" style="font-size:18px;font-family:var(--font-display)">' + g.name + '</div>' +
+          '<div class="muted" style="font-size:12px;margin-top:2px">' + g.handle + ' · ' + g.accountId + '</div>' +
+          '<div class="muted" style="font-size:11px;margin-top:4px">Status: ' + inquiryStatusLabel(g) + ' · quote ≠ booking</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="banner private mb-12"><span>◎</span><span>Marketplace browse did <strong>not</strong> notify them — only this inquiry submit did. One provider only.</span></div>' +
+      '<div class="banner info mb-12"><span>ℹ</span><span><strong>Distinguisher:</strong> one-shot inquiry grant, not standing merchant routing (see Connected Services). Pause sharing with people does not cancel inquiry grants.</span></div>' +
+
+      exactCard +
+
+      '<div class="section-label" style="margin-top:0">Purpose &amp; window</div>' +
+      '<div class="card mb-8" style="padding:12px 14px">' +
+        '<div class="strong" style="font-size:13px">' + g.purpose + '</div>' +
+        '<div class="muted mt-8" style="font-size:12px">Window: ' + (g.windowLabel || '—') + '</div>' +
+        '<div class="muted" style="font-size:12px">Identity: ' + (g.identityLabel || 'River Guest') + ' · address disclosure separate</div>' +
+      '</div>' +
+      '<div class="card field-preview mb-12">' + fieldsHtml + '</div>' +
+
+      '<div class="section-label">Selection</div>' +
+      '<div class="card mb-12" style="padding:12px 14px">' +
+        '<div class="strong" style="font-size:13px">Fixed: ' + placeLabel + '</div>' +
+        '<p class="muted mt-8" style="font-size:11px;line-height:1.4">Inquiry destinations must be owned or authorized-for-onward. View-only places cannot be forwarded.</p>' +
+      '</div>' +
+
+      '<div class="section-label">Time window</div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Service window</span><span class="strong" style="font-size:12px">' + (g.windowLabel || '—') + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Grant expiry</span><span class="strong" style="font-size:12px">' + g.endLabel + '</span></div>' +
+      '</div>' +
+      '<p class="muted mb-12" style="font-size:11px">Revoke/expiry blocks <strong>new</strong> disclosure. Accepted quote may keep a bounded demo transaction note (copies not recalled).</p>' +
+
+      '<div class="section-label">Actions</div>' +
+      '<button class="btn btn-primary" onclick="openInquiryProviderPreview()">Preview as provider</button>' +
+      (g.status !== 'expired' && g.status !== 'revoked'
+        ? '<button class="btn btn-ghost mt-8" style="width:100%;color:var(--danger)" onclick="openRevokeSheet()">Revoke inquiry access</button>'
+        : '<p class="muted mt-8" style="font-size:11px;text-align:center">Revoked / expired — new disclosure blocked.</p>') +
+
+      '<div class="section-label">Access history</div>' +
+      '<div class="card mb-8"><div class="access-tl">' + renderHistory(g.history) + '</div></div>' +
+      '<p class="muted mb-12" style="font-size:11px;text-align:center;line-height:1.45">Audit metadata only — no raw address in toasts. Pairwise ID <strong>' + g.id + '</strong></p>' +
+      '<p class="muted" style="font-size:11px;text-align:center">Prototype / demo · not a live grant</p>';
+  }
+
+  window.approveInquiryExact = function () {
+    var g = findOutgoing(activeGrantId);
+    if (!g || g.class !== 'inquiry') return;
+    if (g.status === 'expired' || g.status === 'revoked') {
+      toast('Revoked inquiry — new disclosure blocked');
+      return;
+    }
+    g.precision = 'exact';
+    g.exactRequested = false;
+    g.inquiryStatus = 'needs_info';
+    g.history.unshift({
+      title: 'Exact street approved',
+      sub: 'Tue Sep 22 · just now · precision upgraded · opaque ref',
+      denied: false
+    });
+    renderPermissionDetail();
+    toast('Exact address approved · grant ' + g.id);
+  };
+
+  window.declineInquiryExact = function () {
+    var g = findOutgoing(activeGrantId);
+    if (!g || g.class !== 'inquiry') return;
+    g.exactRequested = false;
+    g.history.unshift({
+      title: 'Exact street deferred',
+      sub: 'Tue Sep 22 · just now · Not now · approx remains',
+      denied: false
+    });
+    renderPermissionDetail();
+    toast('Kept approximate · grant ' + g.id);
+  };
+
+  window.openInquiryProviderPreview = function () {
+    var g = findOutgoing(activeGrantId);
+    if (!g) return;
+    var box = $('#perm-preview-body');
+    var approx = g.precision === 'approx';
+    var html = '<div class="share-preview-card mb-12">';
+    html += '<div class="muted mb-8" style="font-size:11px">As Cedar &amp; Stone would see</div>';
+    if (approx) {
+      html += '<div class="map-canvas" style="height:120px;margin-bottom:10px;border-radius:12px">' +
+        '<div class="map-blob" style="top:30%;left:28%;width:90px;height:70px"><span>Approx zone</span></div></div>';
+      html += '<div class="strong" style="font-size:14px">East Austin · serves-this-zone</div>';
+      html += '<p class="muted mt-8" style="font-size:12px">No street, unit, or exact pin.</p>';
+    } else {
+      var pl = placeById(g.placeId);
+      html += '<div class="strong" style="font-size:14px">' + pl.label + '</div>';
+      html += '<div class="muted mt-8">' + pl.street + ' · ' + pl.unit + '</div>';
+      html += '<div class="muted">' + pl.city + ', ' + pl.zip + '</div>';
+    }
+    html += '<div class="muted mt-12" style="font-size:11px">From: ' + (g.identityLabel || 'River Guest') + '</div>';
+    html += '<div class="muted" style="font-size:11px">' + g.purpose + ' · ' + (g.windowLabel || '') + '</div>';
+    html += '<div class="muted mt-8" style="font-size:11px">Quote ≠ booking · status ' + inquiryStatusLabel(g) + '</div>';
+    html += '</div>';
+    html += '<div class="banner private"><span>◎</span><span>Identity disclosure ≠ address disclosure. Inquiry alias is not a bearer capability.</span></div>';
+    if (box) box.innerHTML = html;
+    $('#perm-preview-backdrop').classList.add('show');
+    $('#perm-preview-sheet').classList.add('show');
+  };
 
   function renderHistory(rows) {
     if (!rows || !rows.length) return '<p class="sub">No resolutions yet.</p>';
@@ -1722,11 +2074,18 @@
     g.countdown = 'Revoked just now';
     g.endLabel = 'Revoked Tue Sep 22 CT';
     g.endingSoon = false;
-    g.history.unshift({ title: 'Grant revoked by you', sub: 'Tue Sep 22 · just now · copies/screenshots not recalled', denied: true });
+    if (g.class === 'inquiry') {
+      g.exactRequested = false;
+      g.inquiryStatus = 'submitted';
+      g.history.unshift({ title: 'Inquiry access revoked', sub: 'Tue Sep 22 · just now · new disclosure blocked · copies not recalled', denied: true });
+      toast('Inquiry revoked · grant ' + g.id + ' · copies not recalled');
+    } else {
+      g.history.unshift({ title: 'Grant revoked by you', sub: 'Tue Sep 22 · just now · copies/screenshots not recalled', denied: true });
+      toast('Revoked — copies they already have cannot be recalled');
+    }
     closeRevokeSheet();
     renderPermissionDetail();
     updatePermissionsSummaries();
-    toast('Revoked — copies they already have cannot be recalled');
   };
 
   window.previewIncoming = function () {
