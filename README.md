@@ -14,11 +14,11 @@ open /workspace/domicile-full-prototype/index.html
 python3 -m http.server 8765 --directory /workspace/domicile-full-prototype
 ```
 
-Then visit `http://localhost:8765/`. Hash routes work (e.g. `#stays-search`, `#host-dashboard`, `#ledger`). Bottom nav remembers the last screen per tab.
+Then visit `http://localhost:8765/`. Hash routes work (e.g. `#stays-search`, `#host-dashboard`, `#ledger`, `#move-planning`, `#move-checklist`). Bottom nav remembers the last screen per tab.
 
 **Files:** `index.html` · `app.css` · `app.js` · this README.
 
-## Screen inventory (44)
+## Screen inventory (47)
 
 ### Shell tabs
 | Tab | Screens |
@@ -56,7 +56,10 @@ Explore → Stays → search → listing → checkout → Trips → unlock → c
 Places → Cottage → Hosting → Listing · Calendar · Reservation · Invite
 
 ### Home / community / move
-Places → Home → Community (HOA) · You → Move planning (toggle recipients) · You → Permissions
+Places → Home → Community (HOA) · **Today or You → Move Planning** → checklist → AI draft (HOA) → confirm send · USPS handoff · You → Permissions
+
+### Move Planning (AI-assisted sketch)
+Overview (East Cesar Chavez → South Lamar) → recipient checklist with channel/status chips → Assist draft preview (facts from Move Engine; you send) → USPS official-form handoff (never auto-filed) → Suggest missing recipients (DMV, voter reg demo tips)
 
 ## Product constraints honored
 - Bottom nav fixed: Today · Map · Places · Explore · You  

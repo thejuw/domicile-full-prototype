@@ -16,7 +16,8 @@
     <div class="badge-proto">Prototype · planning only · not production</div>
     <h2>Domicile</h2>
     <p>Full personal app click-through for founder demo. Warm home-platform tone — Today, Map, Places, Explore, You — plus Stays guest &amp; host paths.</p>
-    <div class="hint"><strong>60-second path:</strong> Today → arrival → Explore→Stays book → unlock → Places→Hosting → You→Ledger</div>
+    <div class="hint"><strong>60-second path:</strong> Today → Move Planning → checklist → HOA draft → USPS handoff</div>
+    <div class="path">Today / You → Move Planning → checklist → AI draft → USPS</div>
     <div class="path">Today — arrivals, stay check-in, hosting turnover</div>
     <div class="path">Explore → Stays → Oak &amp; Waller → Instant book → Trips unlock</div>
     <div class="path">Places → East Cesar Chavez → Hosting dashboard</div>
@@ -103,6 +104,25 @@
                   <p class="sub mt-8">Holly Grove Association · $285 due Oct 1</p>
                 </div>
                 <span class="pill ghost">Due soon</span>
+              </div>
+            </div>
+
+            <div class="section-label">Move</div>
+            <div class="card tap move-card" onclick="go('move-planning')">
+              <div class="between mb-8">
+                <span class="pill sage">In progress</span>
+                <span class="muted">Nov 1 · move day</span>
+              </div>
+              <div class="row gap-md">
+                <div class="spend-ico" style="background:var(--accent-soft);font-size:18px">→</div>
+                <div class="flex-1">
+                  <div class="strong" style="font-size:15px">Move Planning</div>
+                  <div class="muted">East Cesar Chavez → South Lamar</div>
+                  <div class="move-progress mt-8">
+                    <div class="between" style="margin-bottom:4px"><span class="muted" style="font-size:11px">3 of 8 notified</span><span class="muted" style="font-size:11px">38%</span></div>
+                    <div class="progress-bar"><span style="width:38%"></span></div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1007,7 +1027,7 @@
             <div class="card mb-8">
               <div class="you-row" onclick="go('permissions')"><span>◎</span><span class="y-label">Permissions &amp; sharing</span><span class="y-chev">›</span></div>
               <div class="you-row" onclick="go('connections')"><span>↔</span><span class="y-label">Connections</span><span class="y-chev">›</span></div>
-              <div class="you-row" onclick="go('move-planning')"><span>→</span><span class="y-label">Move planning</span><span class="y-chev">›</span></div>
+              <div class="you-row" onclick="go('move-planning')"><span>→</span><span class="y-label">Move planning</span><span class="y-meta" id="you-move-meta">3/8</span><span class="y-chev">›</span></div>
             </div>
             <div class="card">
               <div class="you-row" onclick="go('support')"><span>?</span><span class="y-label">Support</span><span class="y-chev">›</span></div>
@@ -1087,21 +1107,141 @@
         </section>
 
         <section class="screen" data-screen="move-planning" data-nav="you">
-          <div class="topbar"><button class="back" onclick="go('you')">‹ You</button><span class="title">Move planning</span><span></span></div>
+          <div class="topbar"><button class="back" onclick="go('you')">‹ You</button><span class="title">Move Planning</span><span></span></div>
           <div class="pad">
-            <h2 class="h2">Update once</h2>
-            <p class="sub mb-16">Choose who stays updated — then see which systems actually applied the change.</p>
-            <div class="field mb-8"><label>Future address (preview)</label><input value="North Loop bungalow · Austin (planned)" readonly /></div>
-            <div class="field mb-12"><label>Effective date</label><input type="date" value="2026-11-01" /></div>
-            <div class="section-label" style="margin-top:0">Preview recipients</div>
-            <div class="card mb-12">
-              <div class="recipient"><div class="r-check" onclick="toggleRecipient(this)">✓</div><div class="flex-1"><div class="strong" style="font-size:13px">Austin Energy</div><div class="muted">Service address update</div></div></div>
-              <div class="recipient"><div class="r-check" onclick="toggleRecipient(this)">✓</div><div class="flex-1"><div class="strong" style="font-size:13px">Holly Grove Association</div><div class="muted">Will leave · stop dues</div></div></div>
-              <div class="recipient"><div class="r-check" onclick="toggleRecipient(this)">✓</div><div class="flex-1"><div class="strong" style="font-size:13px">Riverbend Insurance</div><div class="muted">Eligibility check — no silent cancel</div></div></div>
-              <div class="recipient"><div class="r-check off" onclick="toggleRecipient(this)"></div><div class="flex-1"><div class="strong" style="font-size:13px">Maya (map share)</div><div class="muted">Keep sharing current home until move</div></div></div>
+            <div class="between mb-8">
+              <span class="pill sage" id="move-overview-pill">In progress</span>
+              <span class="muted">Effective Nov 1, 2026</span>
             </div>
-            <div class="banner info mb-16"><span>ℹ</span><span><strong>Who stays updated:</strong> selected recipients get authorized update jobs. Unresolved outcomes stay visible — never assume success.</span></div>
-            <button class="btn btn-primary" onclick="toast('Move plan saved as draft (prototype)')">Save draft plan</button>
+            <h1 class="h1" style="font-size:24px">Your move</h1>
+            <p class="sub mb-16">Deterministic Move Engine owns recipients, dates &amp; status. Assist only drafts language — you confirm every send.</p>
+
+            <div class="card move-route mb-12">
+              <div class="move-route-row">
+                <div class="move-pin from">From</div>
+                <div>
+                  <div class="strong" style="font-size:14px">East Cesar Chavez Cottage</div>
+                  <div class="muted">Austin, TX · current home</div>
+                </div>
+              </div>
+              <div class="move-route-arrow">↓</div>
+              <div class="move-route-row">
+                <div class="move-pin to">To</div>
+                <div>
+                  <div class="strong" style="font-size:14px">South Lamar loft</div>
+                  <div class="muted">Austin, TX · planned destination</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-row mb-16">
+              <div class="stat"><div class="n" id="move-progress-n">3/8</div><div class="l">Notified</div></div>
+              <div class="stat"><div class="n">Nov 1</div><div class="l">Move day</div></div>
+              <div class="stat"><div class="n" id="move-awaiting-n">1</div><div class="l">Awaiting you</div></div>
+            </div>
+            <div class="move-progress mb-16">
+              <div class="between" style="margin-bottom:6px"><span class="muted" style="font-size:12px">Notification progress</span><span class="muted" style="font-size:12px" id="move-progress-pct">38%</span></div>
+              <div class="progress-bar"><span id="move-progress-bar" style="width:38%"></span></div>
+            </div>
+
+            <div class="banner private mb-12"><span>◎</span><span><strong>Selected vs excluded:</strong> confirmed orders don’t silently move. You choose who gets an update job.</span></div>
+
+            <button class="btn btn-primary" onclick="go('move-checklist')">Open recipient checklist</button>
+            <button class="btn btn-secondary mt-8" onclick="go('move-usps')">USPS change of address</button>
+            <p class="muted mt-12" style="font-size:11px;text-align:center;line-height:1.45">Planning prototype · no real filings or sends</p>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="move-checklist" data-nav="you">
+          <div class="topbar"><button class="back" onclick="go('move-planning')">‹ Move</button><span class="title">Recipients</span><span></span></div>
+          <div class="pad">
+            <p class="sub mb-12">Toggle who stays on the plan. Tap a row to draft, hand off, or mark status. Engine owns status — Assist drafts copy only.</p>
+
+            <div class="assist-chip-row mb-12">
+              <button type="button" class="assist-chip" id="suggest-recipients-btn" onclick="suggestMissingRecipients()">✦ Suggest missing recipients</button>
+            </div>
+
+            <div class="section-label" style="margin-top:0">On this move <span class="muted" id="move-selected-count" style="font-weight:500;text-transform:none;letter-spacing:0">· 8 selected</span></div>
+            <div class="card mb-12" id="move-recipient-list">
+              <!-- filled by JS -->
+            </div>
+
+            <div class="section-label hide" id="move-suggested-label">Suggested by Assist</div>
+            <div class="card mb-12 hide" id="move-suggested-list"></div>
+
+            <div class="banner info mb-16"><span>ℹ</span><span>Suggestions are demo roster tips — not scraped from your inbox or accounts.</span></div>
+            <button class="btn btn-ghost" style="width:100%" onclick="go('move-planning')">Back to overview</button>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="move-draft" data-nav="you">
+          <div class="topbar"><button class="back" onclick="go('move-checklist')">‹ Checklist</button><span class="title">AI draft</span><span></span></div>
+          <div class="pad">
+            <div class="assist-label mb-12">
+              <span class="assist-dot"></span>
+              Drafted by Domicile Assist — you send
+            </div>
+            <h1 class="h1" style="font-size:22px" id="draft-recipient-name">Holly Grove Association</h1>
+            <p class="sub mb-16" id="draft-recipient-sub">HOA · email draft · Cedar Grove community</p>
+
+            <div class="section-label" style="margin-top:0">Facts used (Move Engine)</div>
+            <div class="card mb-12">
+              <div class="fact-row"><span class="muted">Old address</span><span class="strong" style="font-size:13px;text-align:right">East Cesar Chavez Cottage<br/><span class="muted" style="font-weight:500">Austin, TX</span></span></div>
+              <div class="fact-row"><span class="muted">New address</span><span class="strong" style="font-size:13px;text-align:right">South Lamar loft<br/><span class="muted" style="font-weight:500">Austin, TX</span></span></div>
+              <div class="fact-row"><span class="muted">Effective date</span><span class="strong" style="font-size:13px">November 1, 2026</span></div>
+              <div class="fact-row"><span class="muted">Unit / account</span><span class="strong" style="font-size:13px">Unit 204 · Alex Rivera</span></div>
+            </div>
+
+            <div class="section-label">Email preview</div>
+            <div class="card draft-card mb-16">
+              <div class="draft-meta">
+                <div><span class="muted">To</span> <span class="strong" id="draft-to">management@hollygrove.example</span></div>
+                <div class="mt-8"><span class="muted">Subject</span></div>
+                <div class="strong" style="font-size:14px;margin-top:2px" id="draft-subject" contenteditable="false">Address change notice — Unit 204 effective Nov 1, 2026</div>
+              </div>
+              <div class="draft-body" id="draft-body" contenteditable="false">Hello Holly Grove management,
+
+I’m writing to confirm that I will be moving out of Unit 204 at East Cesar Chavez Cottage. My forwarding / new residence is South Lamar loft, Austin, TX, effective November 1, 2026.
+
+Please update your records for mail, dues, and access accordingly. I’m happy to schedule a final walkthrough.
+
+Thank you,
+AL</div>
+            </div>
+
+            <div class="row gap-sm mb-8">
+              <button class="btn btn-secondary" style="flex:1" onclick="toggleDraftEdit()">Edit</button>
+              <button class="btn btn-secondary" style="flex:1" onclick="copyDraft()">Copy</button>
+            </div>
+            <button class="btn btn-primary" onclick="openConfirmSend()">Queue send…</button>
+            <button class="btn btn-ghost mt-8" style="width:100%" onclick="go('move-checklist')">Back</button>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="move-usps" data-nav="you">
+          <div class="topbar"><button class="back" onclick="go('move-checklist')">‹ Checklist</button><span class="title">USPS handoff</span><span></span></div>
+          <div class="pad">
+            <div class="between mb-8">
+              <span class="pill ghost" id="usps-status-pill">Not started</span>
+              <span class="channel-badge official">Official form</span>
+            </div>
+            <h1 class="h1" style="font-size:22px">Change of address</h1>
+            <p class="sub mb-16">Identity verification happens on USPS. Domicile never auto-files as if submitted — you finish on their site.</p>
+
+            <div class="banner warn mb-12"><span>⚠</span><span><strong>You confirm on USPS.</strong> This prototype opens a planning demo sheet only — it does not claim success or file anything.</span></div>
+
+            <div class="section-label" style="margin-top:0">Prefill Domicile can pass</div>
+            <div class="card mb-16">
+              <div class="fact-row"><span class="muted">Name</span><span class="strong" style="font-size:13px">AL Rivera</span></div>
+              <div class="fact-row"><span class="muted">Old address</span><span class="strong" style="font-size:13px;text-align:right">East Cesar Chavez Cottage<br/><span class="muted" style="font-weight:500">Austin, TX 78702</span></span></div>
+              <div class="fact-row"><span class="muted">New address</span><span class="strong" style="font-size:13px;text-align:right">South Lamar loft<br/><span class="muted" style="font-weight:500">Austin, TX 78704</span></span></div>
+              <div class="fact-row"><span class="muted">Move date</span><span class="strong" style="font-size:13px">November 1, 2026</span></div>
+              <div class="fact-row"><span class="muted">Type</span><span class="strong" style="font-size:13px">Individual · permanent</span></div>
+            </div>
+
+            <button class="btn btn-primary" onclick="openUspsExternal()">Continue on USPS</button>
+            <button class="btn btn-secondary mt-8" id="usps-mark-done-btn" onclick="markUspsDone()">Mark done after I finish on USPS</button>
+            <p class="muted mt-12" style="font-size:11px;text-align:center;line-height:1.45">Status becomes <em>Awaiting you</em> when you continue, <em>Confirmed</em> only after you mark done.</p>
           </div>
         </section>
 
@@ -1287,6 +1427,42 @@
         <button class="nav-item" data-nav="explore" onclick="navTo('explore')"><span class="ico">◎</span>Explore</button>
         <button class="nav-item" data-nav="you" onclick="navTo('you')"><span class="ico">☺</span>You</button>
       </nav>
+      <!-- Move sheets -->
+      <div class="sheet-backdrop" id="confirm-send-backdrop" onclick="closeConfirmSend()"></div>
+      <div class="sheet" id="confirm-send-sheet" role="dialog" aria-modal="true" aria-labelledby="confirm-send-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="confirm-send-title" style="font-size:18px;margin-bottom:6px">Confirm send</h2>
+        <p class="sub mb-12">Send as you — Assist drafted the language; the Move Engine will record status after you confirm.</p>
+        <div class="card mb-12" style="padding:12px 14px">
+          <div class="fact-row" style="padding:6px 0"><span class="muted">Recipient</span><span class="strong" style="font-size:13px" id="confirm-recipient">Holly Grove Association</span></div>
+          <div class="fact-row" style="padding:6px 0"><span class="muted">Channel</span><span class="strong" style="font-size:13px">Email · as me</span></div>
+          <div class="fact-row" style="padding:6px 0;border:none"><span class="muted">Subject</span><span class="strong" style="font-size:12px;text-align:right;max-width:58%" id="confirm-subject">Address change notice…</span></div>
+        </div>
+        <label class="confirm-check mb-16">
+          <input type="checkbox" id="confirm-send-as-me" />
+          <span>I understand this sends <strong>as me</strong> (demo: marks Queued / Sent locally)</span>
+        </label>
+        <button class="btn btn-primary" onclick="confirmSendDraft()">Send as me</button>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeConfirmSend()">Cancel</button>
+      </div>
+
+      <div class="sheet-backdrop" id="usps-external-backdrop" onclick="closeUspsExternal()"></div>
+      <div class="sheet" id="usps-external-sheet" role="dialog" aria-modal="true">
+        <div class="sheet-handle"></div>
+        <div class="usps-fake-chrome mb-12">
+          <span class="usps-dot"></span>
+          <span class="muted" style="font-size:11px">usps.com · change of address</span>
+        </div>
+        <h2 class="h2" style="font-size:18px;margin-bottom:6px">Continue on USPS</h2>
+        <p class="sub mb-12">Planning demo only. Identity verification and filing happen on USPS — Domicile does not claim this was submitted.</p>
+        <div class="card mb-16" style="background:var(--warn-soft);border-color:#f5d78e">
+          <div class="strong" style="font-size:13px;margin-bottom:6px">Prefill ready to hand off</div>
+          <p class="muted" style="font-size:12px;line-height:1.45">Name, old/new address, and Nov 1 move date would open in the official form. Complete verification there.</p>
+        </div>
+        <button class="btn btn-primary" onclick="continueUspsDemo()">Open official form (demo)</button>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeUspsExternal()">Stay in Domicile</button>
+      </div>
+
       <div class="toast" id="toast"></div>
     </div>
   </div>
