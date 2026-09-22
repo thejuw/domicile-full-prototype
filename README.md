@@ -2,7 +2,7 @@
 
 **Prototype · planning only · not production**
 
-Founder click-through of the **entire Domicile personal app** (kit ed. 3.2): Today · Map · Places · Explore · You, plus complete **Stays** guest & host paths, Ledger, move planning, arrivals, communities, and Explore mini-flows.
+Founder click-through of the **Domicile personal app** (kit ed. 3.2) plus a gated **business SERVICES workspace** (Cedar & Stone). Personal: Today · Map · Places · Explore · You. Business (after account switch): Today · Inbox · Jobs · Business. Also Stays, Ledger, move planning, Permissions MAP, private inquiry disclosure.
 
 Phone frame (~390×844) on desktop with ambient glow; full-bleed on real phones. Warm parchment / terracotta / olive system. Zero build step, no CDN, system fonts.
 
@@ -14,7 +14,7 @@ open /workspace/domicile-full-prototype/index.html
 python3 -m http.server 8765 --directory /workspace/domicile-full-prototype
 ```
 
-Then visit `http://localhost:8765/`. Hash routes work (e.g. `#stays-search`, `#host-dashboard`, `#ledger`, `#move-planning`, `#move-checklist`, `#connected-services`, `#permissions`, `#permission-detail`, `#service-inquiry`). Bottom nav remembers the last screen per tab.
+Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-prototype/. Hash routes work (e.g. `#stays-search`, `#permissions`, `#service-inquiry`, `#biz-today`, `#biz-inbox`, `#biz-inquiry-detail`, `#biz-jobs`, `#biz-profile`). Bottom nav remembers the last screen per tab; **business nav replaces personal nav** after Switch account.
 
 **Files:** `index.html` · `app.css` · `app.js` · this README.
 
@@ -71,11 +71,31 @@ Kit notes honored: authenticated recipient + purpose + fields/precision + time w
 
 Kit (P40/P41/P43) honored: browsing ≠ leads; one provider only; explicit disclosure; default approx area; identity ≠ address; inquiry-scoped alias; no forward of view-only places; quote ≠ booking; opaque toast refs; revoke blocks new disclosure (copies not recalled); personal pause ≠ inquiry cancel; prototype labeling.
 
+### Business SERVICES workspace (~30s · account switch required)
+**You → Switch account… → Cedar & Stone Clean Co. · Owner** (or Today → Open Cedar & Stone) → lands on **Business Today** (`#biz-today`). Bottom nav becomes **Today · Inbox · Jobs · Business**. Org pill “Cedar & Stone” on topbars.
+
+1. **Inbox** → River Guest inquiry (`grant_inq_cedar_7a2f`) · Approx East Cesar Chavez · Needs exact / Open  
+2. Inquiry detail → **Request exact address** (sets pending on shared grant; resident Permissions shows Approve) · **Send quote** (versioned `quote_cedar_…` · quote ≠ booking) · Message / Decline  
+3. After quote → **Mark quote accepted (demo)** → **Jobs** · Casey (crew) assigned · Reassign ends prior worker access  
+4. **Business** tab → org / coverage / catalog / team (Al Owner · Casey Crew) · Customers (light) · **Switch to Personal**
+
+**Cross-mode rule:** Navigating to a hash belonging to the other workspace **auto-switches** workspace (toast) then opens that screen. Personal Explore never shows business inbox chrome.
+
+**Shared grant sync (one source of truth in `app.js` `outgoingGrants`):**
+- Provider Request exact ↔ `exactRequested` · resident Approve exact ↔ `precision: exact`  
+- Provider Send quote ↔ `inquiryStatus: quoted` + history “Quote received”  
+- Personal Pause sharing with people does **not** create/cancel inquiry or merchant rights  
+
+Kit: W2 Business management · P38 team roles · P39 coverage · P43 inquiries/quotes · P45 ops. Inquiries only from deliberate submits — never browse leads. Opaque refs in toasts. Prototype labels throughout.
+
+
 ### Move Planning (AI-assisted sketch)
 Overview (East Cesar Chavez → South Lamar) → recipient checklist with channel/status chips → Assist draft preview (facts from Move Engine; you send) → USPS official-form handoff (never auto-filed) → Suggest missing recipients (DMV, voter reg demo tips)
 
 ## Product constraints honored
-- Bottom nav fixed: Today · Map · Places · Explore · You  
+- Personal bottom nav: Today · Map · Places · Explore · You  
+- Business bottom nav (after switch): Today · Inbox · Jobs · Business  
+- Account switch required before any business ops UI  
 - Private-cohort chrome + gated public discovery  
 - Exact address / door codes only after unlock for confirmed guests  
 - Guest ≠ household / tenant / resident  

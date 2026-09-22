@@ -1,5 +1,8 @@
 (function () {
-  const navMemory = { today: 'today', map: 'map', places: 'places', explore: 'explore', you: 'you' };
+  const navMemory = {
+    today: 'today', map: 'map', places: 'places', explore: 'explore', you: 'you',
+    'biz-today': 'biz-today', 'biz-inbox': 'biz-inbox', 'biz-jobs': 'biz-jobs', 'biz-profile': 'biz-profile'
+  };
   let current = 'today';
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -10,10 +13,78 @@
     'permissions': 1, 'permission-detail': 1, 'connections': 1, 'connected-services': 1, 'connected-service-detail': 1, 'support': 1
   };
 
+  var BIZ_SCREENS = {
+    'biz-today': 1, 'biz-inbox': 1, 'biz-inquiry-detail': 1,
+    'biz-jobs': 1, 'biz-job-detail': 1, 'biz-profile': 1
+  };
+
+  var activeWorkspace = 'personal'; // personal | business
+  var activeOrg = null; // 'cedar' when business
+  var activeBizRole = 'owner'; // owner | crew (demo)
+  var activeBizInquiryId = 'grant_inq_cedar_7a2f';
+  var activeBizJobId = null;
+  var bizQuoteSeq = 1;
+  var bizJobs = []; // populated when quote accepted
+  var bizDemoRoleView = 'owner'; // which role lens is active in business UI
+
+  // Cross-mode rule: navigating to a screen belonging to the other workspace
+  // auto-switches the workspace (with toast), then opens that screen.
+  // Documented in README.
+
+  function isBizScreen(name) {
+    return !!BIZ_SCREENS[name] || (name && name.indexOf('biz-') === 0);
+  }
+
+  function applyWorkspaceChrome() {
+    var phone = document.querySelector('.phone') || document.body;
+    var pers = $('#bottom-nav-personal');
+    var biz = $('#bottom-nav-business');
+    if (activeWorkspace === 'business') {
+      if (pers) pers.classList.add('hide');
+      if (biz) biz.classList.remove('hide');
+      if (phone) phone.classList.add('biz-mode');
+    } else {
+      if (pers) pers.classList.remove('hide');
+      if (biz) biz.classList.add('hide');
+      if (phone) phone.classList.remove('biz-mode');
+    }
+  }
+
+  function switchWorkspace(mode, opts) {
+    opts = opts || {};
+    var prev = activeWorkspace;
+    if (mode === 'business') {
+      activeWorkspace = 'business';
+      activeOrg = opts.org || 'cedar';
+      activeBizRole = opts.role || 'owner';
+      bizDemoRoleView = activeBizRole;
+    } else {
+      activeWorkspace = 'personal';
+      activeOrg = null;
+    }
+    applyWorkspaceChrome();
+    if (opts.toast && prev !== activeWorkspace) {
+      if (activeWorkspace === 'business') {
+        toast('Switched to Cedar & Stone · Owner');
+      } else {
+        toast('Switched to Personal · @al');
+      }
+    }
+  }
+
   window.go = function (name) {
     if (name === 'connections') name = 'connected-services';
     const next = $('[data-screen="' + name + '"]');
     if (!next) { console.warn('Missing screen:', name); return; }
+
+    // Workspace auto-switch on cross-mode navigation
+    var targetBiz = isBizScreen(name);
+    if (targetBiz && activeWorkspace !== 'business') {
+      switchWorkspace('business', { org: 'cedar', role: 'owner', toast: true });
+    } else if (!targetBiz && activeWorkspace === 'business') {
+      switchWorkspace('personal', { toast: true });
+    }
+
     const prev = $('[data-screen="' + current + '"]');
     if (prev && prev !== next) {
       prev.classList.remove('active');
@@ -33,6 +104,8 @@
     }
     if (YOU_SCREENS[name]) navMemory.you = name;
     if (name === 'arrival-detail' || name === 'appointment-detail') navMemory.today = name;
+    if (name === 'biz-inquiry-detail') navMemory['biz-inbox'] = name;
+    if (name === 'biz-job-detail') navMemory['biz-jobs'] = name;
     updateNav(navKey);
     next.scrollTop = 0;
     try { history.replaceState(null, '', '#' + name); } catch (e) {}
@@ -45,6 +118,12 @@
     if (name === 'permission-detail') renderPermissionDetail();
     if (name === 'service-inquiry') syncInquiryFormUi();
     if (name === 'you' || name === 'today') { updateConnectedServicesSummaries(); updatePermissionsSummaries(); }
+    if (name === 'biz-today') renderBizToday();
+    if (name === 'biz-inbox') renderBizInbox();
+    if (name === 'biz-inquiry-detail') renderBizInquiryDetail();
+    if (name === 'biz-jobs') renderBizJobs();
+    if (name === 'biz-job-detail') renderBizJobDetail();
+    if (name === 'biz-profile') renderBizProfile();
   };
 
   window.navTo = function (tab) {
@@ -52,7 +131,9 @@
   };
 
   function updateNav(activeTab) {
-    $all('.nav-item').forEach(function (el) {
+    var root = activeWorkspace === 'business' ? $('#bottom-nav-business') : $('#bottom-nav-personal');
+    if (!root) root = document;
+    $all('.nav-item', root).forEach(function (el) {
       el.classList.toggle('active', el.getAttribute('data-nav') === activeTab);
     });
   }
@@ -1869,6 +1950,8 @@
       denied: false
     });
     renderPermissionDetail();
+    if (current === 'biz-inquiry-detail') renderBizInquiryDetail();
+    if (current === 'biz-today') renderBizToday();
     toast('Exact address approved · grant ' + g.id);
   };
 
@@ -2306,6 +2389,535 @@
   };
 
 
+
+  /* ========== Business workspace (Cedar & Stone · SERVICES) ========== */
+
+  var BIZ_CLOSED_SEED = {
+    id: 'inq_closed_demo_01',
+    alias: 'Lake Host',
+    service: 'Turnover clean',
+    windowLabel: 'Mon Sep 15 · afternoon',
+    area: 'Approx East Austin',
+    precision: 'approx',
+    status: 'closed',
+    grantId: null,
+    note: 'Older closed inquiry for texture · not linked to live grant'
+  };
+
+  function cedarGrant() {
+    return findOutgoing(INQUIRY_SEED_ID);
+  }
+
+  function bizInboxStatus(g) {
+    if (!g || g.status === 'revoked' || g.status === 'expired') return 'Closed';
+    if (g.inquiryStatus === 'quoted') return 'Quoted';
+    if (g.inquiryStatus === 'accepted') return 'Accepted';
+    if (g.inquiryStatus === 'closed') return 'Closed';
+    if (g.exactRequested && g.precision !== 'exact') return 'Needs exact';
+    if (g.precision === 'exact') return 'Open · exact';
+    return 'Open';
+  }
+
+  function bizPrecisionBadge(g) {
+    if (g.precision === 'exact') return { cls: 'ok', label: 'Exact street' };
+    return { cls: 'warn', label: 'Approx area' };
+  }
+
+  function countBizStats() {
+    var g = cedarGrant();
+    var open = 0, waiting = 0, jobsToday = 0;
+    if (g && g.status === 'active') {
+      if (g.inquiryStatus === 'quoted') waiting++;
+      else if (g.inquiryStatus !== 'closed' && g.inquiryStatus !== 'accepted') open++;
+    }
+    bizJobs.forEach(function (j) {
+      if (j.status === 'scheduled' || j.status === 'today') jobsToday++;
+    });
+    return { open: open, waiting: waiting, jobsToday: jobsToday || (bizJobs.length ? bizJobs.length : 0) };
+  }
+
+  window.openAccountSwitcher = function () {
+    var list = $('#acct-switch-list');
+    if (!list) return;
+    var persOn = activeWorkspace === 'personal';
+    var cedarOn = activeWorkspace === 'business' && activeOrg === 'cedar';
+    list.innerHTML =
+      '<div class="acct-option' + (persOn ? ' current' : '') + '" onclick="selectAccount(\'personal\')">' +
+        '<div class="avatar" style="background:linear-gradient(135deg,#c4a882,#6d8a72)">AL</div>' +
+        '<div class="acct-meta"><div class="acct-name">Al · Personal</div>' +
+        '<div class="acct-sub">@al · Today · Map · Places · Explore · You</div></div>' +
+        (persOn ? '<span class="pill sage">Current</span>' : '') +
+      '</div>' +
+      '<div class="acct-option' + (cedarOn ? ' current' : '') + '" onclick="selectAccount(\'cedar\')">' +
+        '<div class="avatar" style="background:#2F5D50">CS</div>' +
+        '<div class="acct-meta"><div class="acct-name">Cedar &amp; Stone Clean Co. · Owner</div>' +
+        '<div class="acct-sub">acct_cedar_stone_01 · Business ops workspace</div></div>' +
+        (cedarOn ? '<span class="pill sage">Current</span>' : '') +
+      '</div>' +
+      '<div class="acct-option disabled">' +
+        '<div class="avatar" style="background:#6a7a55">BL</div>' +
+        '<div class="acct-meta"><div class="acct-name">Bluebonnet Lawn · Staff</div>' +
+        '<div class="acct-sub">Demo focuses on Cedar &amp; Stone</div></div>' +
+        '<span class="pill ghost">Soon</span>' +
+      '</div>';
+    $('#acct-switch-backdrop').classList.add('show');
+    $('#acct-switch-sheet').classList.add('show');
+  };
+
+  window.closeAccountSwitcher = function () {
+    var b = $('#acct-switch-backdrop'); var s = $('#acct-switch-sheet');
+    if (b) b.classList.remove('show');
+    if (s) s.classList.remove('show');
+  };
+
+  window.selectAccount = function (which) {
+    closeAccountSwitcher();
+    if (which === 'personal') {
+      if (activeWorkspace === 'personal') { toast('Already on Personal'); return; }
+      switchWorkspace('personal', { toast: true });
+      go('today');
+      return;
+    }
+    if (which === 'cedar') {
+      if (activeWorkspace === 'business' && activeOrg === 'cedar') {
+        toast('Already on Cedar & Stone');
+        go('biz-today');
+        return;
+      }
+      switchWorkspace('business', { org: 'cedar', role: 'owner', toast: true });
+      go('biz-today');
+    }
+  };
+
+  function renderBizToday() {
+    var body = $('#biz-today-body');
+    if (!body) return;
+    var g = cedarGrant();
+    var stats = countBizStats();
+    var cards = '';
+    if (g && g.status === 'active' && g.inquiryStatus !== 'closed') {
+      var st = bizInboxStatus(g);
+      cards +=
+        '<div class="card tap mb-8" onclick="openBizInquiry(\'' + g.id + '\')">' +
+          '<div class="between mb-8"><span class="pill ' + (g.inquiryStatus === 'quoted' ? 'warn' : 'sage') + '">' + st + '</span>' +
+          '<span class="muted">Inbox</span></div>' +
+          '<div class="strong">' + (g.identityLabel || 'River Guest') + ' · Deep clean</div>' +
+          '<p class="sub mt-8">' + (g.windowLabel || 'Thu Sep 25 · morning') + ' · Approx East Cesar Chavez area</p>' +
+          '<div class="muted mt-8" style="font-size:11px">Ref ' + g.id + '</div>' +
+        '</div>';
+    }
+    if (g && g.inquiryStatus === 'quoted') {
+      cards +=
+        '<div class="card tap mb-8" onclick="openBizInquiry(\'' + g.id + '\')">' +
+          '<div class="between mb-8"><span class="pill warn">Quote waiting</span><span class="muted">Customer</span></div>' +
+          '<div class="strong">Quote ' + (g.latestQuoteId || 'quote_…') + '</div>' +
+          '<p class="sub mt-8">Awaiting customer accept · quote ≠ booking</p>' +
+        '</div>';
+    }
+    if (bizJobs.length) {
+      bizJobs.forEach(function (j) {
+        cards +=
+          '<div class="card tap mb-8" onclick="openBizJob(\'' + j.id + '\')">' +
+            '<div class="between mb-8"><span class="pill ok">Job today</span><span class="muted">' + j.windowShort + '</span></div>' +
+            '<div class="strong">' + j.service + ' · ' + j.assignee + '</div>' +
+            '<p class="sub mt-8">Crew fields limited · exact only in job window</p>' +
+          '</div>';
+      });
+    } else {
+      cards +=
+        '<div class="card mb-8" style="border-style:dashed">' +
+          '<div class="muted" style="font-size:13px">No jobs on the board yet. Accept a quote (demo) from Inbox to schedule.</div>' +
+        '</div>';
+    }
+
+    body.innerHTML =
+      '<div class="greeting">Good afternoon · Cedar &amp; Stone</div>' +
+      '<h1 class="h1">Business Today</h1>' +
+      '<p class="sub mb-12">Owner view · inquiries from deliberate resident submits only.</p>' +
+      '<div class="banner private mb-12"><span>◎</span><span>You only see deliberate inquiries — Explore browse does <strong>not</strong> create leads.</span></div>' +
+      '<div class="stat-row mb-16">' +
+        '<div class="stat"><div class="n">' + stats.open + '</div><div class="l">Open inquiries</div></div>' +
+        '<div class="stat"><div class="n">' + stats.waiting + '</div><div class="l">Quotes waiting</div></div>' +
+        '<div class="stat"><div class="n">' + stats.jobsToday + '</div><div class="l">Jobs today</div></div>' +
+      '</div>' +
+      '<div class="section-label" style="margin-top:0">Needs attention</div>' +
+      cards +
+      '<button class="btn btn-secondary mt-8" onclick="go(\'biz-inbox\')">Open Inbox</button>' +
+      '<p class="muted mt-16" style="font-size:11px;text-align:center">Prototype / demo · acct_cedar_stone_01</p>';
+  }
+
+  window.openBizInquiry = function (id) {
+    activeBizInquiryId = id || INQUIRY_SEED_ID;
+    go('biz-inquiry-detail');
+  };
+
+  function renderBizInbox() {
+    var list = $('#biz-inbox-list');
+    if (!list) return;
+    list.innerHTML = '';
+    var g = cedarGrant();
+    if (g) {
+      var prec = bizPrecisionBadge(g);
+      var st = bizInboxStatus(g);
+      var row = document.createElement('div');
+      row.className = 'inq-row';
+      row.innerHTML =
+        '<div class="avatar" style="background:#5a7a8a">RG</div>' +
+        '<div class="inq-body">' +
+          '<div class="inq-title">' + (g.identityLabel || 'River Guest') + '</div>' +
+          '<div class="inq-meta">Deep clean · ' + (g.windowLabel || 'Thu Sep 25 morning') + '<br>Approx East Cesar Chavez area</div>' +
+          '<div class="inq-chips">' +
+            '<span class="pill ' + prec.cls + '">' + prec.label + '</span>' +
+            '<span class="pill ' + (st.indexOf('Needs') >= 0 ? 'warn' : (st === 'Quoted' ? 'warn' : 'sage')) + '">' + st + '</span>' +
+          '</div>' +
+          '<div class="grant-id" style="margin-top:6px">' + g.id + '</div>' +
+        '</div>' +
+        '<span class="y-chev">›</span>';
+      row.addEventListener('click', function () { openBizInquiry(g.id); });
+      list.appendChild(row);
+    }
+    // Closed texture row
+    var c = BIZ_CLOSED_SEED;
+    var crow = document.createElement('div');
+    crow.className = 'inq-row';
+    crow.style.opacity = '.72';
+    crow.innerHTML =
+      '<div class="avatar" style="background:#78716C">LH</div>' +
+      '<div class="inq-body">' +
+        '<div class="inq-title">' + c.alias + '</div>' +
+        '<div class="inq-meta">' + c.service + ' · ' + c.windowLabel + '<br>' + c.area + '</div>' +
+        '<div class="inq-chips"><span class="pill ghost">Approx area</span><span class="pill ghost">Closed</span></div>' +
+        '<div class="muted mt-8" style="font-size:11px">' + c.note + '</div>' +
+      '</div>';
+    crow.addEventListener('click', function () { toast('Closed inquiry · demo texture only'); });
+    list.appendChild(crow);
+  }
+
+  function renderBizInquiryDetail() {
+    var body = $('#biz-inquiry-detail-body');
+    if (!body) return;
+    var g = findOutgoing(activeBizInquiryId) || cedarGrant();
+    if (!g) {
+      body.innerHTML = '<p class="sub">Inquiry not found.</p>';
+      return;
+    }
+    var isOwner = bizDemoRoleView === 'owner';
+    var prec = g.precision;
+    var mapHtml;
+    if (prec === 'exact') {
+      var pl = placeById(g.placeId);
+      mapHtml =
+        '<div class="biz-map-blob"><div class="pin" style="top:52%;left:58%"></div></div>' +
+        '<div class="card field-preview mb-12">' +
+          '<div class="fact-row"><span class="muted">Street</span><span class="strong" style="font-size:13px">' + pl.street + '</span></div>' +
+          '<div class="fact-row"><span class="muted">Unit</span><span class="strong" style="font-size:13px">' + pl.unit + '</span></div>' +
+          '<div class="fact-row" style="border:none"><span class="muted">City</span><span class="strong" style="font-size:13px">' + pl.city + ', ' + pl.zip + '</span></div>' +
+        '</div>';
+    } else {
+      mapHtml =
+        '<div class="biz-map-blob"><div class="blob" style="top:28%;left:32%;width:120px;height:90px">East Cesar Chavez area</div></div>' +
+        '<div class="card field-preview mb-12">' +
+          '<div class="fact-row"><span class="muted">Disclosure</span><span class="strong" style="font-size:13px">Approximate neighborhood</span></div>' +
+          '<div class="fact-row" style="border:none"><span class="muted">Geometry</span><span class="strong" style="font-size:13px">Area blob · no street / unit</span></div>' +
+        '</div>';
+    }
+
+    var exactAction = '';
+    if (prec === 'exact') {
+      exactAction = '<div class="banner ok mb-12" style="background:var(--ok-soft);border:1px solid #b5d4c0;color:var(--ok)"><span>✓</span><span>Exact street approved by resident · bound to this inquiry only.</span></div>';
+    } else if (g.exactRequested) {
+      exactAction = '<div class="banner warn mb-12"><span>…</span><span><strong>Waiting on customer</strong> — exact request pending on resident Permissions for ' + g.id + '.</span></div>';
+    }
+
+    var quoteBlock = '';
+    if (g.inquiryStatus === 'quoted' || g.inquiryStatus === 'accepted') {
+      quoteBlock =
+        '<div class="card mb-12" style="background:var(--accent-soft);border-color:#c2d6c5">' +
+          '<div class="strong" style="font-size:13px">Quote ' + (g.latestQuoteId || '—') + '</div>' +
+          '<div class="muted mt-8" style="font-size:12px">' + (g.latestQuoteSummary || 'Sent') + '</div>' +
+          '<div class="muted mt-4" style="font-size:11px">Status: ' + inquiryStatusLabel(g) + ' · quote ≠ booking / job confirmation</div>' +
+          (g.inquiryStatus === 'quoted' && isOwner
+            ? '<button class="btn btn-secondary btn-sm mt-12" style="width:auto" onclick="markBizQuoteAccepted()">Mark quote accepted (demo)</button>'
+            : '') +
+        '</div>';
+    }
+
+    var actions = '';
+    if (g.status === 'revoked' || g.status === 'expired' || g.inquiryStatus === 'closed') {
+      actions = '<p class="muted" style="font-size:12px;text-align:center">Inquiry closed — new disclosure blocked.</p>';
+    } else {
+      actions =
+        (prec !== 'exact'
+          ? '<button class="btn btn-secondary" onclick="bizRequestExact()"' + (!isOwner ? ' disabled style="opacity:.5"' : '') + '>Request exact address</button>'
+          : '') +
+        (g.inquiryStatus !== 'quoted' && g.inquiryStatus !== 'accepted'
+          ? '<button class="btn btn-primary mt-8" onclick="openBizQuoteSheet()"' + (!isOwner ? ' disabled style="opacity:.5"' : '') + '>Send quote</button>'
+          : '') +
+        '<button class="btn btn-secondary mt-8" onclick="toast(\'Message thread (prototype) · ref ' + g.id + '\')">Message</button>' +
+        '<button class="btn btn-ghost mt-8" style="width:100%;color:var(--danger)" onclick="bizDeclineInquiry()">Decline / Close</button>' +
+        (!isOwner ? '<p class="role-note">Crew lens: inquiries limited · cannot send quotes or request exact (demo gate).</p>' : '');
+    }
+
+    body.innerHTML =
+      '<div class="between mb-8"><span class="pill ghost">Prototype / demo</span><span class="pill sage">' + bizInboxStatus(g) + '</span></div>' +
+      '<h1 class="h1" style="font-size:22px">' + (g.identityLabel || 'River Guest') + '</h1>' +
+      '<p class="sub mb-12">Inquiry alias · usual @handle may be hidden. Identity ≠ address.</p>' +
+      '<div class="banner info mb-12"><span>ℹ</span><span>You never received browse analytics for this customer — only the deliberate submit.</span></div>' +
+      exactAction +
+      '<div class="section-label" style="margin-top:0">What you can see now</div>' +
+      mapHtml +
+      '<div class="section-label">Request</div>' +
+      '<div class="card mb-12" style="padding:12px 14px">' +
+        '<div class="fact-row"><span class="muted">Service</span><span class="strong" style="font-size:13px">' + (g.purpose || 'Deep clean quote') + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Window</span><span class="strong" style="font-size:12px">' + (g.windowLabel || '—') + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Notes</span><span class="strong" style="font-size:12px;text-align:right;max-width:58%">' + (g.notes || '—') + '</span></div>' +
+      '</div>' +
+      quoteBlock +
+      '<div class="section-label">Actions</div>' +
+      actions +
+      '<p class="muted mt-16" style="font-size:11px;text-align:center">Pairwise ref <strong>' + g.id + '</strong> · shared with resident Permissions</p>';
+  }
+
+  window.bizRequestExact = function () {
+    if (bizDemoRoleView !== 'owner') { toast('Crew cannot request exact (demo)'); return; }
+    var g = findOutgoing(activeBizInquiryId) || cedarGrant();
+    if (!g) return;
+    if (g.precision === 'exact') { toast('Already exact · grant ' + g.id); return; }
+    if (g.exactRequested) { toast('Still waiting on customer · ' + g.id); return; }
+    g.exactRequested = true;
+    g.history.unshift({
+      title: 'Exact address requested (pending)',
+      sub: 'Tue Sep 22 · just now · provider ask · not yet approved',
+      denied: false
+    });
+    if (current === 'biz-inquiry-detail') renderBizInquiryDetail();
+    toast('Exact requested · pending on resident · ' + g.id);
+  };
+
+  window.openBizQuoteSheet = function () {
+    if (bizDemoRoleView !== 'owner') { toast('Crew cannot send quotes (demo)'); return; }
+    $('#biz-quote-backdrop').classList.add('show');
+    $('#biz-quote-sheet').classList.add('show');
+  };
+  window.closeBizQuoteSheet = function () {
+    var b = $('#biz-quote-backdrop'); var s = $('#biz-quote-sheet');
+    if (b) b.classList.remove('show');
+    if (s) s.classList.remove('show');
+  };
+
+  window.confirmBizQuote = function () {
+    var g = findOutgoing(activeBizInquiryId) || cedarGrant();
+    if (!g) return;
+    var price = ($('#biz-quote-price') && $('#biz-quote-price').value) || '$185';
+    var scope = ($('#biz-quote-scope') && $('#biz-quote-scope').value) || 'Deep clean';
+    var expiry = ($('#biz-quote-expiry') && $('#biz-quote-expiry').value) || 'Fri Sep 26 CT';
+    var excl = ($('#biz-quote-excl') && $('#biz-quote-excl').value) || '';
+    var qid = 'quote_cedar_' + (bizQuoteSeq++) + '_' + Math.floor(Math.random() * 900 + 100).toString(16);
+    g.inquiryStatus = 'quoted';
+    g.latestQuoteId = qid;
+    g.latestQuoteSummary = price + ' · ' + scope + ' · expires ' + expiry + (excl ? ' · ' + excl : '');
+    g.history.unshift({
+      title: 'Quote received',
+      sub: 'Tue Sep 22 · just now · ' + qid + ' · opaque ref · not a booking',
+      denied: false
+    });
+    closeBizQuoteSheet();
+    if (current === 'biz-inquiry-detail') renderBizInquiryDetail();
+    toast('Quote sent · ' + qid + ' · not a booking');
+  };
+
+  window.markBizQuoteAccepted = function () {
+    var g = findOutgoing(activeBizInquiryId) || cedarGrant();
+    if (!g) return;
+    g.inquiryStatus = 'accepted';
+    g.history.unshift({
+      title: 'Quote accepted (demo)',
+      sub: 'Tue Sep 22 · just now · booking path separate · job seeded',
+      denied: false
+    });
+    var jid = 'job_cedar_' + Math.floor(Math.random() * 9000 + 1000).toString(16);
+    bizJobs = [{
+      id: jid,
+      grantId: g.id,
+      service: 'Deep clean',
+      windowLabel: g.windowLabel || 'Thu Sep 25 · morning',
+      windowShort: 'Thu · morning',
+      assignee: 'Casey',
+      assigneeRole: 'crew',
+      status: 'today',
+      precisionForCrew: g.precision,
+      placeId: g.placeId
+    }];
+    activeBizJobId = jid;
+    if (current === 'biz-inquiry-detail') renderBizInquiryDetail();
+    toast('Quote accepted · job ' + jid + ' · still not payment');
+  };
+
+  window.bizDeclineInquiry = function () {
+    var g = findOutgoing(activeBizInquiryId) || cedarGrant();
+    if (!g) return;
+    g.inquiryStatus = 'closed';
+    g.history.unshift({
+      title: 'Inquiry closed by provider',
+      sub: 'Tue Sep 22 · just now · new disclosure blocked',
+      denied: true
+    });
+    toast('Inquiry closed · ' + g.id);
+    go('biz-inbox');
+  };
+
+  function renderBizJobs() {
+    var body = $('#biz-jobs-body');
+    if (!body) return;
+    var html = '<h1 class="h1" style="font-size:22px">Schedule / Jobs</h1>' +
+      '<p class="sub mb-12">Worker assignment is job-scoped. Prior worker access ends on reassign (demo).</p>';
+    if (!bizJobs.length) {
+      html +=
+        '<div class="banner info mb-12"><span>ℹ</span><span>No accepted jobs yet. From an inquiry, send a quote then <strong>Mark quote accepted (demo)</strong>.</span></div>' +
+        '<div class="card" style="border-style:dashed"><p class="sub">Empty board — quote ≠ booking until customer accepts.</p></div>' +
+        '<button class="btn btn-secondary mt-12" onclick="go(\'biz-inbox\')">Go to Inbox</button>';
+    } else {
+      bizJobs.forEach(function (j) {
+        html +=
+          '<div class="card tap mb-8" onclick="openBizJob(\'' + j.id + '\')">' +
+            '<div class="between mb-8"><span class="pill ok">' + (j.status === 'today' ? 'Today' : 'Scheduled') + '</span>' +
+            '<span class="muted">' + j.windowShort + '</span></div>' +
+            '<div class="strong">' + j.service + '</div>' +
+            '<div class="row gap-md mt-8">' +
+              '<div class="avatar sm" style="background:#6a7a55">CA</div>' +
+              '<div><div class="strong" style="font-size:13px">' + j.assignee + ' (crew)</div>' +
+              '<div class="muted">Assigned · limited fields</div></div>' +
+            '</div>' +
+            '<div class="grant-id" style="margin-top:8px">' + j.id + '</div>' +
+          '</div>';
+      });
+    }
+    html += '<p class="muted mt-16" style="font-size:11px;text-align:center">P45 ops · prototype</p>';
+    body.innerHTML = html;
+  }
+
+  window.openBizJob = function (id) {
+    activeBizJobId = id;
+    go('biz-job-detail');
+  };
+
+  function renderBizJobDetail() {
+    var body = $('#biz-job-detail-body');
+    if (!body) return;
+    var j = null;
+    for (var i = 0; i < bizJobs.length; i++) if (bizJobs[i].id === activeBizJobId) j = bizJobs[i];
+    if (!j) { body.innerHTML = '<p class="sub">Job not found.</p>'; return; }
+    var g = findOutgoing(j.grantId);
+    var exactOk = g && g.precision === 'exact';
+    var fields;
+    if (exactOk) {
+      var pl = placeById(j.placeId || (g && g.placeId));
+      fields =
+        '<div class="fact-row"><span class="muted">Street</span><span class="strong" style="font-size:13px">' + pl.street + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Unit</span><span class="strong" style="font-size:13px">' + pl.unit + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Crew note</span><span class="strong" style="font-size:12px">Exact only for job window</span></div>';
+    } else {
+      fields =
+        '<div class="fact-row"><span class="muted">Area</span><span class="strong" style="font-size:13px">East Cesar Chavez (approx)</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Exact</span><span class="strong" style="font-size:12px">Hidden until resident approved / job window</span></div>';
+    }
+    body.innerHTML =
+      '<div class="between mb-8"><span class="pill ok">Assigned</span><span class="muted">' + j.windowLabel + '</span></div>' +
+      '<h1 class="h1" style="font-size:22px">' + j.service + '</h1>' +
+      '<p class="sub mb-12">Job-scoped assignment · Casey (crew) sees limited fields.</p>' +
+      '<div class="banner private mb-12"><span>◎</span><span><strong>Crew sees exact only for job window.</strong> Reassign ends prior worker access (demo).</span></div>' +
+      '<div class="section-label" style="margin-top:0">Assignee</div>' +
+      '<div class="card mb-12"><div class="team-row" style="padding:0;border:none">' +
+        '<div class="avatar" style="background:#6a7a55">CA</div>' +
+        '<div><div class="strong">Casey</div><div class="muted">Crew · inquiries limited / exact when assigned</div></div>' +
+      '</div></div>' +
+      '<div class="section-label">Fields crew can see</div>' +
+      '<div class="card field-preview mb-12">' + fields + '</div>' +
+      '<button class="btn btn-secondary" onclick="bizReassignDemo()">Reassign (demo)</button>' +
+      '<p class="muted mt-12" style="font-size:11px;text-align:center">Job ' + j.id + ' · grant ' + j.grantId + '</p>';
+  }
+
+  window.bizReassignDemo = function () {
+    var j = null;
+    for (var i = 0; i < bizJobs.length; i++) if (bizJobs[i].id === activeBizJobId) j = bizJobs[i];
+    if (!j) return;
+    var prev = j.assignee;
+    j.assignee = 'Riley';
+    toast('Reassigned ' + prev + ' → Riley · prior worker access ended');
+    if (current === 'biz-job-detail') renderBizJobDetail();
+  };
+
+  function renderBizProfile() {
+    var body = $('#biz-profile-body');
+    if (!body) return;
+    body.innerHTML =
+      '<div class="card mb-16 acct-card">' +
+        '<div class="row gap-md">' +
+          '<div class="avatar lg" style="background:#2F5D50">CS</div>' +
+          '<div class="flex-1">' +
+            '<div class="strong" style="font-size:17px">Cedar &amp; Stone Clean Co.</div>' +
+            '<div class="muted">@cedarstone · Owner · Al</div>' +
+            '<div class="row mt-8 wrap" style="gap:6px"><span class="pill sage">acct_cedar_stone_01</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<button type="button" class="btn btn-primary mt-12" onclick="selectAccount(\'personal\')">Switch to Personal</button>' +
+      '</div>' +
+      '<div class="section-label" style="margin-top:0">Org</div>' +
+      '<div class="card mb-12">' +
+        '<p class="sub">Small East Austin cleaning team. Quiet during work hours. Matched privately in Explore — never notified by browse alone.</p>' +
+        '<div class="fact-row mt-12"><span class="muted">Coverage</span><span class="strong" style="font-size:12px">Serves East Austin</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Catalog</span><span class="strong" style="font-size:12px">Deep clean</span></div>' +
+      '</div>' +
+      '<div class="section-label">Customers</div>' +
+      '<div class="card mb-12">' +
+        '<div class="team-row">' +
+          '<div class="avatar" style="background:#5a7a8a">RG</div>' +
+          '<div class="flex-1"><div class="strong">River Guest</div><div class="muted">Inquiry alias · Deep clean · ref grant_inq_cedar_7a2f</div></div>' +
+          '<span class="pill sage">Open</span>' +
+        '</div>' +
+        '<p class="muted mt-8" style="font-size:11px">Light CRM · only deliberate inquiry contacts · no browse leads</p>' +
+      '</div>' +
+      '<div class="section-label">Team</div>' +
+      '<div class="card mb-12">' +
+        '<div class="team-row">' +
+          '<div class="avatar" style="background:linear-gradient(135deg,#c4a882,#6d8a72)">AL</div>' +
+          '<div class="flex-1"><div class="strong">Al</div><div class="muted">Owner · full inquiries · quotes · exact requests</div></div>' +
+          '<span class="pill sage">Owner</span>' +
+        '</div>' +
+        '<div class="team-row">' +
+          '<div class="avatar" style="background:#6a7a55">CA</div>' +
+          '<div class="flex-1"><div class="strong">Casey</div><div class="muted">Crew — inquiries limited / exact only when assigned to a job</div></div>' +
+          '<span class="pill ghost">Crew</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="section-label">Role lens (demo)</div>' +
+      '<div class="chip-row mb-12">' +
+        '<button type="button" class="purpose-chip' + (bizDemoRoleView === 'owner' ? ' on' : '') + '" onclick="setBizRoleLens(\'owner\')">View as Owner</button>' +
+        '<button type="button" class="purpose-chip' + (bizDemoRoleView === 'crew' ? ' on' : '') + '" onclick="setBizRoleLens(\'crew\')">View as Crew</button>' +
+      '</div>' +
+      '<div class="banner info mb-12"><span>ℹ</span><span><strong>Connected merchant routing</strong> (Amazon etc.) is a different product surface than this inquiry inbox — see personal Connected Services.</span></div>' +
+      '<div class="banner private"><span>◎</span><span>Personal Pause sharing with people does <strong>not</strong> create or cancel merchant / inquiry rights.</span></div>' +
+      '<p class="muted mt-16" style="font-size:11px;text-align:center">W2 · P38 team · P39 coverage · P43 inquiries · P45 ops</p>';
+  }
+
+  window.setBizRoleLens = function (role) {
+    bizDemoRoleView = role === 'crew' ? 'crew' : 'owner';
+    toast(bizDemoRoleView === 'owner' ? 'Owner lens' : 'Crew lens · limited actions');
+    if (current === 'biz-profile') renderBizProfile();
+    if (current === 'biz-inquiry-detail') renderBizInquiryDetail();
+  };
+
+  // Extend inquiry status labels
+  var _inqLabel = inquiryStatusLabel;
+  inquiryStatusLabel = function (g) {
+    var s = (g && g.inquiryStatus) || 'submitted';
+    return ({
+      submitted: 'Submitted', needs_info: 'Needs info', quoted: 'Quoted',
+      active: 'Active', accepted: 'Accepted', closed: 'Closed'
+    })[s] || _inqLabel(g);
+  };
+
+
     var toastTimer;
   window.toast = function (msg) {
     var t = $('#toast');
@@ -2316,12 +2928,19 @@
   };
 
   function boot() {
+    applyWorkspaceChrome();
     updateMoveOverview();
     updateConnectedServicesSummaries();
     updatePermissionsSummaries();
     var hash = (location.hash || '').replace(/^#/, '');
     if (hash && $('[data-screen="' + hash + '"]')) {
       $all('.screen').forEach(function (s) { s.classList.remove('active'); });
+      // Pre-set workspace so first go() doesn't double-toast
+      if (isBizScreen(hash)) {
+        activeWorkspace = 'business';
+        activeOrg = 'cedar';
+        applyWorkspaceChrome();
+      }
       go(hash);
     } else {
       updateNav('today');

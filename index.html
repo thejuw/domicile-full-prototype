@@ -152,6 +152,17 @@
                 <span class="y-chev">›</span>
               </div>
             </div>
+
+            <div class="section-label">Workspaces</div>
+            <div class="card tap" onclick="openAccountSwitcher()">
+              <div class="between">
+                <div>
+                  <div class="strong" style="font-size:14px">Open Cedar &amp; Stone</div>
+                  <div class="muted">Business ops · switch account first</div>
+                </div>
+                <span class="y-chev">›</span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -1141,18 +1152,19 @@
         <section class="screen" data-screen="you" data-nav="you">
           <div class="pad-lg">
             <h1 class="h1">You</h1>
-            <div class="card mb-16">
+            <div class="card mb-16 acct-card">
               <div class="row gap-md">
                 <div class="avatar lg">AL</div>
-                <div>
+                <div class="flex-1">
                   <div class="strong" style="font-size:17px">AL</div>
-                  <div class="muted">@al · Austin</div>
+                  <div class="muted">@al · Personal</div>
                   <div class="row mt-8 wrap" style="gap:6px">
                     <span class="pill sage">Verified</span>
                     <span class="pill ghost">Private cohort</span>
                   </div>
                 </div>
               </div>
+              <button type="button" class="btn btn-secondary mt-12" onclick="openAccountSwitcher()">Switch account…</button>
             </div>
             <div class="card mb-8">
               <div class="you-row" onclick="go('trips')"><span>🧳</span><span class="y-label">Trips</span><span class="y-chev">›</span></div>
@@ -1633,14 +1645,86 @@ AL</div>
           </div>
         </section>
 
+
+        <!-- ========== Business workspace (Cedar & Stone) ========== -->
+        <section class="screen" data-screen="biz-today" data-nav="biz-today" data-workspace="business">
+          <div class="topbar">
+            <span class="org-pill" id="biz-org-pill-today">Cedar &amp; Stone</span>
+            <span class="title">Today</span>
+            <button class="back" style="justify-self:end;font-size:13px;font-weight:650" onclick="openAccountSwitcher()">Switch</button>
+          </div>
+          <div class="pad" id="biz-today-body">
+            <!-- filled by JS -->
+          </div>
+        </section>
+
+        <section class="screen" data-screen="biz-inbox" data-nav="biz-inbox" data-workspace="business">
+          <div class="topbar">
+            <span class="org-pill">Cedar &amp; Stone</span>
+            <span class="title">Inbox</span>
+            <span></span>
+          </div>
+          <div class="pad">
+            <div class="banner private mb-12"><span>◎</span><span><strong>Deliberate inquiries only.</strong> Explore browse never creates leads — you only see what a resident submitted.</span></div>
+            <div class="between mb-8">
+              <h1 class="h1" style="font-size:22px;margin:0">Inquiries</h1>
+              <span class="pill ghost">P43</span>
+            </div>
+            <p class="sub mb-12">Quotes are not bookings. Exact street only after resident approval.</p>
+            <div id="biz-inbox-list"><!-- filled by JS --></div>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="biz-inquiry-detail" data-nav="biz-inbox" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-inbox')">‹ Inbox</button>
+            <span class="title">Inquiry</span>
+            <span class="org-pill" style="justify-self:end">Cedar &amp; Stone</span>
+          </div>
+          <div class="pad" id="biz-inquiry-detail-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-jobs" data-nav="biz-jobs" data-workspace="business">
+          <div class="topbar">
+            <span class="org-pill">Cedar &amp; Stone</span>
+            <span class="title">Jobs</span>
+            <span></span>
+          </div>
+          <div class="pad" id="biz-jobs-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-job-detail" data-nav="biz-jobs" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-jobs')">‹ Jobs</button>
+            <span class="title">Job</span>
+            <span class="org-pill" style="justify-self:end">Cedar &amp; Stone</span>
+          </div>
+          <div class="pad" id="biz-job-detail-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-profile" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <span class="org-pill">Cedar &amp; Stone</span>
+            <span class="title">Business</span>
+            <button class="back" style="justify-self:end;font-size:13px;font-weight:650" onclick="openAccountSwitcher()">Switch</button>
+          </div>
+          <div class="pad" id="biz-profile-body"><!-- filled by JS --></div>
+        </section>
+
       </div><!-- /screens -->
 
-      <nav class="bottom-nav" id="bottom-nav">
+      <nav class="bottom-nav" id="bottom-nav-personal">
         <button class="nav-item active" data-nav="today" onclick="navTo('today')"><span class="ico">☀</span>Today</button>
         <button class="nav-item" data-nav="map" onclick="navTo('map')"><span class="ico">⌖</span>Map</button>
         <button class="nav-item" data-nav="places" onclick="navTo('places')"><span class="ico">⌂</span>Places</button>
         <button class="nav-item" data-nav="explore" onclick="navTo('explore')"><span class="ico">◎</span>Explore</button>
         <button class="nav-item" data-nav="you" onclick="navTo('you')"><span class="ico">☺</span>You</button>
+      </nav>
+      <nav class="bottom-nav hide" id="bottom-nav-business">
+        <button class="nav-item" data-nav="biz-today" onclick="navTo('biz-today')"><span class="ico">☀</span>Today</button>
+        <button class="nav-item" data-nav="biz-inbox" onclick="navTo('biz-inbox')"><span class="ico">◎</span>Inbox</button>
+        <button class="nav-item" data-nav="biz-jobs" onclick="navTo('biz-jobs')"><span class="ico">◇</span>Jobs</button>
+        <button class="nav-item" data-nav="biz-profile" onclick="navTo('biz-profile')"><span class="ico">⌂</span>Business</button>
       </nav>
       <!-- Move sheets -->
       <div class="sheet-backdrop" id="confirm-send-backdrop" onclick="closeConfirmSend()"></div>
@@ -1687,6 +1771,34 @@ AL</div>
         <button class="btn btn-ghost mt-8" style="width:100%" onclick="requestServiceIdea()">Request a service</button>
         <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeAddService()">Close</button>
       </div>
+
+      <!-- Account switcher -->
+      <div class="sheet-backdrop" id="acct-switch-backdrop" onclick="closeAccountSwitcher()"></div>
+      <div class="sheet" id="acct-switch-sheet" role="dialog" aria-modal="true" aria-labelledby="acct-switch-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="acct-switch-title" style="font-size:18px;margin-bottom:6px">Switch account</h2>
+        <p class="sub mb-12">Workspace changes the whole shell — nav, home, and You. Business UX is never mixed into personal Explore.</p>
+        <div id="acct-switch-list"><!-- filled by JS --></div>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeAccountSwitcher()">Cancel</button>
+      </div>
+
+      <!-- Biz quote sheet -->
+      <div class="sheet-backdrop" id="biz-quote-backdrop" onclick="closeBizQuoteSheet()"></div>
+      <div class="sheet sheet-tall" id="biz-quote-sheet" role="dialog" aria-modal="true" aria-labelledby="biz-quote-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="biz-quote-title" style="font-size:18px;margin-bottom:6px">Send quote</h2>
+        <p class="sub mb-12">Quote ≠ booking. Customer must accept before a job is confirmed. Opaque ref in history.</p>
+        <div class="card mb-12" style="padding:12px 14px">
+          <div class="fact-row"><span class="muted">Price</span><span><input class="biz-input" id="biz-quote-price" value="$185" aria-label="Quote price" /></span></div>
+          <div class="fact-row"><span class="muted">Scope</span><span><input class="biz-input" id="biz-quote-scope" value="Deep clean · 3 hr" aria-label="Scope" /></span></div>
+          <div class="fact-row"><span class="muted">Expiry</span><span><input class="biz-input" id="biz-quote-expiry" value="Fri Sep 26 CT" aria-label="Expiry" /></span></div>
+          <div class="fact-row" style="border:none"><span class="muted">Exclusions</span><span><input class="biz-input" id="biz-quote-excl" value="No laundry · no windows" aria-label="Exclusions" /></span></div>
+        </div>
+        <div class="banner info mb-12"><span>ℹ</span><span>Owner role can send quotes. Crew cannot (demo gate).</span></div>
+        <button class="btn btn-primary" onclick="confirmBizQuote()">Send quote</button>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeBizQuoteSheet()">Cancel</button>
+      </div>
+
 
       <!-- Permissions sheets -->
       <div class="sheet-backdrop" id="perm-revoke-backdrop" onclick="closeRevokeSheet()"></div>
