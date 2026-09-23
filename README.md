@@ -2,7 +2,7 @@
 
 **Prototype · planning only · not production**
 
-Founder click-through of the **Domicile personal app** (kit ed. 3.2) plus gated **business** and **crew** workspaces for Cedar & Stone. Three accounts via Switch account: **Al · Personal** · **Cedar & Stone · Owner** · **Casey Nguyen · Crew**. Personal: Today · Map · Places · Explore · You. Owner: Today · Inbox · Jobs · Business. Crew: Today · Jobs · Me. Also Stays, Ledger, move planning, Permissions MAP, private inquiry disclosure.
+Founder click-through of the **Domicile personal app** (kit ed. 3.2) plus gated **business** and **crew** workspaces for Cedar & Stone. Three accounts via Switch account: **Al · Personal** · **Cedar & Stone · Owner** · **Casey Nguyen · Crew**. Personal: Today · Map · Places · Explore · You (incl. Event organizer under You). Owner: Today · Inbox · Jobs · Business. Crew: Today · Jobs · Me. Also Stays, Ledger, move planning, Permissions MAP, private inquiry disclosure.
 
 Phone frame (~390×844) on desktop with ambient glow; full-bleed on real phones. Warm parchment / terracotta / olive system. Zero build step, no CDN, system fonts.
 
@@ -14,7 +14,7 @@ open /workspace/domicile-full-prototype/index.html
 python3 -m http.server 8765 --directory /workspace/domicile-full-prototype
 ```
 
-Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-prototype/. Hash routes work (e.g. `#stays-search`, `#permissions`, `#service-inquiry`, `#biz-today`, `#biz-inbox`, `#biz-jobs`, `#biz-profile`, `#biz-finance`, `#biz-payments`, `#biz-settings`, `#biz-catalog`, `#biz-customers`, `#biz-team`, `#crew-today`, `#crew-jobs`, `#crew-job-detail`, `#crew-me`). Bottom nav remembers the last screen per tab; **Owner / Crew / Personal navs replace each other** after Switch account (or cross-mode hash).
+Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-prototype/. Hash routes work (e.g. `#stays-search`, `#permissions`, `#service-inquiry`, `#org-events`, `#org-event-detail`, `#org-event-edit`, `#biz-today`, `#biz-inbox`, `#biz-jobs`, `#biz-profile`, `#biz-finance`, `#biz-payments`, `#biz-settings`, `#biz-catalog`, `#biz-customers`, `#biz-team`, `#crew-today`, `#crew-jobs`, `#crew-job-detail`, `#crew-me`). Bottom nav remembers the last screen per tab; **Owner / Crew / Personal navs replace each other** after Switch account (or cross-mode hash).
 
 **Files:** `index.html` · `app.css` · `app.js` · this README.
 
@@ -27,7 +27,7 @@ Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-pr
 | **Map** | Permissioned faux MapLibre UI · layer toggles (destinations / businesses / events) · SVG city blobs |
 | **Places** | Homes list → **East Cesar Chavez Cottage** Home Profile → Household · Facts/assets · Spending · Bills · Community (HOA balance) · Maintenance · **Hosting** |
 | **Explore** | Hub → **Stays** · Services · Events · Packages · Sponsored (Ad-labeled) |
-| **You** | Identity · Trips · Hosting · Ledger · **Permissions & sharing** · **Connected services** · Move planning · Support |
+| **You** | Identity · Trips · Hosting · **Events I'm organizing** · Ledger · **Permissions & sharing** · **Connected services** · Move planning · Support |
 
 ### Stays — guest (Explore → Stays)
 Search → results list/map → listing → checkout (instant / request) → confirmation → Trips → pre-arrival lock → **Demo unlock** → address / house guide / code → messaging → active stay → checkout checklist → receipt / review
@@ -70,6 +70,21 @@ Kit notes honored: authenticated recipient + purpose + fields/precision + time w
 **Explore → Services** (banner: matched privately · businesses not notified until inquire) → **Cedar & Stone Clean Co.** → **Send private inquiry** → disclosure sheet (locked recipient, service, window, owned place vs view-only Maya, approx ON / exact OFF, inquiry alias “River Guest” vs @al, notes, provider preview without street) → **Submit** → toast with opaque grant id (no street) → **permission-detail** for `grant_inq_cedar_7a2f` (Approve exact / Not now · Preview as provider · Revoke). Pause sharing with people does **not** pause inquiry rows. Quote ≠ booking. **Single-demo:** submit refreshes the seeded Cedar inquiry id rather than spawning duplicates.
 
 Kit (P40/P41/P43) honored: browsing ≠ leads; one provider only; explicit disclosure; default approx area; identity ≠ address; inquiry-scoped alias; no forward of view-only places; quote ≠ booking; opaque toast refs; revoke blocks new disclosure (copies not recalled); personal pause ≠ inquiry cancel; prototype labeling.
+
+### Event organizer (~60s · personal · W5)
+**Stay on Al · Personal** — no business/crew switch. Entry: **You → Events I'm organizing** (also Explore → Events → Organize an event · Today Events card).
+
+1. Hub `#org-events` — East Side Porch Social (published) · Lantern Night draft · Spring Block Coffee (closed)  
+2. Stats strip: interest only / confirmed / waitlist / seats left (honest · P45)  
+3. Open Porch Social → RSVPs: Interest ≠ Pending ≠ Confirmed ≠ Waitlist ≠ Checked-in · Approve / Waitlist / Decline  
+4. **Aliases** — display aliases only (e.g. Lantern Guest); no @root-handle map  
+5. **Check-in** — tap Check in on a confirmed seat (Map open ≠ attendance)  
+6. **Venue** — policy version · exact holders · Revoke / Bump version (authority warning)  
+7. **Metrics** — interested / requested / confirmed / waitlist / attended labeled separately  
+8. Broadcast sheet · Cancel (revokes future exact grants) · Close  
+9. Explore → Events → Porch Social → **RSVP interest** syncs into organizer Interest list (not a seat) · ticketing off throughout  
+
+Kit: venue publication ≠ Places/friend visibility; context aliases (P41); exact pin only to confirmed in-window (P42); honest ops metrics (P45); personal organizer chrome only.
 
 ### Business + Crew workspace (account switch required)
 **You → Switch account…** shows three rows:

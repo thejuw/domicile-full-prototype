@@ -100,6 +100,16 @@
               <button class="btn btn-secondary btn-sm mt-12" style="width:auto" onclick="event.stopPropagation();go('host-reservation')">View reservation</button>
             </div>
 
+            <div class="section-label">Events</div>
+            <div class="card tap" onclick="openOrgEvent('evt_porch_01')">
+              <div class="between mb-8">
+                <span class="pill sage">Organizing</span>
+                <span class="muted">Sat Oct 4</span>
+              </div>
+              <div class="h3" style="margin:0">East Side Porch Social</div>
+              <p class="sub mt-8">Open RSVP · 3 pending · ticketing off · personal organizer</p>
+            </div>
+
             <div class="section-label">Obligations</div>
             <div class="card tap" onclick="go('place-community')">
               <div class="between">
@@ -645,6 +655,11 @@
         <section class="screen" data-screen="events-list" data-nav="explore">
           <div class="topbar"><button class="back" onclick="go('explore')">‹ Explore</button><span class="title">Events</span><span></span></div>
           <div class="pad">
+            <div class="banner private mb-12"><span>◎</span><span><strong>Discover as guest.</strong> To run your own event, stay in personal You — no business account needed.</span></div>
+            <div class="card tap mb-12" onclick="go('org-events')">
+              <div class="between"><span class="strong">Organize an event</span><span class="muted">You ›</span></div>
+              <p class="sub mt-8">Create, RSVPs, check-in, venue policy · personal organizer · ticketing off</p>
+            </div>
             <div class="listing-card" onclick="go('event-detail')">
               <div class="photo sm event"></div>
               <div class="meta">
@@ -665,7 +680,7 @@
           <div class="pad">
             <div class="photo med event mb-12"><span class="photo-label">Oct 4</span></div>
             <h1 class="h1" style="font-size:22px">East Side Porch Social</h1>
-            <p class="sub mb-12">Saturday, Oct 4 · 5:00–8:00 PM CT · organized by Mira R.</p>
+            <p class="sub mb-12">Saturday, Oct 4 · 5:00–8:00 PM CT · organized by Al · Personal</p>
             <div class="card mb-12">
               <div class="h3">Venue</div>
               <p class="sub">Neighborhood porch / garden — approximate area until you RSVP and organizer discloses exact address.</p>
@@ -1169,6 +1184,7 @@
             <div class="card mb-8">
               <div class="you-row" onclick="go('trips')"><span>🧳</span><span class="y-label">Trips</span><span class="y-chev">›</span></div>
               <div class="you-row" onclick="go('host-dashboard')"><span>⌂</span><span class="y-label">Hosting</span><span class="y-chev">›</span></div>
+              <div class="you-row" onclick="go('org-events')"><span>◎</span><span class="y-label">Events I'm organizing</span><span class="y-meta" id="you-org-events-meta">1 open</span><span class="y-chev">›</span></div>
               <div class="you-row" onclick="go('ledger')"><span>◈</span><span class="y-label">Ledger</span><span class="y-meta">Sep $1.8k</span><span class="y-chev">›</span></div>
             </div>
             <div class="card mb-8">
@@ -1479,6 +1495,44 @@ AL</div>
             <div class="card mb-8 tap" onclick="toast('Message support (prototype)')"><div class="between"><span class="strong">Message Domicile</span><span>›</span></div></div>
             <div class="card"><div class="h3">About this prototype</div><p class="sub mt-8">Planning edition 3.2 · fictional Austin sample · not production. No real payments, auth, or map tiles.</p></div>
           </div>
+        </section>
+
+
+        <!-- ========== EVENT ORGANIZER (personal · W5) ========== -->
+        <section class="screen" data-screen="org-events" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('you')">‹ You</button>
+            <span class="title">Organizing</span>
+            <button class="icon-btn" onclick="startOrgEventCreate()" title="Create">＋</button>
+          </div>
+          <div class="pad" id="org-events-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="org-event-edit" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('org-events')">‹ Organizing</button>
+            <span class="title" id="org-edit-title">Create event</span>
+            <span></span>
+          </div>
+          <div class="pad" id="org-event-edit-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="org-event-detail" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('org-events')">‹ Organizing</button>
+            <span class="title">Event ops</span>
+            <button class="icon-btn" onclick="startOrgEventEdit()" title="Edit">✎</button>
+          </div>
+          <div id="org-event-detail-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="org-event-participant" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('org-event-detail')">‹ Event</button>
+            <span class="title">Participant</span>
+            <span></span>
+          </div>
+          <div class="pad" id="org-event-participant-body"><!-- filled by JS --></div>
         </section>
 
         <!-- ========== HOSTING ========== -->
@@ -2076,6 +2130,39 @@ AL</div>
         <h2 class="h2" id="share-wizard-title" style="font-size:18px;margin-bottom:6px">Share destination</h2>
         <p class="sub mb-12">Demo wizard · binds to stable account ID, not a mutable handle.</p>
         <div id="share-wizard-steps"></div>
+      </div>
+
+
+      <!-- Org event broadcast -->
+      <div class="sheet-backdrop" id="org-broadcast-backdrop" onclick="closeOrgBroadcastSheet()"></div>
+      <div class="sheet" id="org-broadcast-sheet" role="dialog" aria-modal="true" aria-labelledby="org-broadcast-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="org-broadcast-title" style="font-size:18px;margin-bottom:6px">Broadcast update</h2>
+        <p class="sub mb-12">Reaches Interest · Pending · Confirmed · Waitlist. Exact venue only if they already hold a grant for the current version.</p>
+        <div class="section-label" style="margin-top:0">Update type</div>
+        <div class="chip-row mb-12" id="org-bcast-type-chips">
+          <button type="button" class="purpose-chip on" data-bcast="schedule" onclick="pickOrgBcast(this)">Schedule change</button>
+          <button type="button" class="purpose-chip" data-bcast="venue" onclick="pickOrgBcast(this)">Venue version</button>
+          <button type="button" class="purpose-chip" data-bcast="general" onclick="pickOrgBcast(this)">General note</button>
+        </div>
+        <div class="field mb-12">
+          <label for="org-bcast-msg">Message</label>
+          <textarea id="org-bcast-msg" rows="3">Porch Social still On · doors 5 PM CT · approx area until confirmed.</textarea>
+        </div>
+        <div class="banner info mb-12"><span>ℹ</span><span>Audit line recorded. Demo only — no real push.</span></div>
+        <button class="btn btn-primary" onclick="confirmOrgBroadcast()">Send broadcast</button>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeOrgBroadcastSheet()">Cancel</button>
+      </div>
+
+      <!-- Org cancel / close -->
+      <div class="sheet-backdrop" id="org-cancel-backdrop" onclick="closeOrgCancelSheet()"></div>
+      <div class="sheet" id="org-cancel-sheet" role="dialog" aria-modal="true" aria-labelledby="org-cancel-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="org-cancel-title" style="font-size:18px;margin-bottom:6px">Cancel event?</h2>
+        <p class="sub mb-12" id="org-cancel-body">Cancelling revokes future exact-venue grants. Past disclosures cannot be recalled.</p>
+        <div class="banner warn mb-12"><span>⚠</span><span><strong>Venue authority:</strong> cancel ends future exact pin access for confirmed guests.</span></div>
+        <button class="btn btn-primary" style="background:var(--danger)" onclick="confirmOrgCancel()">Cancel event</button>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeOrgCancelSheet()">Keep event</button>
       </div>
 
       <div class="toast" id="toast"></div>

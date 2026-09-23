@@ -11,7 +11,8 @@
 
   const YOU_SCREENS = {
     'ledger': 1, 'move-planning': 1, 'move-checklist': 1, 'move-draft': 1, 'move-usps': 1,
-    'permissions': 1, 'permission-detail': 1, 'connections': 1, 'connected-services': 1, 'connected-service-detail': 1, 'support': 1
+    'permissions': 1, 'permission-detail': 1, 'connections': 1, 'connected-services': 1, 'connected-service-detail': 1, 'support': 1,
+    'org-events': 1, 'org-event-edit': 1, 'org-event-detail': 1, 'org-event-participant': 1
   };
 
   var BIZ_SCREENS = {
@@ -839,7 +840,7 @@
     if (name === 'permissions') renderPermissionsHub();
     if (name === 'permission-detail') renderPermissionDetail();
     if (name === 'service-inquiry') syncInquiryFormUi();
-    if (name === 'you' || name === 'today') { updateConnectedServicesSummaries(); updatePermissionsSummaries(); }
+    if (name === 'you' || name === 'today') { updateConnectedServicesSummaries(); updatePermissionsSummaries(); updateOrgEventsSummaries(); }
     if (name === 'biz-today') renderBizToday();
     if (name === 'biz-inbox') renderBizInbox();
     if (name === 'biz-inquiry-detail') renderBizInquiryDetail();
@@ -865,6 +866,11 @@
     if (name === 'crew-jobs') renderCrewJobs();
     if (name === 'crew-job-detail') renderCrewJobDetail();
     if (name === 'crew-me') renderCrewMe();
+    if (name === 'org-events') renderOrgEventsHub();
+    if (name === 'org-event-edit') renderOrgEventEdit();
+    if (name === 'org-event-detail') renderOrgEventDetail();
+    if (name === 'org-event-participant') renderOrgEventParticipant();
+    if (name === 'you') updateOrgEventsSummaries();
   };
 
   window.navTo = function (tab) {
@@ -1137,9 +1143,14 @@
 
   window.rsvpEvent = function () {
     var btn = $('#rsvp-btn');
+    var added = orgRsvpInterestFromExplore();
     btn.textContent = 'Interest noted';
     btn.classList.add('disabled');
-    toast('RSVP interest saved · organizer notified');
+    if (added) {
+      toast('Interest noted · synced to organizer Interest (not a seat)');
+    } else {
+      toast('Interest already on organizer list · still not a seat');
+    }
   };
 
   window.submitReview = function () {
@@ -4689,6 +4700,1021 @@
   };
 
 
+
+  /* ========== Event organizer (personal · W5 · P8/E13/P41/P42/P45) ========== */
+  var activeOrgEventId = 'evt_porch_01';
+  var activeOrgParticipantId = null;
+  var orgEventEditId = null; // null = create
+  var orgEventDetailTab = 'requests';
+  var orgBcastType = 'schedule';
+  var orgPartSeq = 20;
+
+  function orgNowLabel() {
+    try {
+      return new Date().toLocaleString('en-US', {
+        timeZone: 'America/Chicago', month: 'short', day: 'numeric',
+        hour: 'numeric', minute: '2-digit'
+      }) + ' CT';
+    } catch (e) {
+      return 'just now CT';
+    }
+  }
+
+  function orgPushAudit(ev, line) {
+    if (!ev.audit) ev.audit = [];
+    ev.audit.unshift({ at: orgNowLabel(), line: line });
+    if (ev.audit.length > 12) ev.audit.length = 12;
+  }
+
+  var orgEvents = [
+    {
+      id: 'evt_porch_01',
+      title: 'East Side Porch Social',
+      description: 'Neighborhood porch hang — bring a dish if you like. Quiet after 8. Hosted under Al · Personal (not a business listing).',
+      status: 'published',
+      startLabel: 'Sat Oct 4 · 5:00 PM CT',
+      endLabel: 'Sat Oct 4 · 8:00 PM CT',
+      whenShort: 'Sat Oct 4 · 5–8 PM',
+      capacity: 40,
+      admission: 'open_rsvp',
+      venuePolicy: 'approx',
+      venueLabel: 'East Cesar Chavez neighborhood · approximate area',
+      venueNamed: 'East Side porch garden (public-facing name)',
+      venueExact: '1204 E Cesar Chavez St · porch / garden',
+      venueVersion: 1,
+      venueWindow: 'Confirmed guests · Oct 3 12:00p – Oct 4 10:00p CT',
+      listVisibility: 'organizer',
+      aliasesAllowed: true,
+      ticketingEnabled: false,
+      organizerLabel: 'Al · Personal',
+      audit: [
+        { at: 'Sep 18 · 2:14p CT', line: 'Published · venue policy v1 · approximate area' },
+        { at: 'Sep 16 · 11:02a CT', line: 'Draft created · open RSVP · capacity 40' }
+      ],
+      participants: [
+        {
+          id: 'op_lantern',
+          alias: 'Lantern Guest',
+          usesAlias: true,
+          state: 'interest',
+          venueGrant: 'none',
+          history: [
+            { at: 'Sep 20 · 6:40p CT', line: 'Interest (not a seat)' }
+          ],
+          messagesStub: 'Thanks for hosting — hoping to make it.'
+        },
+        {
+          id: 'op_porch',
+          alias: 'Porch Neighbor',
+          usesAlias: true,
+          state: 'pending',
+          venueGrant: 'none',
+          history: [
+            { at: 'Sep 21 · 9:12a CT', line: 'Requested seat (approval policy demo)' },
+            { at: 'Sep 21 · 9:10a CT', line: 'Interest' }
+          ],
+          messagesStub: 'Can I bring +1?'
+        },
+        {
+          id: 'op_cedar',
+          alias: 'Cedar Walker',
+          usesAlias: true,
+          state: 'pending',
+          venueGrant: 'none',
+          history: [
+            { at: 'Sep 21 · 4:02p CT', line: 'Requested seat' }
+          ],
+          messagesStub: ''
+        },
+        {
+          id: 'op_maya',
+          alias: 'Maya Chen',
+          usesAlias: false,
+          state: 'confirmed',
+          venueGrant: 'approx',
+          history: [
+            { at: 'Sep 19 · 1:20p CT', line: 'Confirmed seat' },
+            { at: 'Sep 19 · 1:05p CT', line: 'Interest' }
+          ],
+          messagesStub: 'See you Saturday.'
+        },
+        {
+          id: 'op_devon',
+          alias: 'Garden Alias',
+          usesAlias: true,
+          state: 'confirmed',
+          venueGrant: 'exact',
+          history: [
+            { at: 'Sep 22 · 10:00a CT', line: 'Exact venue grant · v1 window' },
+            { at: 'Sep 18 · 8:30p CT', line: 'Confirmed seat' },
+            { at: 'Sep 18 · 8:11p CT', line: 'Interest' }
+          ],
+          messagesStub: ''
+        },
+        {
+          id: 'op_wait',
+          alias: 'Waitlist Willow',
+          usesAlias: true,
+          state: 'waitlist',
+          venueGrant: 'none',
+          history: [
+            { at: 'Sep 22 · 3:45p CT', line: 'Moved to waitlist' },
+            { at: 'Sep 22 · 3:40p CT', line: 'Requested seat' }
+          ],
+          messagesStub: ''
+        },
+        {
+          id: 'op_check',
+          alias: 'Early Bird',
+          usesAlias: true,
+          state: 'checked_in',
+          venueGrant: 'exact',
+          history: [
+            { at: 'Sep 22 · 5:01p CT', line: 'Checked in (organizer action)' },
+            { at: 'Sep 17 · 2:00p CT', line: 'Confirmed seat' }
+          ],
+          messagesStub: ''
+        },
+        {
+          id: 'op_pending3',
+          alias: 'Quiet Guest',
+          usesAlias: true,
+          state: 'pending',
+          venueGrant: 'none',
+          history: [
+            { at: 'Sep 22 · 7:18p CT', line: 'Requested seat' }
+          ],
+          messagesStub: ''
+        }
+      ]
+    },
+    {
+      id: 'evt_draft_02',
+      title: 'Lantern Night (draft)',
+      description: 'Small invite-only evening — not published. Venue authority still required before exact address.',
+      status: 'draft',
+      startLabel: 'Fri Oct 17 · 7:00 PM CT',
+      endLabel: 'Fri Oct 17 · 10:00 PM CT',
+      whenShort: 'Fri Oct 17 · 7–10 PM',
+      capacity: 18,
+      admission: 'invite_only',
+      venuePolicy: 'approx',
+      venueLabel: 'East Austin · approximate area',
+      venueNamed: '',
+      venueExact: '',
+      venueVersion: 0,
+      venueWindow: '—',
+      listVisibility: 'organizer',
+      aliasesAllowed: true,
+      ticketingEnabled: false,
+      organizerLabel: 'Al · Personal',
+      audit: [
+        { at: 'Sep 21 · 8:05p CT', line: 'Draft saved · invite-only · ticketing off' }
+      ],
+      participants: []
+    },
+    {
+      id: 'evt_past_03',
+      title: 'Spring Block Coffee',
+      description: 'Closed neighborhood coffee on the block. Metrics kept honest: interest ≠ attendance.',
+      status: 'closed',
+      startLabel: 'Sat Apr 12 · 9:00 AM CT',
+      endLabel: 'Sat Apr 12 · 11:00 AM CT',
+      whenShort: 'Apr 12 · closed',
+      capacity: 25,
+      admission: 'open_rsvp',
+      venuePolicy: 'named_public',
+      venueLabel: 'Holly Grove pocket park',
+      venueNamed: 'Holly Grove pocket park',
+      venueExact: '',
+      venueVersion: 1,
+      venueWindow: 'Ended · grants expired',
+      listVisibility: 'confirmed_counts',
+      aliasesAllowed: true,
+      ticketingEnabled: false,
+      organizerLabel: 'Al · Personal',
+      audit: [
+        { at: 'Apr 12 · 11:30a CT', line: 'Closed · attended counted from check-in only' }
+      ],
+      participants: [
+        {
+          id: 'op_past1',
+          alias: 'Block Regular',
+          usesAlias: true,
+          state: 'checked_in',
+          venueGrant: 'none',
+          history: [
+            { at: 'Apr 12 · 9:05a CT', line: 'Checked in' },
+            { at: 'Apr 10 · 2:00p CT', line: 'Confirmed seat' }
+          ],
+          messagesStub: ''
+        },
+        {
+          id: 'op_past2',
+          alias: 'Coffee Alias',
+          usesAlias: true,
+          state: 'confirmed',
+          venueGrant: 'none',
+          history: [
+            { at: 'Apr 11 · 6:00p CT', line: 'Confirmed · did not check in' }
+          ],
+          messagesStub: ''
+        },
+        {
+          id: 'op_past3',
+          alias: 'Curious Neighbor',
+          usesAlias: true,
+          state: 'interest',
+          venueGrant: 'none',
+          history: [
+            { at: 'Apr 9 · 12:00p CT', line: 'Interest only · never requested seat' }
+          ],
+          messagesStub: ''
+        }
+      ]
+    }
+  ];
+
+  function findOrgEvent(id) {
+    return orgEvents.find(function (e) { return e.id === (id || activeOrgEventId); });
+  }
+
+  function findOrgParticipant(ev, pid) {
+    if (!ev) return null;
+    return (ev.participants || []).find(function (p) { return p.id === pid; });
+  }
+
+  function orgStatusPill(status) {
+    var map = {
+      draft: ['ghost', 'Draft'],
+      published: ['sage', 'Published'],
+      live: ['ok', 'Live'],
+      closed: ['ghost', 'Closed'],
+      cancelled: ['danger', 'Cancelled']
+    };
+    var m = map[status] || ['ghost', status];
+    return '<span class="pill ' + m[0] + '">' + m[1] + '</span>';
+  }
+
+  function orgStateLabel(state) {
+    return ({
+      interest: 'Interest',
+      pending: 'Pending approval',
+      confirmed: 'Confirmed seat',
+      waitlist: 'Waitlist',
+      checked_in: 'Checked in',
+      declined: 'Declined',
+      cancelled: 'Cancelled'
+    })[state] || state;
+  }
+
+  function orgStatePill(state) {
+    var cls = ({
+      interest: 'ghost', pending: 'warn', confirmed: 'sage', waitlist: 'ghost',
+      checked_in: 'ok', declined: 'danger', cancelled: 'danger'
+    })[state] || 'ghost';
+    return '<span class="pill ' + cls + '">' + orgStateLabel(state) + '</span>';
+  }
+
+  function orgAdmissionLabel(a) {
+    return ({ open_rsvp: 'Open RSVP', approval: 'Approval required', invite_only: 'Invite only' })[a] || a;
+  }
+
+  function orgVenuePolicyLabel(v) {
+    return ({
+      approx: 'Approximate area only',
+      named_public: 'Named public venue',
+      exact: 'Exact address'
+    })[v] || v;
+  }
+
+  function orgCount(ev, states) {
+    var set = {};
+    (states || []).forEach(function (s) { set[s] = 1; });
+    return (ev.participants || []).filter(function (p) { return set[p.state]; }).length;
+  }
+
+  function orgMetrics(ev) {
+    var interested = orgCount(ev, ['interest', 'pending', 'confirmed', 'waitlist', 'checked_in']);
+    var requested = orgCount(ev, ['pending', 'confirmed', 'waitlist', 'checked_in']);
+    var confirmed = orgCount(ev, ['confirmed', 'checked_in']);
+    var waitlist = orgCount(ev, ['waitlist']);
+    var attended = orgCount(ev, ['checked_in']);
+    var interestOnly = orgCount(ev, ['interest']);
+    var pending = orgCount(ev, ['pending']);
+    var seatsTaken = confirmed;
+    var remaining = Math.max(0, (ev.capacity || 0) - seatsTaken);
+    return {
+      interested: interested,
+      interestOnly: interestOnly,
+      requested: requested,
+      pending: pending,
+      confirmed: confirmed,
+      waitlist: waitlist,
+      attended: attended,
+      remaining: remaining,
+      capacity: ev.capacity || 0
+    };
+  }
+
+  function updateOrgEventsSummaries() {
+    var open = orgEvents.filter(function (e) {
+      return e.status === 'published' || e.status === 'live' || e.status === 'draft';
+    }).length;
+    var meta = $('#you-org-events-meta');
+    if (meta) meta.textContent = open + ' open';
+  }
+
+  function orgRsvpInterestFromExplore() {
+    var ev = findOrgEvent('evt_porch_01');
+    if (!ev) return false;
+    var existing = (ev.participants || []).find(function (p) { return p.id === 'op_explore_self'; });
+    if (existing) return false;
+    ev.participants.unshift({
+      id: 'op_explore_self',
+      alias: 'You (Explore demo)',
+      usesAlias: true,
+      state: 'interest',
+      venueGrant: 'none',
+      history: [{ at: orgNowLabel(), line: 'Interest via Explore event page · not a seat' }],
+      messagesStub: ''
+    });
+    orgPushAudit(ev, 'Interest added from Explore attendee page (demo sync)');
+    updateOrgEventsSummaries();
+    return true;
+  }
+
+  window.openOrgEvent = function (id) {
+    activeOrgEventId = id || activeOrgEventId;
+    orgEventDetailTab = 'requests';
+    go('org-event-detail');
+  };
+
+  window.startOrgEventCreate = function () {
+    orgEventEditId = null;
+    go('org-event-edit');
+  };
+
+  window.startOrgEventEdit = function () {
+    orgEventEditId = activeOrgEventId;
+    go('org-event-edit');
+  };
+
+  window.openOrgParticipant = function (pid) {
+    activeOrgParticipantId = pid;
+    go('org-event-participant');
+  };
+
+  window.setOrgDetailTab = function (tab) {
+    orgEventDetailTab = tab;
+    renderOrgEventDetail();
+  };
+
+  function renderOrgEventsHub() {
+    var root = $('#org-events-body');
+    if (!root) return;
+    updateOrgEventsSummaries();
+    var strip = orgEvents.reduce(function (acc, ev) {
+      if (ev.status === 'cancelled' || ev.status === 'closed') return acc;
+      var m = orgMetrics(ev);
+      acc.interested += m.interestOnly;
+      acc.confirmed += m.confirmed;
+      acc.waitlist += m.waitlist;
+      acc.remaining += m.remaining;
+      return acc;
+    }, { interested: 0, confirmed: 0, waitlist: 0, remaining: 0 });
+
+    var cards = orgEvents.map(function (ev) {
+      var m = orgMetrics(ev);
+      return (
+        '<div class="card tap mb-10" onclick="openOrgEvent(\'' + ev.id + '\')">' +
+          '<div class="between mb-8">' + orgStatusPill(ev.status) +
+            '<span class="muted">' + ev.whenShort + '</span></div>' +
+          '<div class="strong" style="font-size:15px">' + ev.title + '</div>' +
+          '<p class="sub mt-8">' + orgAdmissionLabel(ev.admission) + ' · cap ' + ev.capacity +
+            ' · ' + m.confirmed + ' confirmed · ' + m.remaining + ' seats left</p>' +
+          '<div class="row wrap mt-8" style="gap:6px">' +
+            '<span class="pill ghost">Interest ' + m.interestOnly + '</span>' +
+            '<span class="pill warn">Pending ' + m.pending + '</span>' +
+            '<span class="pill sage">Confirmed ' + m.confirmed + '</span>' +
+            '<span class="pill ghost">Waitlist ' + m.waitlist + '</span>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    root.innerHTML =
+      '<div class="banner private mb-12"><span>◎</span><span><strong>Personal organizer.</strong> Not a business or crew account. Paid ticketing is <strong>off</strong> unless you enable it (disabled in this demo).</span></div>' +
+      '<div class="stat-row mb-16">' +
+        '<div class="stat"><div class="n">' + strip.interested + '</div><div class="l">Interest only</div></div>' +
+        '<div class="stat"><div class="n">' + strip.confirmed + '</div><div class="l">Confirmed</div></div>' +
+        '<div class="stat"><div class="n">' + strip.waitlist + '</div><div class="l">Waitlist</div></div>' +
+        '<div class="stat"><div class="n">' + strip.remaining + '</div><div class="l">Seats left</div></div>' +
+      '</div>' +
+      '<div class="banner info mb-12"><span>ℹ</span><span><strong>Honest counts (P45):</strong> Interest ≠ Request ≠ Confirmed seat ≠ Waitlist ≠ Checked-in. Interest is not a seat.</span></div>' +
+      '<button class="btn btn-primary mb-16" onclick="startOrgEventCreate()">Create event</button>' +
+      '<div class="section-label" style="margin-top:0">Your events</div>' +
+      cards +
+      '<p class="muted mt-12" style="font-size:11px;text-align:center;line-height:1.45">Venue publication needs separate authority — seeing a friend’s home (or your Places home) does not authorize a public event venue.</p>';
+  }
+
+  function renderOrgEventEdit() {
+    var root = $('#org-event-edit-body');
+    var titleEl = $('#org-edit-title');
+    if (!root) return;
+    var ev = orgEventEditId ? findOrgEvent(orgEventEditId) : null;
+    if (titleEl) titleEl.textContent = ev ? 'Edit event' : 'Create event';
+    var t = ev ? ev.title : '';
+    var d = ev ? ev.description : '';
+    var start = ev ? ev.startLabel : 'Sat Oct 25 · 4:00 PM CT';
+    var end = ev ? ev.endLabel : 'Sat Oct 25 · 7:00 PM CT';
+    var cap = ev ? ev.capacity : 30;
+    var adm = ev ? ev.admission : 'open_rsvp';
+    var vp = ev ? ev.venuePolicy : 'approx';
+    var lv = ev ? ev.listVisibility : 'organizer';
+    var al = ev ? !!ev.aliasesAllowed : true;
+
+    function opt(val, cur, label) {
+      return '<option value="' + val + '"' + (val === cur ? ' selected' : '') + '>' + label + '</option>';
+    }
+
+    root.innerHTML =
+      '<div class="banner gated mb-12"><span>⬚</span><span>Prototype form · America/Chicago times · ticketing remains <strong>disabled</strong>.</span></div>' +
+      '<div class="field mb-10"><label for="org-f-title">Title</label><input id="org-f-title" value="' + t.replace(/"/g, '&quot;') + '" /></div>' +
+      '<div class="field mb-10"><label for="org-f-desc">Description</label><textarea id="org-f-desc" rows="3">' + d + '</textarea></div>' +
+      '<div class="field-row mb-10">' +
+        '<div class="field"><label for="org-f-start">Start (CT)</label><input id="org-f-start" value="' + start.replace(/"/g, '&quot;') + '" /></div>' +
+        '<div class="field"><label for="org-f-end">End (CT)</label><input id="org-f-end" value="' + end.replace(/"/g, '&quot;') + '" /></div>' +
+      '</div>' +
+      '<div class="field mb-10"><label for="org-f-cap">Capacity</label><input id="org-f-cap" type="number" min="1" value="' + cap + '" /></div>' +
+      '<div class="field mb-12"><label for="org-f-adm">Admission policy</label><select id="org-f-adm">' +
+        opt('open_rsvp', adm, 'Open RSVP') +
+        opt('approval', adm, 'Approval required') +
+        opt('invite_only', adm, 'Invite only') +
+      '</select></div>' +
+      '<div class="section-label">Venue policy</div>' +
+      '<div class="banner warn mb-10"><span>⚠</span><span><strong>Authority:</strong> Being able to see a friend’s home — or your own home in Places — does <strong>not</strong> authorize publishing it as a public event venue. Exact address requires separate venue-release + versioned disclosure.</span></div>' +
+      '<div class="vis-option' + (vp === 'approx' ? ' selected' : '') + '" data-vp="approx" onclick="pickOrgVenuePolicy(this)">' +
+        '<div class="v-title">Approximate area only</div>' +
+        '<div class="v-desc">Default. Public / guests see neighborhood blob — no street or pin.</div></div>' +
+      '<div class="vis-option' + (vp === 'named_public' ? ' selected' : '') + '" data-vp="named_public" onclick="pickOrgVenuePolicy(this)">' +
+        '<div class="v-title">Named public venue</div>' +
+        '<div class="v-desc">Park, café, or other public place name — still not a private home pin.</div></div>' +
+      '<div class="vis-option' + (vp === 'exact' ? ' selected' : '') + '" data-vp="exact" onclick="pickOrgVenuePolicy(this)">' +
+        '<div class="v-title">Exact address</div>' +
+        '<div class="v-desc">Only with venue-release authority. Disclosed to eligible confirmed participants in a time window.</div></div>' +
+      '<input type="hidden" id="org-f-venue" value="' + vp + '" />' +
+      '<div class="section-label">Participant list visibility</div>' +
+      '<div class="field mb-12"><label for="org-f-list">Who sees the list</label><select id="org-f-list">' +
+        opt('organizer', lv, 'Organizer only') +
+        opt('confirmed_counts', lv, 'Confirmed-visible counts') +
+      '</select></div>' +
+      '<div class="section-label">Aliases (P41)</div>' +
+      '<div class="card mb-12">' +
+        '<div class="between"><div><div class="strong" style="font-size:14px">Allow event aliases</div>' +
+        '<p class="sub mt-8">Attendees may join under an event alias. You see permitted context profiles — not private alias→root-handle maps.</p></div>' +
+        '<button type="button" class="pill ' + (al ? 'sage' : 'ghost') + '" id="org-f-alias-btn" onclick="toggleOrgAliasPolicy()">' + (al ? 'On' : 'Off') + '</button></div>' +
+        '<input type="hidden" id="org-f-alias" value="' + (al ? '1' : '0') + '" />' +
+      '</div>' +
+      '<div class="banner gated mb-16"><span>⬚</span><span>Paid ticketing · <strong>not enabled</strong> · disabled in this prototype.</span></div>' +
+      '<div class="btn-row mb-8">' +
+        '<button class="btn btn-secondary" onclick="saveOrgEvent(false)">Save draft</button>' +
+        '<button class="btn btn-primary" onclick="saveOrgEvent(true)">Publish</button>' +
+      '</div>' +
+      '<p class="muted" style="font-size:11px;text-align:center">Publish writes a versioned venue policy. Demo only.</p>';
+  }
+
+  window.pickOrgVenuePolicy = function (el) {
+    $all('.vis-option[data-vp]').forEach(function (n) { n.classList.remove('selected'); });
+    el.classList.add('selected');
+    var inp = $('#org-f-venue');
+    if (inp) inp.value = el.getAttribute('data-vp');
+  };
+
+  window.toggleOrgAliasPolicy = function () {
+    var inp = $('#org-f-alias');
+    var btn = $('#org-f-alias-btn');
+    if (!inp || !btn) return;
+    var on = inp.value !== '1';
+    inp.value = on ? '1' : '0';
+    btn.textContent = on ? 'On' : 'Off';
+    btn.className = 'pill ' + (on ? 'sage' : 'ghost');
+  };
+
+  window.saveOrgEvent = function (publish) {
+    var title = ($('#org-f-title') && $('#org-f-title').value.trim()) || 'Untitled event';
+    var desc = ($('#org-f-desc') && $('#org-f-desc').value.trim()) || '';
+    var start = ($('#org-f-start') && $('#org-f-start').value.trim()) || '';
+    var end = ($('#org-f-end') && $('#org-f-end').value.trim()) || '';
+    var cap = parseInt(($('#org-f-cap') && $('#org-f-cap').value) || '30', 10) || 30;
+    var adm = ($('#org-f-adm') && $('#org-f-adm').value) || 'open_rsvp';
+    var vp = ($('#org-f-venue') && $('#org-f-venue').value) || 'approx';
+    var lv = ($('#org-f-list') && $('#org-f-list').value) || 'organizer';
+    var al = ($('#org-f-alias') && $('#org-f-alias').value) === '1';
+    var whenShort = start.replace(' CT', '').replace(' · ', ' · ');
+
+    var ev;
+    if (orgEventEditId) {
+      ev = findOrgEvent(orgEventEditId);
+    }
+    if (!ev) {
+      orgPartSeq += 1;
+      ev = {
+        id: 'evt_new_' + orgPartSeq,
+        participants: [],
+        audit: [],
+        venueExact: '',
+        venueNamed: '',
+        venueVersion: 0,
+        venueWindow: '—',
+        ticketingEnabled: false,
+        organizerLabel: 'Al · Personal'
+      };
+      orgEvents.unshift(ev);
+      orgEventEditId = ev.id;
+    }
+    ev.title = title;
+    ev.description = desc;
+    ev.startLabel = start;
+    ev.endLabel = end;
+    ev.whenShort = whenShort || start;
+    ev.capacity = cap;
+    ev.admission = adm;
+    ev.venuePolicy = vp;
+    ev.listVisibility = lv;
+    ev.aliasesAllowed = al;
+    ev.venueLabel = vp === 'exact' ? (ev.venueExact || 'Exact address · authority required')
+      : vp === 'named_public' ? (ev.venueNamed || 'Named public venue')
+      : 'Approximate area only';
+    if (publish) {
+      if (ev.status !== 'live' && ev.status !== 'closed' && ev.status !== 'cancelled') {
+        ev.status = 'published';
+      }
+      if (!ev.venueVersion) ev.venueVersion = 1;
+      if (vp === 'exact') {
+        ev.venueWindow = ev.venueWindow && ev.venueWindow !== '—'
+          ? ev.venueWindow
+          : 'Confirmed guests · disclosure window set at publish';
+      }
+      orgPushAudit(ev, 'Published · venue policy v' + ev.venueVersion + ' · ' + orgVenuePolicyLabel(vp));
+      toast('Published · ticketing still off');
+    } else {
+      if (ev.status !== 'published' && ev.status !== 'live' && ev.status !== 'closed' && ev.status !== 'cancelled') {
+        ev.status = 'draft';
+      }
+      orgPushAudit(ev, 'Draft saved');
+      toast('Draft saved');
+    }
+    activeOrgEventId = ev.id;
+    updateOrgEventsSummaries();
+    go('org-event-detail');
+  };
+
+  function renderOrgEventDetail() {
+    var root = $('#org-event-detail-body');
+    if (!root) return;
+    var ev = findOrgEvent(activeOrgEventId);
+    if (!ev) {
+      root.innerHTML = '<div class="pad"><p class="sub">Event not found.</p></div>';
+      return;
+    }
+    var m = orgMetrics(ev);
+    var tabs = [
+      ['requests', 'RSVPs'],
+      ['aliases', 'Aliases'],
+      ['comms', 'Comms'],
+      ['checkin', 'Check-in'],
+      ['venue', 'Venue'],
+      ['metrics', 'Metrics']
+    ];
+    var tabHtml = '<div class="seg-tabs mb-0">' + tabs.map(function (t) {
+      return '<button type="button" class="' + (orgEventDetailTab === t[0] ? 'on' : '') + '" onclick="setOrgDetailTab(\'' + t[0] + '\')">' + t[1] + '</button>';
+    }).join('') + '</div>';
+
+    var body = '';
+    if (orgEventDetailTab === 'requests') body = renderOrgRequestsTab(ev);
+    else if (orgEventDetailTab === 'aliases') body = renderOrgAliasesTab(ev);
+    else if (orgEventDetailTab === 'comms') body = renderOrgCommsTab(ev);
+    else if (orgEventDetailTab === 'checkin') body = renderOrgCheckinTab(ev);
+    else if (orgEventDetailTab === 'venue') body = renderOrgVenueTab(ev);
+    else body = renderOrgMetricsTab(ev, m);
+
+    var actions = '';
+    if (ev.status !== 'cancelled' && ev.status !== 'closed') {
+      actions =
+        '<div class="section-label">Actions</div>' +
+        '<div class="stack gap-sm mb-16">' +
+          '<div class="card tap" onclick="openOrgBroadcastSheet()"><div class="between"><span class="strong">Broadcast update</span><span>›</span></div></div>' +
+          '<div class="card tap" onclick="orgCloseEvent()"><div class="between"><span class="strong">Close event</span><span class="muted">ends ops</span></div></div>' +
+          '<div class="card tap" onclick="openOrgCancelSheet()"><div class="between"><span class="strong" style="color:var(--danger)">Cancel event</span><span class="muted">revokes venue</span></div></div>' +
+        '</div>';
+    }
+
+    root.innerHTML =
+      '<div class="pad pb-0">' +
+        '<div class="between mb-8">' + orgStatusPill(ev.status) +
+          '<span class="pill ghost">Ticketing off</span></div>' +
+        '<h1 class="h1" style="font-size:22px;margin-bottom:6px">' + ev.title + '</h1>' +
+        '<p class="sub mb-12">' + ev.startLabel + ' → ' + ev.endLabel + '</p>' +
+        '<div class="card mb-12">' +
+          '<div class="fact-row"><span class="muted">Capacity</span><span class="strong" style="font-size:13px">' + m.confirmed + ' / ' + m.capacity + ' · ' + m.remaining + ' left</span></div>' +
+          '<div class="fact-row"><span class="muted">Admission</span><span class="strong" style="font-size:13px">' + orgAdmissionLabel(ev.admission) + '</span></div>' +
+          '<div class="fact-row"><span class="muted">Venue policy</span><span class="strong" style="font-size:12px">' + orgVenuePolicyLabel(ev.venuePolicy) + ' · v' + (ev.venueVersion || 0) + '</span></div>' +
+          '<div class="fact-row" style="border:none"><span class="muted">Organizer</span><span class="strong" style="font-size:13px">' + ev.organizerLabel + '</span></div>' +
+        '</div>' +
+        '<div class="banner info mb-12"><span>ℹ</span><span>Interest ≠ seat. Check-in requires organizer action — opening Map never marks attendance.</span></div>' +
+      '</div>' +
+      tabHtml +
+      '<div class="pad pt-12">' + body + actions +
+        (ev.audit && ev.audit.length ? (
+          '<div class="section-label">Audit</div><div class="card mb-8">' +
+          ev.audit.slice(0, 5).map(function (a, i, arr) {
+            return '<div class="fact-row"' + (i === arr.length - 1 ? ' style="border:none"' : '') + '>' +
+              '<span class="muted" style="font-size:11px">' + a.at + '</span>' +
+              '<span class="strong" style="font-size:12px;text-align:right;max-width:62%">' + a.line + '</span></div>';
+          }).join('') + '</div>'
+        ) : '') +
+        '<p class="muted mb-16" style="font-size:11px;text-align:center"><button class="btn btn-ghost btn-sm" style="width:auto" onclick="go(\'event-detail\')">Preview as guest (Explore)</button></p>' +
+      '</div>';
+  }
+
+  function orgParticipantRow(ev, p, actionsHtml) {
+    return (
+      '<div class="card mb-8">' +
+        '<div class="between mb-8">' +
+          '<div class="row gap-md" style="cursor:pointer" onclick="openOrgParticipant(\'' + p.id + '\')">' +
+            '<div class="avatar sm">' + (p.alias || '?').slice(0, 2).toUpperCase() + '</div>' +
+            '<div><div class="strong" style="font-size:14px">' + p.alias +
+              (p.usesAlias ? ' <span class="muted" style="font-weight:500">· alias</span>' : '') +
+            '</div><div class="muted" style="font-size:11px">Venue grant · ' + (p.venueGrant || 'none') + '</div></div>' +
+          '</div>' +
+          orgStatePill(p.state) +
+        '</div>' +
+        (actionsHtml || '') +
+      '</div>'
+    );
+  }
+
+  function renderOrgRequestsTab(ev) {
+    var groups = [
+      ['interest', 'Interest (not seats)'],
+      ['pending', 'Pending approval'],
+      ['confirmed', 'Confirmed seats'],
+      ['waitlist', 'Waitlist'],
+      ['checked_in', 'Checked in'],
+      ['declined', 'Declined / cancelled']
+    ];
+    var html = '<div class="banner private mb-12"><span>◎</span><span>States are distinct. Approving creates a seat; Interest alone never does.</span></div>';
+    groups.forEach(function (g) {
+      var list = (ev.participants || []).filter(function (p) {
+        if (g[0] === 'declined') return p.state === 'declined' || p.state === 'cancelled';
+        return p.state === g[0];
+      });
+      if (!list.length && g[0] !== 'interest' && g[0] !== 'pending' && g[0] !== 'confirmed' && g[0] !== 'waitlist') return;
+      html += '<div class="section-label">' + g[1] + ' · ' + list.length + '</div>';
+      if (!list.length) {
+        html += '<p class="muted mb-12" style="font-size:12px">None</p>';
+        return;
+      }
+      list.forEach(function (p) {
+        var acts = '';
+        if (ev.status === 'cancelled' || ev.status === 'closed') {
+          acts = '';
+        } else if (p.state === 'interest') {
+          acts = '<div class="btn-row">' +
+            '<button class="btn btn-secondary btn-sm" onclick="orgSetParticipantState(\'' + p.id + '\',\'pending\')">Request seat</button>' +
+            '<button class="btn btn-primary btn-sm" onclick="orgSetParticipantState(\'' + p.id + '\',\'confirmed\')">Confirm seat</button>' +
+            '</div>';
+        } else if (p.state === 'pending') {
+          acts = '<div class="btn-row">' +
+            '<button class="btn btn-primary btn-sm" onclick="orgSetParticipantState(\'' + p.id + '\',\'confirmed\')">Approve</button>' +
+            '<button class="btn btn-secondary btn-sm" onclick="orgSetParticipantState(\'' + p.id + '\',\'waitlist\')">Waitlist</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="orgSetParticipantState(\'' + p.id + '\',\'declined\')">Decline</button>' +
+            '</div>';
+        } else if (p.state === 'waitlist') {
+          acts = '<div class="btn-row">' +
+            '<button class="btn btn-primary btn-sm" onclick="orgSetParticipantState(\'' + p.id + '\',\'confirmed\')">Promote</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="orgSetParticipantState(\'' + p.id + '\',\'declined\')">Decline</button>' +
+            '</div>';
+        } else if (p.state === 'confirmed') {
+          acts = '<div class="btn-row">' +
+            '<button class="btn btn-secondary btn-sm" onclick="orgCheckIn(\'' + p.id + '\')">Check in</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="orgSetParticipantState(\'' + p.id + '\',\'cancelled\')">Cancel seat</button>' +
+            '</div>';
+        }
+        html += orgParticipantRow(ev, p, acts);
+      });
+    });
+    return html;
+  }
+
+  function renderOrgAliasesTab(ev) {
+    var html =
+      '<div class="banner private mb-12"><span>◎</span><span><strong>P41:</strong> Display aliases only. Organizers never see private alias→root-handle maps. No @root-handle leak for alias participants.</span></div>' +
+      '<p class="sub mb-12">Aliases allowed: <strong>' + (ev.aliasesAllowed ? 'Yes' : 'No') + '</strong></p>';
+    var aliased = (ev.participants || []).filter(function (p) { return p.usesAlias; });
+    var plain = (ev.participants || []).filter(function (p) { return !p.usesAlias; });
+    html += '<div class="section-label">Event aliases</div>';
+    if (!aliased.length) html += '<p class="muted mb-12">No alias participants yet.</p>';
+    aliased.forEach(function (p) {
+      html +=
+        '<div class="card mb-8 tap" onclick="openOrgParticipant(\'' + p.id + '\')">' +
+          '<div class="between"><div><div class="strong">' + p.alias + '</div>' +
+          '<div class="muted mt-8" style="font-size:11px">Context profile · root handle hidden</div></div>' +
+          orgStatePill(p.state) + '</div></div>';
+    });
+    html += '<div class="section-label">Display names (no alias)</div>';
+    if (!plain.length) html += '<p class="muted mb-12">None</p>';
+    plain.forEach(function (p) {
+      html +=
+        '<div class="card mb-8 tap" onclick="openOrgParticipant(\'' + p.id + '\')">' +
+          '<div class="between"><div class="strong">' + p.alias + '</div>' + orgStatePill(p.state) + '</div></div>';
+    });
+    return html;
+  }
+
+  function renderOrgCommsTab(ev) {
+    return (
+      '<div class="banner info mb-12"><span>ℹ</span><span>Broadcasts are demo toasts + audit lines — no real push or email.</span></div>' +
+      '<button class="btn btn-primary mb-16" onclick="openOrgBroadcastSheet()">Broadcast update</button>' +
+      '<div class="section-label">Recent audit</div>' +
+      '<div class="card">' +
+      (ev.audit || []).slice(0, 6).map(function (a, i, arr) {
+        return '<div class="fact-row"' + (i === arr.length - 1 ? ' style="border:none"' : '') + '>' +
+          '<span class="muted" style="font-size:11px">' + a.at + '</span>' +
+          '<span class="strong" style="font-size:12px;text-align:right;max-width:62%">' + a.line + '</span></div>';
+      }).join('') + '</div>'
+    );
+  }
+
+  function renderOrgCheckinTab(ev) {
+    var confirmed = (ev.participants || []).filter(function (p) {
+      return p.state === 'confirmed' || p.state === 'checked_in';
+    });
+    var attended = orgCount(ev, ['checked_in']);
+    var html =
+      '<div class="banner warn mb-12"><span>⚠</span><span><strong>Check-in requires organizer action</strong> (or authorized evidence). Opening the Map or event page never marks attended.</span></div>' +
+      '<div class="stat-row mb-16">' +
+        '<div class="stat"><div class="n">' + confirmed.length + '</div><div class="l">Eligible</div></div>' +
+        '<div class="stat"><div class="n">' + attended + '</div><div class="l">Attended</div></div>' +
+        '<div class="stat"><div class="n">' + (confirmed.length - attended) + '</div><div class="l">Not in yet</div></div>' +
+      '</div>' +
+      '<div class="section-label">Confirmed roster</div>';
+    if (!confirmed.length) html += '<p class="muted">No confirmed seats yet.</p>';
+    confirmed.forEach(function (p) {
+      var acts = '';
+      if (p.state === 'confirmed' && ev.status !== 'cancelled' && ev.status !== 'closed') {
+        acts = '<button class="btn btn-primary btn-sm mt-8" style="width:auto" onclick="orgCheckIn(\'' + p.id + '\')">Check in</button>';
+      } else if (p.state === 'checked_in') {
+        acts = '<p class="muted mt-8" style="font-size:11px">Checked in · counted in attended (≠ interest)</p>';
+      }
+      html += orgParticipantRow(ev, p, acts);
+    });
+    return html;
+  }
+
+  function renderOrgVenueTab(ev) {
+    var exactHolders = (ev.participants || []).filter(function (p) {
+      return p.venueGrant === 'exact' && (p.state === 'confirmed' || p.state === 'checked_in');
+    });
+    return (
+      '<div class="banner warn mb-12"><span>⚠</span><span><strong>Venue publication authority</strong> is separate from Places visibility or friend home access. Exact pin only to eligible confirmed participants during the disclosure window.</span></div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Policy</span><span class="strong" style="font-size:12px">' + orgVenuePolicyLabel(ev.venuePolicy) + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Version</span><span class="strong" style="font-size:13px">v' + (ev.venueVersion || 0) + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Window</span><span class="strong" style="font-size:12px;text-align:right;max-width:58%">' + (ev.venueWindow || '—') + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Public sees</span><span class="strong" style="font-size:12px;text-align:right;max-width:58%">' + (ev.venueLabel || 'Approximate area') + '</span></div>' +
+      '</div>' +
+      '<div class="section-label">Exact access holders</div>' +
+      (exactHolders.length
+        ? exactHolders.map(function (p) {
+            return '<div class="card mb-8"><div class="between"><span class="strong">' + p.alias + (p.usesAlias ? ' · alias' : '') + '</span><span class="pill sage">Exact · v' + ev.venueVersion + '</span></div></div>';
+          }).join('')
+        : '<p class="muted mb-12" style="font-size:12px">None — approx / named only until you grant exact in-window.</p>') +
+      '<div class="btn-row mb-8">' +
+        '<button class="btn btn-secondary" onclick="orgBumpVenueVersion()">Bump version</button>' +
+        '<button class="btn btn-ghost" onclick="orgRevokeVenueGrants()">Revoke exact</button>' +
+      '</div>' +
+      '<p class="muted" style="font-size:11px;line-height:1.45">Cancel/revoke ends <em>future</em> exact access. Attendee home/device location is never published via interest, RSVP, or check-in.</p>'
+    );
+  }
+
+  function renderOrgMetricsTab(ev, m) {
+    return (
+      '<div class="banner info mb-12"><span>ℹ</span><span><strong>P45 honest ops:</strong> interested ≠ confirmed ≠ attended. Interest ≠ attendance.</span></div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Interested (any signal)</span><span class="strong">' + m.interested + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Interest only</span><span class="strong">' + m.interestOnly + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Requested (pending+)</span><span class="strong">' + m.requested + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Pending approval</span><span class="strong">' + m.pending + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Confirmed seats</span><span class="strong">' + m.confirmed + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Waitlist</span><span class="strong">' + m.waitlist + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Attended (check-in)</span><span class="strong">' + m.attended + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Capacity remaining</span><span class="strong">' + m.remaining + ' / ' + m.capacity + '</span></div>' +
+      '</div>' +
+      '<p class="muted" style="font-size:11px;line-height:1.45">Sources: participant state machine on this event. Map opens and Explore views are not attendance.</p>'
+    );
+  }
+
+  window.orgSetParticipantState = function (pid, state) {
+    var ev = findOrgEvent(activeOrgEventId);
+    var p = findOrgParticipant(ev, pid);
+    if (!ev || !p) return;
+    var prev = p.state;
+    if (state === 'confirmed') {
+      var m = orgMetrics(ev);
+      var seats = m.confirmed - (prev === 'confirmed' || prev === 'checked_in' ? 1 : 0);
+      if (seats >= ev.capacity) {
+        toast('At capacity · use waitlist');
+        return;
+      }
+      if (p.venueGrant === 'none' && ev.venuePolicy !== 'exact') p.venueGrant = 'approx';
+    }
+    p.state = state;
+    if (!p.history) p.history = [];
+    p.history.unshift({ at: orgNowLabel(), line: orgStateLabel(state) + ' (was ' + orgStateLabel(prev) + ')' });
+    orgPushAudit(ev, p.alias + ' → ' + orgStateLabel(state));
+    toast(p.alias + ' · ' + orgStateLabel(state));
+    renderOrgEventDetail();
+  };
+
+  window.orgCheckIn = function (pid) {
+    var ev = findOrgEvent(activeOrgEventId);
+    var p = findOrgParticipant(ev, pid);
+    if (!ev || !p) return;
+    if (p.state !== 'confirmed' && p.state !== 'checked_in') {
+      toast('Only confirmed seats can check in');
+      return;
+    }
+    if (p.state === 'checked_in') {
+      toast('Already checked in');
+      return;
+    }
+    p.state = 'checked_in';
+    if (!p.history) p.history = [];
+    p.history.unshift({ at: orgNowLabel(), line: 'Checked in (organizer action)' });
+    orgPushAudit(ev, 'Check-in · ' + p.alias + ' · attended +1');
+    toast('Checked in · attended counted separately');
+    renderOrgEventDetail();
+  };
+
+  window.orgBumpVenueVersion = function () {
+    var ev = findOrgEvent(activeOrgEventId);
+    if (!ev) return;
+    ev.venueVersion = (ev.venueVersion || 0) + 1;
+    (ev.participants || []).forEach(function (p) {
+      if (p.venueGrant === 'exact') p.venueGrant = 'approx';
+    });
+    orgPushAudit(ev, 'Venue policy bumped to v' + ev.venueVersion + ' · prior exact grants reset to approx');
+    toast('Venue v' + ev.venueVersion + ' · prior exact revoked');
+    renderOrgEventDetail();
+  };
+
+  window.orgRevokeVenueGrants = function () {
+    var ev = findOrgEvent(activeOrgEventId);
+    if (!ev) return;
+    var n = 0;
+    (ev.participants || []).forEach(function (p) {
+      if (p.venueGrant === 'exact') {
+        p.venueGrant = 'approx';
+        n += 1;
+        if (!p.history) p.history = [];
+        p.history.unshift({ at: orgNowLabel(), line: 'Exact venue grant revoked · future access ended' });
+      }
+    });
+    orgPushAudit(ev, 'Revoked exact venue grants (' + n + ') · future access ended');
+    toast('Exact grants revoked · ' + n);
+    renderOrgEventDetail();
+  };
+
+  window.orgCloseEvent = function () {
+    var ev = findOrgEvent(activeOrgEventId);
+    if (!ev) return;
+    ev.status = 'closed';
+    orgPushAudit(ev, 'Event closed · check-in frozen · metrics retained');
+    toast('Event closed');
+    updateOrgEventsSummaries();
+    renderOrgEventDetail();
+  };
+
+  window.openOrgBroadcastSheet = function () {
+    orgBcastType = 'schedule';
+    $all('#org-bcast-type-chips .purpose-chip').forEach(function (c) {
+      c.classList.toggle('on', c.getAttribute('data-bcast') === 'schedule');
+    });
+    var bd = $('#org-broadcast-backdrop');
+    var sh = $('#org-broadcast-sheet');
+    if (bd) bd.classList.add('show');
+    if (sh) sh.classList.add('show');
+  };
+
+  window.closeOrgBroadcastSheet = function () {
+    var bd = $('#org-broadcast-backdrop');
+    var sh = $('#org-broadcast-sheet');
+    if (bd) bd.classList.remove('show');
+    if (sh) sh.classList.remove('show');
+  };
+
+  window.pickOrgBcast = function (el) {
+    orgBcastType = el.getAttribute('data-bcast') || 'general';
+    $all('#org-bcast-type-chips .purpose-chip').forEach(function (c) { c.classList.remove('on'); });
+    el.classList.add('on');
+  };
+
+  window.confirmOrgBroadcast = function () {
+    var ev = findOrgEvent(activeOrgEventId);
+    if (!ev) return;
+    var msg = ($('#org-bcast-msg') && $('#org-bcast-msg').value.trim()) || '(empty)';
+    var kind = ({ schedule: 'Schedule change', venue: 'Venue version', general: 'General note' })[orgBcastType] || 'Update';
+    if (orgBcastType === 'venue') {
+      ev.venueVersion = (ev.venueVersion || 0) + 1;
+    }
+    orgPushAudit(ev, 'Broadcast · ' + kind + ' · “' + msg.slice(0, 48) + (msg.length > 48 ? '…' : '') + '”');
+    closeOrgBroadcastSheet();
+    toast('Broadcast sent (demo) · audit logged');
+    if (current === 'org-event-detail') renderOrgEventDetail();
+  };
+
+  window.openOrgCancelSheet = function () {
+    var ev = findOrgEvent(activeOrgEventId);
+    var body = $('#org-cancel-body');
+    if (body && ev) {
+      body.textContent = 'Cancel “' + ev.title + '”? Future exact-venue grants end. Screenshots already taken cannot be recalled.';
+    }
+    var bd = $('#org-cancel-backdrop');
+    var sh = $('#org-cancel-sheet');
+    if (bd) bd.classList.add('show');
+    if (sh) sh.classList.add('show');
+  };
+
+  window.closeOrgCancelSheet = function () {
+    var bd = $('#org-cancel-backdrop');
+    var sh = $('#org-cancel-sheet');
+    if (bd) bd.classList.remove('show');
+    if (sh) sh.classList.remove('show');
+  };
+
+  window.confirmOrgCancel = function () {
+    var ev = findOrgEvent(activeOrgEventId);
+    if (!ev) return;
+    ev.status = 'cancelled';
+    (ev.participants || []).forEach(function (p) {
+      if (p.venueGrant === 'exact') p.venueGrant = 'none';
+      if (p.state === 'confirmed' || p.state === 'pending' || p.state === 'waitlist' || p.state === 'interest') {
+        // leave historical states; mark cancelled seats
+        if (p.state === 'confirmed' || p.state === 'pending' || p.state === 'waitlist') {
+          p.state = 'cancelled';
+          if (!p.history) p.history = [];
+          p.history.unshift({ at: orgNowLabel(), line: 'Seat/request cancelled · event cancelled' });
+        }
+      }
+    });
+    orgPushAudit(ev, 'Event cancelled · future venue grants revoked');
+    closeOrgCancelSheet();
+    toast('Event cancelled · future exact access ended');
+    updateOrgEventsSummaries();
+    renderOrgEventDetail();
+  };
+
+  function renderOrgEventParticipant() {
+    var root = $('#org-event-participant-body');
+    if (!root) return;
+    var ev = findOrgEvent(activeOrgEventId);
+    var p = findOrgParticipant(ev, activeOrgParticipantId);
+    if (!ev || !p) {
+      root.innerHTML = '<p class="sub">Participant not found.</p>';
+      return;
+    }
+    root.innerHTML =
+      '<div class="card mb-12 acct-card">' +
+        '<div class="row gap-md">' +
+          '<div class="avatar lg">' + (p.alias || '?').slice(0, 2).toUpperCase() + '</div>' +
+          '<div class="flex-1">' +
+            '<div class="strong" style="font-size:17px">' + p.alias + '</div>' +
+            '<div class="muted">' + (p.usesAlias ? 'Event alias · root handle hidden' : 'Display name') + '</div>' +
+            '<div class="row mt-8 wrap" style="gap:6px">' + orgStatePill(p.state) +
+              '<span class="pill ghost">Venue · ' + (p.venueGrant || 'none') + '</span></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="banner private mb-12"><span>◎</span><span>No private alias→@root map. Organizer sees this context profile only.</span></div>' +
+      '<div class="section-label" style="margin-top:0">State history</div>' +
+      '<div class="card mb-12">' +
+      (p.history || []).map(function (h, i, arr) {
+        return '<div class="fact-row"' + (i === arr.length - 1 ? ' style="border:none"' : '') + '>' +
+          '<span class="muted" style="font-size:11px">' + h.at + '</span>' +
+          '<span class="strong" style="font-size:12px;text-align:right;max-width:62%">' + h.line + '</span></div>';
+      }).join('') + '</div>' +
+      '<div class="section-label">Messages (stub)</div>' +
+      '<div class="card mb-12"><p class="sub">' + (p.messagesStub || 'No messages in this demo.') + '</p></div>' +
+      '<div class="section-label">Venue grant</div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Status</span><span class="strong" style="font-size:13px">' + (p.venueGrant || 'none') + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Policy version</span><span class="strong" style="font-size:13px">v' + (ev.venueVersion || 0) + '</span></div>' +
+      '</div>';
+  }
+
+
     var toastTimer;
   window.toast = function (msg) {
     var t = $('#toast');
@@ -4703,6 +5729,7 @@
     updateMoveOverview();
     updateConnectedServicesSummaries();
     updatePermissionsSummaries();
+    updateOrgEventsSummaries();
     var hash = (location.hash || '').replace(/^#/, '');
     if (hash && $('[data-screen="' + hash + '"]')) {
       $all('.screen').forEach(function (s) { s.classList.remove('active'); });

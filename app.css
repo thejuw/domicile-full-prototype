@@ -981,3 +981,9 @@ input.field, .sheet input.field {
   font: inherit;
   color: var(--ink);
 }
+
+/* ===== Event organizer (personal) ===== */
+.pt-12 { padding-top: 12px; }
+.pb-0 { padding-bottom: 0; }
+[data-screen="org-event-detail"] .seg-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+[data-screen="org-event-detail"] .seg-tabs button { flex: 0 0 auto; white-space: nowrap; }
