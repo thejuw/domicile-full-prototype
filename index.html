@@ -1711,6 +1711,142 @@ AL</div>
           <div class="pad" id="biz-profile-body"><!-- filled by JS --></div>
         </section>
 
+        <!-- Business suite drill-ins (W2 hub) -->
+        <section class="screen" data-screen="biz-public-profile" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-profile')">‹ Business</button>
+            <span class="title">Public profile</span>
+            <span class="org-pill" style="justify-self:end">Cedar</span>
+          </div>
+          <div class="pad" id="biz-public-profile-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-catalog" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-profile')">‹ Business</button>
+            <span class="title">Catalog</span>
+            <button class="back" style="justify-self:end;font-size:13px;font-weight:650" onclick="openCatalogAddSheet()">Add</button>
+          </div>
+          <div class="pad" id="biz-catalog-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-catalog-detail" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-catalog')">‹ Catalog</button>
+            <span class="title">Offering</span>
+            <span></span>
+          </div>
+          <div class="pad" id="biz-catalog-detail-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-coverage" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-profile')">‹ Business</button>
+            <span class="title">Coverage</span>
+            <span class="org-pill" style="justify-self:end">P39</span>
+          </div>
+          <div class="pad" id="biz-coverage-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-schedule" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-profile')">‹ Business</button>
+            <span class="title">Schedule</span>
+            <button class="back" style="justify-self:end;font-size:13px;font-weight:650" onclick="go('biz-jobs')">Jobs</button>
+          </div>
+          <div class="pad" id="biz-schedule-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-customers" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-profile')">‹ Business</button>
+            <span class="title">Customers</span>
+            <span class="org-pill" style="justify-self:end">CRM</span>
+          </div>
+          <div class="pad" id="biz-customers-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-customer-detail" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-customers')">‹ Customers</button>
+            <span class="title">Customer</span>
+            <span></span>
+          </div>
+          <div class="pad" id="biz-customer-detail-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-team" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-profile')">‹ Business</button>
+            <span class="title">Team</span>
+            <button class="back" style="justify-self:end;font-size:13px;font-weight:650" onclick="demoInviteCrew()">Invite</button>
+          </div>
+          <div class="pad" id="biz-team-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-team-member" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-team')">‹ Team</button>
+            <span class="title">Member</span>
+            <span></span>
+          </div>
+          <div class="pad" id="biz-team-member-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-finance" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-profile')">‹ Business</button>
+            <span class="title">Finance</span>
+            <button class="back" style="justify-self:end;font-size:13px;font-weight:650" onclick="demoExportStatement()">Export</button>
+          </div>
+          <div class="pad" id="biz-finance-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-invoice-detail" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-finance')">‹ Finance</button>
+            <span class="title">Invoice</span>
+            <span></span>
+          </div>
+          <div class="pad" id="biz-invoice-detail-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-payments" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-profile')">‹ Business</button>
+            <span class="title">Payments</span>
+            <span class="org-pill" style="justify-self:end">Payouts</span>
+          </div>
+          <div class="pad" id="biz-payments-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-integrations" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-profile')">‹ Business</button>
+            <span class="title">Integrations</span>
+            <span></span>
+          </div>
+          <div class="pad" id="biz-integrations-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-growth" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-profile')">‹ Business</button>
+            <span class="title">Growth</span>
+            <span class="org-pill" style="justify-self:end">P80</span>
+          </div>
+          <div class="pad" id="biz-growth-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="biz-settings" data-nav="biz-profile" data-workspace="business">
+          <div class="topbar">
+            <button class="back" onclick="go('biz-profile')">‹ Business</button>
+            <span class="title">Settings</span>
+            <span class="org-pill" style="justify-self:end">Owner</span>
+          </div>
+          <div class="pad" id="biz-settings-body"><!-- filled by JS --></div>
+        </section>
+
 
         <!-- ========== Crew workspace (Casey @ Cedar & Stone) ========== -->
         <section class="screen" data-screen="crew-today" data-nav="crew-today" data-workspace="crew">
@@ -1769,6 +1905,32 @@ AL</div>
         <button class="nav-item" data-nav="crew-jobs" onclick="navTo('crew-jobs')"><span class="ico">◇</span>Jobs</button>
         <button class="nav-item" data-nav="crew-me" onclick="navTo('crew-me')"><span class="ico">☺</span>Me</button>
       </nav>
+      <!-- Business suite sheets -->
+      <div class="sheet-backdrop" id="biz-catalog-add-backdrop" onclick="closeCatalogAddSheet()"></div>
+      <div class="sheet" id="biz-catalog-add-sheet" role="dialog" aria-modal="true" aria-labelledby="biz-catalog-add-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="biz-catalog-add-title" style="font-size:18px;margin-bottom:6px">Add offering</h2>
+        <p class="sub mb-12">Demo only — local prototype state. Not published to guests until you save.</p>
+        <label class="field-label">Name</label>
+        <input class="field" id="biz-cat-name" placeholder="e.g. Post-event tidy" />
+        <label class="field-label mt-8">Price basis</label>
+        <input class="field" id="biz-cat-price" placeholder="e.g. From $95 · flat" />
+        <label class="field-label mt-8">Duration</label>
+        <input class="field" id="biz-cat-duration" placeholder="e.g. 2–3 hours" />
+        <button type="button" class="btn btn-primary mt-16" onclick="saveCatalogOffering()">Save offering (demo)</button>
+        <button type="button" class="btn btn-ghost mt-8" style="width:100%" onclick="closeCatalogAddSheet()">Cancel</button>
+      </div>
+
+      <div class="sheet-backdrop" id="biz-pause-backdrop" onclick="closeBizPauseSheet()"></div>
+      <div class="sheet" id="biz-pause-sheet" role="dialog" aria-modal="true" aria-labelledby="biz-pause-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="biz-pause-title" style="font-size:18px;margin-bottom:6px">Pause business?</h2>
+        <p class="sub mb-12">Safe stop demo. Hides public discovery and new inquiries. Existing jobs and grants stay; you confirm deliberately.</p>
+        <div class="banner warn mb-12"><span>⚠</span><span>Prototype only — nothing is filed with processors or directories.</span></div>
+        <button type="button" class="btn btn-primary mt-8" onclick="confirmBizPause()">Pause accepting work</button>
+        <button type="button" class="btn btn-ghost mt-8" style="width:100%" onclick="closeBizPauseSheet()">Keep open</button>
+      </div>
+
       <!-- Move sheets -->
       <div class="sheet-backdrop" id="confirm-send-backdrop" onclick="closeConfirmSend()"></div>
       <div class="sheet" id="confirm-send-sheet" role="dialog" aria-modal="true" aria-labelledby="confirm-send-title">

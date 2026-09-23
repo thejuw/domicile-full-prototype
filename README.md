@@ -14,7 +14,7 @@ open /workspace/domicile-full-prototype/index.html
 python3 -m http.server 8765 --directory /workspace/domicile-full-prototype
 ```
 
-Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-prototype/. Hash routes work (e.g. `#stays-search`, `#permissions`, `#service-inquiry`, `#biz-today`, `#biz-inbox`, `#biz-jobs`, `#biz-profile`, `#crew-today`, `#crew-jobs`, `#crew-job-detail`, `#crew-me`). Bottom nav remembers the last screen per tab; **Owner / Crew / Personal navs replace each other** after Switch account (or cross-mode hash).
+Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-prototype/. Hash routes work (e.g. `#stays-search`, `#permissions`, `#service-inquiry`, `#biz-today`, `#biz-inbox`, `#biz-jobs`, `#biz-profile`, `#biz-finance`, `#biz-payments`, `#biz-settings`, `#biz-catalog`, `#biz-customers`, `#biz-team`, `#crew-today`, `#crew-jobs`, `#crew-job-detail`, `#crew-me`). Bottom nav remembers the last screen per tab; **Owner / Crew / Personal navs replace each other** after Switch account (or cross-mode hash).
 
 **Files:** `index.html` · `app.css` · `app.js` · this README.
 
@@ -77,9 +77,9 @@ Kit (P40/P41/P43) honored: browsing ≠ leads; one provider only; explicit discl
 2. **Cedar & Stone Clean Co. · Owner** (Al) → `#biz-today` · nav **Today · Inbox · Jobs · Business**  
 3. **Casey Nguyen · Crew @ Cedar & Stone** → `#crew-today` · nav **Today · Jobs · Me** (platform crew account tied to the org — not an Owner overlay)
 
-Owner “View as Crew” lens on Business tab remains optional; **real account switch is the primary story**.
+**Real account switch is the primary story** (Switch → Casey). Optional View-as-Crew lens is demoted; use Switch for full crew UX.
 
-**Cross-mode rule:** Opening `#crew-*` while on Personal/Owner auto-switches to Casey (toast) and vice versa for `#biz-*` / personal hashes. Personal Explore never shows Owner inbox chrome.
+**Cross-mode rule:** Opening `#crew-*` while on Personal/Owner auto-switches to Casey (toast) and vice versa for `#biz-*` / personal hashes. Personal Explore never shows Owner inbox chrome. **Nothing business-shaped appears in personal mode.**
 
 #### End-to-end click path (one session · inquiry → quote → job → crew)
 
@@ -115,6 +115,36 @@ Owner Today shortcut: **Continue E2E: assign River Guest job** when that job exi
 
 Kit: W2 · P38 team roles · P39 coverage · P43 inquiries/quotes · P45 ops. Crew is org-linked with role Crew — sees only assigned jobs (and schedule), not full inquiry inbox / all customers / finance. Exact address / access notes are job-scoped for the assignee during the job window; reassign revokes prior access. Opaque refs in toasts. Prototype labels throughout.
 
+
+### Business suite hub (W2 · Owner → Business)
+
+`#biz-profile` is a **directory hub** (not a thin stub): org header, quick stats (open inquiries · active jobs · outstanding AR · next payout), and you-row menu into every management surface. Bottom nav stays **Today · Inbox · Jobs · Business**.
+
+| Screen | Hash | Notes |
+|--------|------|--------|
+| **Business hub** | `#biz-profile` | Org · stats · menu · Switch account |
+| Public profile | `#biz-public-profile` | Guest preview · public ≠ address book |
+| Service catalog | `#biz-catalog` · `#biz-catalog-detail` | Deep clean · Turnover · Tidy · add sheet (demo) |
+| Coverage & schedule | `#biz-coverage` · `#biz-schedule` | East Austin · mobile stops · coverage ≠ capacity |
+| Customers CRM | `#biz-customers` · `#biz-customer-detail` | River Guest + Loft Host + Maple · **no browse leads** |
+| Team & permissions | `#biz-team` · `#biz-team-member` | Al Owner · Casey · Riley · capability matrix (P38) |
+| Finance / Ledger | `#biz-finance` · `#biz-invoice-detail` | Quoted ≠ invoiced ≠ paid ≠ paid-out (P59) · tabs · export |
+| Payments & payouts | `#biz-payments` | Hosted processor honesty · payout demo · not a wallet |
+| Integrations | `#biz-integrations` | Calendar / CRM / processor · authority + demo toggles |
+| Growth | `#biz-growth` | Funnel metrics · sponsored vs organic labeled |
+| Business settings | `#biz-settings` | Owner-only · timezone CT · pause business sheet |
+
+**Finance seed (distinct amounts):** River Guest outstanding (quoted=invoiced $210, unpaid); Loft Host paid pending payout ($135 quoted → $128 invoiced/paid); Maple paid-out ($85 → $81 after fee); Aug exception for refund demo.
+
+#### Business suite click path (~60s)
+1. Switch account → **Cedar & Stone · Owner** → **Business**
+2. Glance stats → **Finance / Ledger** → Invoices tab → open Loft Host → note quoted/invoiced/paid/paid-out → **Refund (demo)** toast
+3. Back → **Payments & payouts** → Run next payout (demo)
+4. **Customers** → River Guest → inquiry / job / invoice links (deliberate CRM only)
+5. **Team** → capability matrix → Switch → Casey (crew has no Business tab)
+6. Switch back Owner → **Settings** → Pause business sheet (safe stop demo) or **Catalog** → Add offering
+
+Kit: **W2** Business management · **P38** team/permissions · **P39** coverage/schedules · **P45** ops (coverage ≠ capacity) · **P55** catalogs · **P56** crews/dispatch · **P57** jobs · **P58** CRM/calendar integrations · **P59** invoices/payments/reconciliation · **P80** business finance ledger. Owner-only finance mutations, settings, payouts, refunds. Prototype labels throughout — no real payments/OAuth.
 
 ### Move Planning (AI-assisted sketch)
 Overview (East Cesar Chavez → South Lamar) → recipient checklist with channel/status chips → Assist draft preview (facts from Move Engine; you send) → USPS official-form handoff (never auto-filed) → Suggest missing recipients (DMV, voter reg demo tips)

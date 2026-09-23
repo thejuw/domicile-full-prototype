@@ -16,7 +16,13 @@
 
   var BIZ_SCREENS = {
     'biz-today': 1, 'biz-inbox': 1, 'biz-inquiry-detail': 1,
-    'biz-jobs': 1, 'biz-job-detail': 1, 'biz-profile': 1
+    'biz-jobs': 1, 'biz-job-detail': 1, 'biz-profile': 1,
+    'biz-public-profile': 1, 'biz-catalog': 1, 'biz-catalog-detail': 1,
+    'biz-coverage': 1, 'biz-schedule': 1,
+    'biz-customers': 1, 'biz-customer-detail': 1,
+    'biz-team': 1, 'biz-team-member': 1,
+    'biz-finance': 1, 'biz-invoice-detail': 1, 'biz-payments': 1,
+    'biz-integrations': 1, 'biz-growth': 1, 'biz-settings': 1
   };
 
   var CREW_SCREENS = {
@@ -31,8 +37,16 @@
   var activeBizInquiryId = 'grant_inq_cedar_7a2f';
   var activeBizJobId = null;
   var activeCrewJobId = null;
+  var activeBizCustomerId = null;
+  var activeBizInvoiceId = null;
+  var activeBizCatalogId = null;
+  var activeBizTeamMemberId = null;
+  var activeBizFinanceTab = 'invoices'; // invoices | payments | payouts | exceptions
   var bizQuoteSeq = 1;
   var bizDemoRoleView = 'owner'; // optional owner-only lens; primary story is Casey account
+  var bizPausedAccepting = false;
+  var bizLastReconciledLabel = 'Sep 20 · 4:12p CT';
+  var bizCatalogSeq = 4;
 
   var CREW_PEOPLE = {
     casey: { id: 'casey', name: 'Casey Nguyen', short: 'Casey', initials: 'CN', color: '#6a7a55', fullAccount: true },
@@ -119,6 +133,303 @@
       ]
     }
   ];
+
+  /* ========== Business suite seed (W2 · Finance · CRM · Catalog) ========== */
+  var BIZ_ORG = {
+    id: 'acct_cedar_stone_01',
+    legalName: 'Cedar & Stone Clean Co. LLC',
+    displayName: 'Cedar & Stone Clean Co.',
+    handle: '@cedarstone',
+    ownerLabel: 'Owner Al',
+    timezone: 'America/Chicago',
+    about: 'Small East Austin cleaning team. Quiet during work hours. Matched privately in Explore — never notified by browse alone.',
+    categories: ['Home cleaning', 'Turnover', 'Move-out'],
+    coverageBlurb: 'Serves East Austin · mobile stops along Cesar Chavez & South Lamar corridors',
+    hours: 'Mon–Sat · 8a–6p CT · Sundays by arrangement'
+  };
+
+  var bizCatalog = [
+    {
+      id: 'offer_deep_01',
+      name: 'Deep clean',
+      version: 'v3',
+      priceBasis: 'From $185 · flat by home size',
+      duration: '3–5 hours',
+      inclusions: 'Kitchen, baths, floors, dusting, inside fridge on request',
+      exclusions: 'Windows exterior · oven coils · garage',
+      intakeNotes: 'Pets? Parking? Preferred products?',
+      active: true
+    },
+    {
+      id: 'offer_turnover_01',
+      name: 'Turnover',
+      version: 'v2',
+      priceBasis: 'From $120 · per turnover window',
+      duration: '2–3 hours',
+      inclusions: 'Guest reset, linens staging, trash out, restock checklist',
+      exclusions: 'Laundry off-site · deep appliance',
+      intakeNotes: 'Lockbox / code · next guest ETA',
+      active: true
+    },
+    {
+      id: 'offer_tidy_01',
+      name: 'Tidy',
+      version: 'v1',
+      priceBasis: 'From $75 · recurring weekly/biweekly',
+      duration: '1.5–2.5 hours',
+      inclusions: 'Surfaces, floors, baths touch-up, kitchen wipe',
+      exclusions: 'Inside oven · laundry · organization projects',
+      intakeNotes: 'Access notes · quiet hours',
+      active: true
+    }
+  ];
+
+  var bizCustomers = [
+    {
+      id: 'cust_river_01',
+      alias: 'River Guest',
+      initials: 'RG',
+      color: '#5a7a8a',
+      kind: 'inquiry_alias',
+      grantId: 'grant_inq_cedar_7a2f',
+      notes: 'Inquiry alias from private Explore path. Deliberate contact only — not a browse lead.',
+      openInquiryIds: ['grant_inq_cedar_7a2f'],
+      jobIds: ['job_deep_river_01'],
+      invoiceIds: ['inv_river_deep_01'],
+      status: 'open'
+    },
+    {
+      id: 'cust_loft_02',
+      alias: 'Loft Host',
+      initials: 'LH',
+      color: '#7a6a55',
+      kind: 'past_customer',
+      grantId: null,
+      notes: 'Recurring turnover client · South Lamar loft. Past accepted jobs only.',
+      openInquiryIds: [],
+      jobIds: ['job_turnover_02'],
+      invoiceIds: ['inv_loft_turnover_02'],
+      status: 'active'
+    },
+    {
+      id: 'cust_maple_03',
+      alias: 'Maple Client',
+      initials: 'MC',
+      color: '#6a7a55',
+      kind: 'past_customer',
+      grantId: null,
+      notes: 'East Cesar Chavez recurring tidy. Completed Wed Sep 24.',
+      openInquiryIds: [],
+      jobIds: ['job_recurring_03'],
+      invoiceIds: ['inv_maple_tidy_03'],
+      status: 'active'
+    }
+  ];
+
+  // Invoices: quoted ≠ invoiced ≠ paid ≠ paid-out (P59)
+  var bizInvoices = [
+    {
+      id: 'inv_river_deep_01',
+      customerId: 'cust_river_01',
+      jobId: 'job_deep_river_01',
+      inquiryId: 'grant_inq_cedar_7a2f',
+      label: 'Deep clean · River Guest',
+      quotedCents: 21000,
+      invoicedCents: 21000,
+      paidCents: 0,
+      paidOutCents: 0,
+      depositCents: 5000,
+      creditCents: 0,
+      feeCents: 0,
+      status: 'outstanding',
+      issuedLabel: 'Sep 22 · draft after quote',
+      dueLabel: 'Due on completion',
+      lines: [
+        { desc: 'Deep clean · East Austin cottage', amountCents: 18500 },
+        { desc: 'Inside fridge add-on', amountCents: 2500 }
+      ],
+      notes: 'Quoted $210 · invoiced $210 · not yet paid · not paid out'
+    },
+    {
+      id: 'inv_loft_turnover_02',
+      customerId: 'cust_loft_02',
+      jobId: 'job_turnover_02',
+      inquiryId: null,
+      label: 'Turnover · Loft Host',
+      quotedCents: 13500,
+      invoicedCents: 12800,
+      paidCents: 12800,
+      paidOutCents: 0,
+      depositCents: 0,
+      creditCents: 700,
+      feeCents: 384,
+      status: 'paid_pending_payout',
+      issuedLabel: 'Sep 26 · mid-job',
+      dueLabel: 'Paid Sep 26',
+      lines: [
+        { desc: 'Turnover · Apt 3B', amountCents: 12000 },
+        { desc: 'Linen staging', amountCents: 800 }
+      ],
+      notes: 'Quoted $135 · credit $7 · invoiced $128 · paid $128 · payout pending (fees $3.84)'
+    },
+    {
+      id: 'inv_maple_tidy_03',
+      customerId: 'cust_maple_03',
+      jobId: 'job_recurring_03',
+      inquiryId: null,
+      label: 'Recurring tidy · Maple Client',
+      quotedCents: 8500,
+      invoicedCents: 8500,
+      paidCents: 8500,
+      paidOutCents: 8100,
+      depositCents: 0,
+      creditCents: 0,
+      feeCents: 255,
+      status: 'paid_out',
+      issuedLabel: 'Sep 24',
+      dueLabel: 'Paid out Sep 25',
+      lines: [
+        { desc: 'Biweekly tidy · Unit 204', amountCents: 8500 }
+      ],
+      notes: 'Quoted = invoiced = paid $85 · paid out $81.00 after $2.55 fee'
+    },
+    {
+      id: 'inv_exception_04',
+      customerId: 'cust_loft_02',
+      jobId: null,
+      inquiryId: null,
+      label: 'Partial refund · Loft Host Aug',
+      quotedCents: 12000,
+      invoicedCents: 12000,
+      paidCents: 12000,
+      paidOutCents: 9000,
+      depositCents: 0,
+      creditCents: 0,
+      feeCents: 360,
+      status: 'exception',
+      issuedLabel: 'Aug 18',
+      dueLabel: 'Refund $30 pending review',
+      lines: [
+        { desc: 'Turnover Aug 18', amountCents: 12000 },
+        { desc: 'Guest complaint credit (demo)', amountCents: -3000 }
+      ],
+      notes: 'Exception path · refund demo · not auto-wallet'
+    }
+  ];
+
+  var bizPayouts = [
+    { id: 'po_sep_25', label: 'Sep 25 payout', amountCents: 8100, status: 'completed', arrivedLabel: 'Sep 25 · 9:02a CT', dest: '····4821 · checking' },
+    { id: 'po_sep_18', label: 'Sep 18 payout', amountCents: 21450, status: 'completed', arrivedLabel: 'Sep 18 · 8:44a CT', dest: '····4821 · checking' },
+    { id: 'po_sep_27', label: 'Next payout (est.)', amountCents: 12416, status: 'scheduled', arrivedLabel: 'Fri Sep 27 · est.', dest: '····4821 · checking' }
+  ];
+
+  var bizPaymentAttempts = [
+    { id: 'pay_maple_01', invoiceId: 'inv_maple_tidy_03', label: 'Card · Maple Client', amountCents: 8500, status: 'succeeded', atLabel: 'Sep 24 · 3:18p' },
+    { id: 'pay_loft_01', invoiceId: 'inv_loft_turnover_02', label: 'Card · Loft Host', amountCents: 12800, status: 'succeeded', atLabel: 'Sep 26 · 11:02a' },
+    { id: 'pay_loft_ret_01', invoiceId: 'inv_exception_04', label: 'Return · Loft Host Aug', amountCents: 3000, status: 'returned', atLabel: 'Aug 20 · return code R01 (demo)' },
+    { id: 'pay_refund_demo', invoiceId: 'inv_exception_04', label: 'Refund pending · Loft Host', amountCents: 3000, status: 'refund_pending', atLabel: 'Awaiting owner confirm' }
+  ];
+
+  var bizIntegrations = [
+    { id: 'int_gcal', name: 'Google Calendar', kind: 'calendar', status: 'connected', authority: 'Create job blocks · read free/busy', honesty: 'Demo connector · not real OAuth' },
+    { id: 'int_ical', name: 'Apple Calendar (ICS)', kind: 'calendar', status: 'not_connected', authority: 'Export availability ICS', honesty: 'Would sync one-way when connected' },
+    { id: 'int_crm', name: 'Lightweight CRM export', kind: 'crm', status: 'connected', authority: 'Export deliberate contacts only', honesty: 'No browse-lead import · ever' },
+    { id: 'int_stripe', name: 'Hosted payment processor', kind: 'payments', status: 'connected', authority: 'Charges · payouts · refunds via hosted UI', honesty: 'No card numbers stored in Domicile' },
+    { id: 'int_slack', name: 'Crew alerts (Slack)', kind: 'ops', status: 'needs_reauth', authority: 'Job assign pings', honesty: 'Needs reauth · demo toggle only' }
+  ];
+
+  var bizGrowth = {
+    periodLabel: 'Sep 1–22 CT',
+    inquiries: 14,
+    quotesSent: 11,
+    accepted: 8,
+    completed: 6,
+    sponsoredClicks: 3,
+    organicInquiries: 11,
+    campaigns: [
+      { id: 'camp_east', name: 'East Austin tidy promo', channel: 'organic', status: 'active', inquiries: 5, quotes: 4, accepted: 3 },
+      { id: 'camp_ad', name: 'Explore sponsored tile', channel: 'sponsored', status: 'paused', inquiries: 3, quotes: 2, accepted: 1 }
+    ]
+  };
+
+  var bizSettings = {
+    legalName: 'Cedar & Stone Clean Co. LLC',
+    timezone: 'America/Chicago',
+    notifyInquiries: true,
+    notifyPayouts: true,
+    notifyExceptions: true,
+    quietHours: '9p–7a CT',
+    roleDefaultCrew: 'Assigned jobs · schedule · no finance',
+    roleDefaultOwner: 'Full inbox · quotes · finance · reset'
+  };
+
+  var BIZ_ROLE_CAPS = [
+    { key: 'inquiries', label: 'View / reply inquiries', owner: true, crew: false },
+    { key: 'quotes', label: 'Send quotes', owner: true, crew: false },
+    { key: 'exact', label: 'Request exact address', owner: true, crew: false },
+    { key: 'assign', label: 'Assign / reassign crew', owner: true, crew: false },
+    { key: 'job_status', label: 'Advance own job status', owner: true, crew: true },
+    { key: 'reset', label: 'Reset job status', owner: true, crew: false },
+    { key: 'finance', label: 'Finance · invoices · payouts', owner: true, crew: false },
+    { key: 'settings', label: 'Business settings', owner: true, crew: false },
+    { key: 'customers', label: 'Full CRM', owner: true, crew: false }
+  ];
+
+  function money(cents) {
+    var n = Math.round(cents || 0) / 100;
+    var sign = n < 0 ? '-' : '';
+    var abs = Math.abs(n);
+    if (abs === Math.floor(abs) && abs >= 1) return sign + '$' + abs.toFixed(0);
+    return sign + '$' + abs.toFixed(2);
+  }
+  function money2(cents) {
+    var n = Math.round(cents || 0) / 100;
+    var sign = n < 0 ? '-' : '';
+    return sign + '$' + Math.abs(n).toFixed(2);
+  }
+  function findBizCustomer(id) {
+    for (var i = 0; i < bizCustomers.length; i++) if (bizCustomers[i].id === id) return bizCustomers[i];
+    return null;
+  }
+  function findBizInvoice(id) {
+    for (var i = 0; i < bizInvoices.length; i++) if (bizInvoices[i].id === id) return bizInvoices[i];
+    return null;
+  }
+  function findBizOffering(id) {
+    for (var i = 0; i < bizCatalog.length; i++) if (bizCatalog[i].id === id) return bizCatalog[i];
+    return null;
+  }
+  function requireBizOwner(actionLabel) {
+    if (activeWorkspace !== 'business' || activeAccount !== 'al') {
+      toast((actionLabel || 'Owner action') + ' · switch to Cedar Owner');
+      return false;
+    }
+    return true;
+  }
+  function bizHubStats() {
+    var openInq = 0;
+    try {
+      outgoingGrants.forEach(function (g) {
+        if (g && g.class === 'inquiry' && g.accountId === 'acct_cedar_stone_01' && g.status !== 'expired' && g.status !== 'revoked') openInq++;
+      });
+    } catch (e) { openInq = 1; }
+    if (!openInq) openInq = 1;
+    var jobsToday = bizJobs.filter(function (j) {
+      return j.status === 'in_progress' || j.status === 'scheduled' || j.status === 'needs_assign';
+    }).length;
+    var ar = 0;
+    bizInvoices.forEach(function (inv) {
+      if (inv.status === 'outstanding') ar += (inv.invoicedCents - inv.paidCents);
+    });
+    var nextPo = bizPayouts.filter(function (p) { return p.status === 'scheduled'; })[0];
+    return {
+      openInquiries: openInq,
+      jobsToday: jobsToday,
+      outstandingArCents: ar,
+      nextPayoutCents: nextPo ? nextPo.amountCents : 0,
+      nextPayoutLabel: nextPo ? nextPo.arrivedLabel : '—'
+    };
+  }
 
   // Cross-mode rule: navigating to a screen belonging to another workspace
   // auto-switches the account (with toast), then opens that screen.
@@ -514,6 +825,9 @@
     if (name === 'biz-inquiry-detail') navMemory['biz-inbox'] = name;
     if (name === 'biz-job-detail') navMemory['biz-jobs'] = name;
     if (name === 'crew-job-detail') navMemory['crew-jobs'] = name;
+    if (name.indexOf('biz-') === 0 && name !== 'biz-today' && name !== 'biz-inbox' && name !== 'biz-inquiry-detail' && name !== 'biz-jobs' && name !== 'biz-job-detail') {
+      navMemory['biz-profile'] = name;
+    }
     updateNav(navKey);
     next.scrollTop = 0;
     try { history.replaceState(null, '', '#' + name); } catch (e) {}
@@ -532,6 +846,21 @@
     if (name === 'biz-jobs') renderBizJobs();
     if (name === 'biz-job-detail') renderBizJobDetail();
     if (name === 'biz-profile') renderBizProfile();
+    if (name === 'biz-public-profile') renderBizPublicProfile();
+    if (name === 'biz-catalog') renderBizCatalog();
+    if (name === 'biz-catalog-detail') renderBizCatalogDetail();
+    if (name === 'biz-coverage') renderBizCoverage();
+    if (name === 'biz-schedule') renderBizSchedule();
+    if (name === 'biz-customers') renderBizCustomers();
+    if (name === 'biz-customer-detail') renderBizCustomerDetail();
+    if (name === 'biz-team') renderBizTeam();
+    if (name === 'biz-team-member') renderBizTeamMember();
+    if (name === 'biz-finance') renderBizFinance();
+    if (name === 'biz-invoice-detail') renderBizInvoiceDetail();
+    if (name === 'biz-payments') renderBizPayments();
+    if (name === 'biz-integrations') renderBizIntegrations();
+    if (name === 'biz-growth') renderBizGrowth();
+    if (name === 'biz-settings') renderBizSettings();
     if (name === 'crew-today') renderCrewToday();
     if (name === 'crew-jobs') renderCrewJobs();
     if (name === 'crew-job-detail') renderCrewJobDetail();
@@ -3468,59 +3797,655 @@
   function renderBizProfile() {
     var body = $('#biz-profile-body');
     if (!body) return;
+    var stats = bizHubStats();
+    var pauseNote = bizPausedAccepting
+      ? '<div class="banner warn mb-12"><span>⏸</span><span>Accepting new work is <strong>paused</strong> (demo). Existing jobs continue.</span></div>'
+      : '';
     body.innerHTML =
-      '<div class="card mb-16 acct-card">' +
+      '<div class="card mb-12 acct-card">' +
         '<div class="row gap-md">' +
           '<div class="avatar lg" style="background:#2F5D50">CS</div>' +
           '<div class="flex-1">' +
-            '<div class="strong" style="font-size:17px">Cedar &amp; Stone Clean Co.</div>' +
-            '<div class="muted">@cedarstone · Owner · Al</div>' +
-            '<div class="row mt-8 wrap" style="gap:6px"><span class="pill sage">acct_cedar_stone_01</span></div>' +
+            '<div class="strong" style="font-size:17px">' + BIZ_ORG.displayName + '</div>' +
+            '<div class="muted">' + BIZ_ORG.handle + ' · ' + BIZ_ORG.ownerLabel + '</div>' +
+            '<div class="row mt-8 wrap" style="gap:6px"><span class="pill sage">' + BIZ_ORG.id + '</span></div>' +
           '</div>' +
         '</div>' +
         '<button type="button" class="btn btn-primary mt-12" onclick="openAccountSwitcher()">Switch account…</button>' +
       '</div>' +
-      '<div class="section-label" style="margin-top:0">Org</div>' +
-      '<div class="card mb-12">' +
-        '<p class="sub">Small East Austin cleaning team. Quiet during work hours. Matched privately in Explore — never notified by browse alone.</p>' +
-        '<div class="fact-row mt-12"><span class="muted">Coverage</span><span class="strong" style="font-size:12px">Serves East Austin</span></div>' +
-        '<div class="fact-row" style="border:none"><span class="muted">Catalog</span><span class="strong" style="font-size:12px">Deep clean · Turnover · Tidy</span></div>' +
+      pauseNote +
+      '<div class="section-label" style="margin-top:0">At a glance</div>' +
+      '<div class="biz-stat-strip mb-16">' +
+        '<div class="biz-stat"><div class="biz-stat-n">' + stats.openInquiries + '</div><div class="biz-stat-l">Open inquiries</div></div>' +
+        '<div class="biz-stat"><div class="biz-stat-n">' + stats.jobsToday + '</div><div class="biz-stat-l">Active jobs</div></div>' +
+        '<div class="biz-stat"><div class="biz-stat-n">' + money(stats.outstandingArCents) + '</div><div class="biz-stat-l">Outstanding AR</div></div>' +
+        '<div class="biz-stat"><div class="biz-stat-n">' + money(stats.nextPayoutCents) + '</div><div class="biz-stat-l">Next payout</div></div>' +
       '</div>' +
-      '<div class="section-label">Customers</div>' +
+      '<div class="section-label">Manage</div>' +
+      '<div class="card mb-12" style="padding:4px 16px">' +
+        '<div class="you-row" onclick="go(\'biz-public-profile\')"><span>◎</span><span class="y-label">Public profile</span><span class="y-meta">Guest view</span><span class="y-chev">›</span></div>' +
+        '<div class="you-row" onclick="go(\'biz-catalog\')"><span>☰</span><span class="y-label">Service catalog</span><span class="y-meta">' + bizCatalog.length + ' offerings</span><span class="y-chev">›</span></div>' +
+        '<div class="you-row" onclick="go(\'biz-coverage\')"><span>⌖</span><span class="y-label">Coverage &amp; schedule</span><span class="y-meta">East Austin</span><span class="y-chev">›</span></div>' +
+        '<div class="you-row" onclick="go(\'biz-schedule\')"><span>▦</span><span class="y-label">Schedule board</span><span class="y-meta">Week</span><span class="y-chev">›</span></div>' +
+        '<div class="you-row" onclick="go(\'biz-customers\')"><span>☺</span><span class="y-label">Customers</span><span class="y-meta">CRM · deliberate</span><span class="y-chev">›</span></div>' +
+        '<div class="you-row" onclick="go(\'biz-team\')"><span>◇</span><span class="y-label">Team &amp; permissions</span><span class="y-meta">3 people</span><span class="y-chev">›</span></div>' +
+      '</div>' +
+      '<div class="section-label">Money</div>' +
+      '<div class="card mb-12" style="padding:4px 16px">' +
+        '<div class="you-row" onclick="go(\'biz-finance\')"><span>◈</span><span class="y-label">Finance / Ledger</span><span class="y-meta">Sep</span><span class="y-chev">›</span></div>' +
+        '<div class="you-row" onclick="go(\'biz-payments\')"><span>↔</span><span class="y-label">Payments &amp; payouts</span><span class="y-meta">Processor</span><span class="y-chev">›</span></div>' +
+      '</div>' +
+      '<div class="section-label">Grow &amp; connect</div>' +
+      '<div class="card mb-12" style="padding:4px 16px">' +
+        '<div class="you-row" onclick="go(\'biz-integrations\')"><span>⛓</span><span class="y-label">Integrations</span><span class="y-meta">Calendar · CRM</span><span class="y-chev">›</span></div>' +
+        '<div class="you-row" onclick="go(\'biz-growth\')"><span>↗</span><span class="y-label">Growth</span><span class="y-meta">Funnel</span><span class="y-chev">›</span></div>' +
+        '<div class="you-row" onclick="go(\'biz-settings\')"><span>⚙</span><span class="y-label">Business settings</span><span class="y-meta">Owner</span><span class="y-chev">›</span></div>' +
+      '</div>' +
+      '<div class="banner info mb-12"><span>ℹ</span><span>Business hub · W2 management. Prefer <strong>Switch account → Casey</strong> for real crew UX (not a lens).</span></div>' +
+      '<p class="muted" style="font-size:11px;text-align:center">W2 · P38 team · P39 coverage · P55 catalog · P56 crews · P57 jobs · P58 CRM · P59 invoices · P80 ledger · prototype only</p>';
+  }
+
+  function renderBizPublicProfile() {
+    var body = $('#biz-public-profile-body');
+    if (!body) return;
+    body.innerHTML =
+      '<div class="banner private mb-12"><span>◎</span><span><strong>Public page ≠ address book.</strong> Guests see catalog &amp; coverage blurbs — never your customer list, inbox, or exact job addresses.</span></div>' +
       '<div class="card mb-12">' +
-        '<div class="team-row">' +
-          '<div class="avatar" style="background:#5a7a8a">RG</div>' +
-          '<div class="flex-1"><div class="strong">River Guest</div><div class="muted">Inquiry alias · Deep clean · ref grant_inq_cedar_7a2f</div></div>' +
-          '<span class="pill sage">Open</span>' +
+        '<div class="row gap-md">' +
+          '<div class="avatar lg" style="background:#2F5D50">CS</div>' +
+          '<div class="flex-1">' +
+            '<div class="strong" style="font-size:18px">' + BIZ_ORG.displayName + '</div>' +
+            '<div class="muted">' + BIZ_ORG.handle + ' · verified merchant (demo)</div>' +
+            '<div class="chip-row mt-8">' + BIZ_ORG.categories.map(function (c) { return '<span class="pill sage">' + c + '</span>'; }).join('') + '</div>' +
+          '</div>' +
         '</div>' +
-        '<p class="muted mt-8" style="font-size:11px">Light CRM · only deliberate inquiry contacts · no browse leads</p>' +
+        '<p class="sub mt-12">' + BIZ_ORG.about + '</p>' +
       '</div>' +
-      '<div class="section-label">Team</div>' +
+      '<div class="section-label">What guests see</div>' +
       '<div class="card mb-12">' +
-        '<div class="team-row">' +
+        '<div class="fact-row"><span class="muted">Coverage</span><span class="strong" style="font-size:12px">' + BIZ_ORG.coverageBlurb.split('·')[0].trim() + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Hours</span><span class="strong" style="font-size:12px">' + BIZ_ORG.hours + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Offerings</span><span class="strong" style="font-size:12px">Deep clean · Turnover · Tidy</span></div>' +
+      '</div>' +
+      '<div class="section-label">Photo placeholders</div>' +
+      '<div class="biz-photo-row mb-12">' +
+        '<div class="biz-photo-ph" style="background:linear-gradient(145deg,#d4e0d6,#a8c0b0)">Team</div>' +
+        '<div class="biz-photo-ph" style="background:linear-gradient(145deg,#e8dcc8,#c4a882)">Before/after</div>' +
+        '<div class="biz-photo-ph" style="background:linear-gradient(145deg,#d8e2ea,#8aa0b0)">Van</div>' +
+      '</div>' +
+      '<div class="section-label">Owner-only (hidden from guests)</div>' +
+      '<div class="card mb-12">' +
+        '<p class="sub">Inbox, exact addresses, finance, team capabilities, and CRM contacts stay behind account switch. Public Explore match never creates a lead until inquiry.</p>' +
+      '</div>' +
+      '<button type="button" class="btn btn-secondary" onclick="go(\'biz-catalog\')">Edit catalog</button>';
+  }
+
+  window.openBizCatalog = function (id) {
+    activeBizCatalogId = id;
+    go('biz-catalog-detail');
+  };
+
+  function renderBizCatalog() {
+    var body = $('#biz-catalog-body');
+    if (!body) return;
+    var rows = bizCatalog.map(function (o) {
+      return '<div class="card tap mb-8" onclick="openBizCatalog(\'' + o.id + '\')">' +
+        '<div class="between mb-8"><span class="strong">' + o.name + '</span><span class="pill ghost">' + o.version + '</span></div>' +
+        '<div class="muted" style="font-size:12px">' + o.priceBasis + ' · ' + o.duration + '</div>' +
+        '<div class="muted mt-8" style="font-size:11px">' + (o.active ? 'Active · guest-visible when public' : 'Draft') + '</div>' +
+      '</div>';
+    }).join('');
+    body.innerHTML =
+      '<div class="banner info mb-12"><span>ℹ</span><span>Versioned offerings (P55). Price basis &amp; duration are estimates — quote ≠ booking.</span></div>' +
+      rows +
+      '<button type="button" class="btn btn-secondary mt-8" onclick="openCatalogAddSheet()">Add offering (demo)</button>';
+  }
+
+  function renderBizCatalogDetail() {
+    var body = $('#biz-catalog-detail-body');
+    if (!body) return;
+    var o = findBizOffering(activeBizCatalogId);
+    if (!o) {
+      body.innerHTML = '<div class="banner warn"><span>⚠</span><span>Offering not found.</span></div><button class="btn btn-secondary mt-12" onclick="go(\'biz-catalog\')">Back</button>';
+      return;
+    }
+    body.innerHTML =
+      '<h1 class="h1" style="font-size:22px">' + o.name + '</h1>' +
+      '<div class="chip-row mb-12"><span class="pill sage">' + o.version + '</span><span class="pill ghost">' + (o.active ? 'Active' : 'Draft') + '</span></div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Price basis</span><span class="strong" style="font-size:12px">' + o.priceBasis + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Duration</span><span class="strong" style="font-size:12px">' + o.duration + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Status</span><span class="strong" style="font-size:12px">' + (o.active ? 'Listed' : 'Hidden') + '</span></div>' +
+      '</div>' +
+      '<div class="section-label">Inclusions</div><div class="card mb-12"><p class="sub">' + o.inclusions + '</p></div>' +
+      '<div class="section-label">Exclusions</div><div class="card mb-12"><p class="sub">' + o.exclusions + '</p></div>' +
+      '<div class="section-label">Intake notes</div><div class="card mb-12"><p class="sub">' + o.intakeNotes + '</p></div>' +
+      '<button type="button" class="btn btn-secondary" onclick="toast(\'Edit sheet (demo) · local only\')">Edit offering (demo)</button>';
+  }
+
+  window.openCatalogAddSheet = function () {
+    if (!requireBizOwner('Add offering')) return;
+    var bd = $('#biz-catalog-add-backdrop');
+    var sh = $('#biz-catalog-add-sheet');
+    if (bd) bd.classList.add('show');
+    if (sh) sh.classList.add('show');
+  };
+  window.closeCatalogAddSheet = function () {
+    var bd = $('#biz-catalog-add-backdrop');
+    var sh = $('#biz-catalog-add-sheet');
+    if (bd) bd.classList.remove('show');
+    if (sh) sh.classList.remove('show');
+  };
+  window.saveCatalogOffering = function () {
+    if (!requireBizOwner('Save offering')) return;
+    var name = ($('#biz-cat-name') && $('#biz-cat-name').value.trim()) || 'Custom tidy';
+    var price = ($('#biz-cat-price') && $('#biz-cat-price').value.trim()) || 'From $95 · flat';
+    var dur = ($('#biz-cat-duration') && $('#biz-cat-duration').value.trim()) || '2 hours';
+    var id = 'offer_custom_' + (bizCatalogSeq++);
+    bizCatalog.push({
+      id: id, name: name, version: 'v1', priceBasis: price, duration: dur,
+      inclusions: 'As scoped in quote', exclusions: 'Anything not listed', intakeNotes: 'Confirm access', active: true
+    });
+    closeCatalogAddSheet();
+    toast('Offering saved (demo) · ' + name);
+    if (current === 'biz-catalog') renderBizCatalog();
+  };
+
+  function renderBizCoverage() {
+    var body = $('#biz-coverage-body');
+    if (!body) return;
+    body.innerHTML =
+      '<div class="banner info mb-12"><span>ℹ</span><span><strong>Coverage ≠ capacity</strong> (P45). Serving East Austin does not mean infinite same-day slots.</span></div>' +
+      '<div class="section-label" style="margin-top:0">Service area</div>' +
+      '<div class="card mb-12">' +
+        '<div class="strong">East Austin</div>' +
+        '<p class="sub mt-8">' + BIZ_ORG.coverageBlurb + '</p>' +
+        '<div class="fact-row mt-12"><span class="muted">Hours</span><span class="strong" style="font-size:12px">' + BIZ_ORG.hours + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Capacity note</span><span class="strong" style="font-size:12px">~4 deep / 6 tidy per day</span></div>' +
+      '</div>' +
+      '<div class="section-label">Mobile stops (faux map)</div>' +
+      '<div class="biz-faux-map mb-12">' +
+        '<div class="biz-map-blob" style="left:18%;top:30%">ECC</div>' +
+        '<div class="biz-map-blob" style="left:42%;top:48%">Cesar</div>' +
+        '<div class="biz-map-blob" style="left:62%;top:38%">S Lamar</div>' +
+        '<div class="biz-map-label">Austin · demo blobs · not live tiles</div>' +
+      '</div>' +
+      '<div class="card mb-12">' +
+        '<div class="team-row"><div class="flex-1"><div class="strong">East Cesar Chavez corridor</div><div class="muted">Cottage cluster · dog-friendly notes</div></div><span class="pill sage">Primary</span></div>' +
+        '<div class="team-row"><div class="flex-1"><div class="strong">South Lamar lofts</div><div class="muted">Turnover windows · lockbox common</div></div><span class="pill ghost">Secondary</span></div>' +
+        '<div class="team-row"><div class="flex-1"><div class="strong">Mueller / Manor Rd edge</div><div class="muted">By arrangement · travel fee in quote</div></div><span class="pill ghost">Edge</span></div>' +
+      '</div>' +
+      '<button type="button" class="btn btn-secondary" onclick="go(\'biz-schedule\')">Open schedule board</button>';
+  }
+
+  function renderBizSchedule() {
+    var body = $('#biz-schedule-body');
+    if (!body) return;
+    var days = [
+      { d: 'Mon 22', items: [] },
+      { d: 'Tue 23', items: [{ t: 'Tidy hold', who: 'Riley · capacity' }] },
+      { d: 'Wed 24', items: [{ t: 'Recurring tidy', who: 'Maple · done' }] },
+      { d: 'Thu 25', items: [{ t: 'Deep clean window', who: 'River Guest · inquiry' }] },
+      { d: 'Fri 26', items: [{ t: 'Turnover 9–11', who: 'Casey · on the way' }] },
+      { d: 'Sat 27', items: [{ t: 'Move-out 1–5', who: 'Needs assign' }] },
+      { d: 'Sun 28', items: [] }
+    ];
+    var html = '<div class="banner private mb-12"><span>◎</span><span>Week board distinct from Jobs list. Tap a job day to open the Jobs board.</span></div>';
+    days.forEach(function (day) {
+      html += '<div class="card mb-8"><div class="between mb-8"><span class="strong">' + day.d + '</span><span class="muted" style="font-size:11px">' + (day.items.length ? day.items.length + ' block' : 'Open') + '</span></div>';
+      if (!day.items.length) html += '<p class="muted" style="font-size:12px">No booked blocks · capacity available</p>';
+      day.items.forEach(function (it) {
+        html += '<div class="fact-row" style="border:none;padding:6px 0"><span class="strong" style="font-size:13px">' + it.t + '</span><span class="muted" style="font-size:11px">' + it.who + '</span></div>';
+      });
+      html += '</div>';
+    });
+    html += '<button type="button" class="btn btn-secondary mt-8" onclick="go(\'biz-jobs\')">Open Jobs list</button>';
+    body.innerHTML = html;
+  }
+
+  window.openBizCustomer = function (id) {
+    activeBizCustomerId = id;
+    go('biz-customer-detail');
+  };
+
+  window.openBizInquiryFromCrm = function (gid) {
+    activeBizInquiryId = gid;
+    go('biz-inquiry-detail');
+  };
+
+  function renderBizCustomers() {
+    var body = $('#biz-customers-body');
+    if (!body) return;
+    var rows = bizCustomers.map(function (c) {
+      var meta = c.kind === 'inquiry_alias' ? 'Inquiry alias · ' + (c.grantId || '') : 'Past customer · jobs linked';
+      var pill = c.status === 'open' ? '<span class="pill sage">Open</span>' : '<span class="pill ghost">Active</span>';
+      return '<div class="card tap mb-8" onclick="openBizCustomer(\'' + c.id + '\')">' +
+        '<div class="team-row" style="border:none;padding:0">' +
+          '<div class="avatar" style="background:' + c.color + '">' + c.initials + '</div>' +
+          '<div class="flex-1"><div class="strong">' + c.alias + '</div><div class="muted" style="font-size:12px">' + meta + '</div></div>' +
+          pill +
+        '</div></div>';
+    }).join('');
+    body.innerHTML =
+      '<div class="banner private mb-12"><span>◎</span><span>Light CRM of <strong>deliberate contacts only</strong>. No browse leads. Explore match never adds a row here.</span></div>' +
+      rows;
+  }
+
+  function renderBizCustomerDetail() {
+    var body = $('#biz-customer-detail-body');
+    if (!body) return;
+    var c = findBizCustomer(activeBizCustomerId);
+    if (!c) {
+      body.innerHTML = '<div class="banner warn"><span>⚠</span><span>Customer not found.</span></div>';
+      return;
+    }
+    var inqHtml = '';
+    if (c.openInquiryIds.length) {
+      c.openInquiryIds.forEach(function (gid) {
+        inqHtml += '<div class="you-row" onclick="openBizInquiryFromCrm(\'' + gid + '\')"><span>◎</span><span class="y-label">' + gid + '</span><span class="y-chev">›</span></div>';
+      });
+    } else {
+      inqHtml = '<p class="muted" style="font-size:12px">No open inquiries</p>';
+    }
+    var jobHtml = '';
+    c.jobIds.forEach(function (jid) {
+      var j = findJob(jid);
+      var label = j ? (j.service + ' · ' + j.status) : (jid + ' · pending Accept quote');
+      var click = j ? 'onclick="openBizJob(\'' + jid + '\')"' : '';
+      jobHtml += '<div class="you-row" ' + click + '><span>◇</span><span class="y-label">' + label + '</span><span class="y-chev">›</span></div>';
+    });
+    if (!c.jobIds.length) jobHtml = '<p class="muted" style="font-size:12px">No jobs yet</p>';
+    var invHtml = '';
+    c.invoiceIds.forEach(function (iid) {
+      var inv = findBizInvoice(iid);
+      if (!inv) return;
+      invHtml += '<div class="you-row" onclick="openBizInvoice(\'' + iid + '\')"><span>◈</span><span class="y-label">' + inv.label + '</span><span class="y-meta">' + money2(inv.invoicedCents) + '</span><span class="y-chev">›</span></div>';
+    });
+    if (!invHtml) invHtml = '<p class="muted" style="font-size:12px">No invoices</p>';
+    body.innerHTML =
+      '<div class="row gap-md mb-12">' +
+        '<div class="avatar lg" style="background:' + c.color + '">' + c.initials + '</div>' +
+        '<div class="flex-1"><h1 class="h1" style="font-size:20px;margin:0">' + c.alias + '</h1>' +
+        '<div class="muted">' + (c.kind === 'inquiry_alias' ? 'Inquiry alias' : 'Past customer') + '</div></div>' +
+      '</div>' +
+      '<div class="card mb-12"><p class="sub">' + c.notes + '</p></div>' +
+      '<div class="section-label">Open inquiries</div><div class="card mb-12" style="padding:4px 16px">' + inqHtml + '</div>' +
+      '<div class="section-label">Jobs</div><div class="card mb-12" style="padding:4px 16px">' + jobHtml + '</div>' +
+      '<div class="section-label">Invoices</div><div class="card mb-12" style="padding:4px 16px">' + invHtml + '</div>';
+  }
+
+  window.openBizTeamMember = function (id) {
+    activeBizTeamMemberId = id;
+    go('biz-team-member');
+  };
+
+  window.demoInviteCrew = function () {
+    if (!requireBizOwner('Invite')) return;
+    toast('Invite link copied (demo) · not emailed');
+  };
+
+  function renderBizTeam() {
+    var body = $('#biz-team-body');
+    if (!body) return;
+    var matrix = BIZ_ROLE_CAPS.map(function (r) {
+      return '<div class="fact-row"><span class="muted" style="font-size:12px;flex:1">' + r.label + '</span>' +
+        '<span class="pill ' + (r.owner ? 'sage' : 'ghost') + '" style="margin-right:4px">Own</span>' +
+        '<span class="pill ' + (r.crew ? 'sage' : 'ghost') + '">Crew</span></div>';
+    }).join('');
+    body.innerHTML =
+      '<div class="banner info mb-12"><span>ℹ</span><span>P38 roles. Crew sees assigned jobs only — not full Business hub, finance, or all customers.</span></div>' +
+      '<div class="card mb-12">' +
+        '<div class="team-row tap" onclick="openBizTeamMember(\'al\')">' +
           '<div class="avatar" style="background:linear-gradient(135deg,#c4a882,#6d8a72)">AL</div>' +
-          '<div class="flex-1"><div class="strong">Al</div><div class="muted">Owner · full inquiries · quotes · exact requests</div></div>' +
-          '<span class="pill sage">Owner</span>' +
-        '</div>' +
-        '<div class="team-row">' +
+          '<div class="flex-1"><div class="strong">Al</div><div class="muted">Owner · full inquiries · quotes · finance</div></div>' +
+          '<span class="pill sage">Owner</span></div>' +
+        '<div class="team-row tap" onclick="openBizTeamMember(\'casey\')">' +
           '<div class="avatar" style="background:#6a7a55">CN</div>' +
-          '<div class="flex-1"><div class="strong">Casey Nguyen</div><div class="muted">Crew · switchable account · assigned jobs only</div></div>' +
-          '<span class="pill ghost">Crew</span>' +
-        '</div>' +
-        '<div class="team-row">' +
+          '<div class="flex-1"><div class="strong">Casey Nguyen</div><div class="muted">Crew · switchable account</div></div>' +
+          '<span class="pill ghost">Crew</span></div>' +
+        '<div class="team-row tap" onclick="openBizTeamMember(\'riley\')">' +
           '<div class="avatar" style="background:#8a7355">RO</div>' +
-          '<div class="flex-1"><div class="strong">Riley Okonkwo</div><div class="muted">Crew · assignable (no full account in this demo)</div></div>' +
-          '<span class="pill ghost">Crew</span>' +
-        '</div>' +
+          '<div class="flex-1"><div class="strong">Riley Okonkwo</div><div class="muted">Crew · assignable (no full account)</div></div>' +
+          '<span class="pill ghost">Crew</span></div>' +
       '</div>' +
-      '<div class="banner info mb-12"><span>ℹ</span><span>Primary story: <strong>Switch account → Casey Crew</strong>. Optional owner lens below is secondary.</span></div>' +
-      '<div class="section-label">Role lens (optional demo)</div>' +
-      '<div class="chip-row mb-12">' +
-        '<button type="button" class="purpose-chip' + (bizDemoRoleView === 'owner' ? ' on' : '') + '" onclick="setBizRoleLens(\'owner\')">View as Owner</button>' +
-        '<button type="button" class="purpose-chip' + (bizDemoRoleView === 'crew' ? ' on' : '') + '" onclick="setBizRoleLens(\'crew\')">View as Crew</button>' +
+      '<div class="section-label">Capability matrix</div>' +
+      '<div class="card mb-12">' + matrix + '</div>' +
+      '<button type="button" class="btn btn-primary" onclick="openAccountSwitcher()">Switch account → Casey</button>' +
+      '<button type="button" class="btn btn-secondary mt-8" onclick="demoInviteCrew()">Invite crew (demo)</button>';
+  }
+
+  function renderBizTeamMember() {
+    var body = $('#biz-team-member-body');
+    if (!body) return;
+    var id = activeBizTeamMemberId;
+    var name, role, initials, color, blurb, switchBtn = '';
+    if (id === 'al') {
+      name = 'Al'; role = 'Owner'; initials = 'AL'; color = 'linear-gradient(135deg,#c4a882,#6d8a72)';
+      blurb = 'Full Business hub. Can send quotes, request exact, assign crew, reset job status, and run finance.';
+    } else if (id === 'casey') {
+      name = 'Casey Nguyen'; role = 'Crew'; initials = 'CN'; color = '#6a7a55';
+      blurb = 'Platform crew account. Sees Today · Jobs · Me only. Advances assigned job status; cannot reset or open Finance.';
+      switchBtn = '<button type="button" class="btn btn-primary mt-12" onclick="openAccountSwitcher()">Switch to Casey account</button>';
+    } else {
+      name = 'Riley Okonkwo'; role = 'Crew'; initials = 'RO'; color = '#8a7355';
+      blurb = 'Assignable on Jobs board. No full login in this prototype — toast-only presence.';
+    }
+    var caps = BIZ_ROLE_CAPS.filter(function (r) {
+      return role === 'Owner' ? r.owner : r.crew;
+    }).map(function (r) { return '<li>' + r.label + '</li>'; }).join('');
+    body.innerHTML =
+      '<div class="row gap-md mb-12">' +
+        '<div class="avatar lg" style="background:' + color + '">' + initials + '</div>' +
+        '<div class="flex-1"><h1 class="h1" style="font-size:20px;margin:0">' + name + '</h1><div class="muted">' + role + ' @ Cedar &amp; Stone</div></div>' +
       '</div>' +
-      '<div class="banner private"><span>◎</span><span>Personal Pause sharing with people does <strong>not</strong> create or cancel merchant / inquiry rights or jobs.</span></div>' +
-      '<p class="muted mt-16" style="font-size:11px;text-align:center">W2 · P38 team · P39 coverage · P43 inquiries · P45 ops</p>';
+      '<div class="card mb-12"><p class="sub">' + blurb + '</p></div>' +
+      '<div class="section-label">This role can</div>' +
+      '<div class="card mb-12"><ul class="sub" style="margin:0;padding-left:18px">' + caps + '</ul></div>' +
+      switchBtn;
+  }
+
+  window.setBizFinanceTab = function (tab) {
+    activeBizFinanceTab = tab;
+    renderBizFinance();
+  };
+
+  window.openBizInvoice = function (id) {
+    activeBizInvoiceId = id;
+    go('biz-invoice-detail');
+  };
+
+  window.demoExportStatement = function () {
+    if (!requireBizOwner('Export')) return;
+    toast('Statement export queued (demo) · Sep CT CSV');
+  };
+
+  window.demoRefundInvoice = function (id) {
+    if (!requireBizOwner('Refund')) return;
+    var inv = findBizInvoice(id);
+    if (!inv) { toast('Invoice not found'); return; }
+    if (inv.paidCents <= 0) { toast('Nothing paid to refund'); return; }
+    var amt = Math.min(3000, inv.paidCents);
+    inv.paidCents -= amt;
+    inv.status = 'exception';
+    inv.notes = (inv.notes || '') + ' · Refund demo −' + money2(amt);
+    bizPaymentAttempts.unshift({
+      id: 'pay_ref_' + Date.now(),
+      invoiceId: id,
+      label: 'Refund demo · ' + inv.label,
+      amountCents: amt,
+      status: 'refund_pending',
+      atLabel: 'Just now · demo'
+    });
+    toast('Refund ' + money2(amt) + ' queued (demo · hosted processor)');
+    renderBizInvoiceDetail();
+  };
+
+  function financePeriodSummary() {
+    var rev = 0, out = 0, fees = 0, net = 0;
+    bizInvoices.forEach(function (inv) {
+      rev += inv.paidCents;
+      if (inv.status === 'outstanding') out += (inv.invoicedCents - inv.paidCents);
+      fees += inv.feeCents || 0;
+      net += inv.paidOutCents || 0;
+    });
+    return { rev: rev, out: out, fees: fees, net: net };
+  }
+
+  function renderBizFinance() {
+    var body = $('#biz-finance-body');
+    if (!body) return;
+    if (activeWorkspace !== 'business') {
+      body.innerHTML = '<div class="banner warn"><span>⚠</span><span>Owner Finance · switch to Cedar Owner.</span></div>';
+      return;
+    }
+    var s = financePeriodSummary();
+    var tab = activeBizFinanceTab;
+    var tabs = [
+      { id: 'invoices', label: 'Invoices' },
+      { id: 'payments', label: 'Payments' },
+      { id: 'payouts', label: 'Payouts' },
+      { id: 'exceptions', label: 'Exceptions' }
+    ];
+    var tabHtml = '<div class="chip-row mb-12">' + tabs.map(function (t) {
+      return '<button type="button" class="purpose-chip' + (tab === t.id ? ' on' : '') + '" onclick="setBizFinanceTab(\'' + t.id + '\')">' + t.label + '</button>';
+    }).join('') + '</div>';
+
+    var list = '';
+    if (tab === 'invoices') {
+      list = bizInvoices.map(function (inv) {
+        var bal = inv.invoicedCents - inv.paidCents;
+        return '<div class="card tap mb-8" onclick="openBizInvoice(\'' + inv.id + '\')">' +
+          '<div class="between mb-8"><span class="strong">' + inv.label + '</span><span class="pill ' + (inv.status === 'outstanding' ? 'warn' : inv.status === 'paid_out' ? 'sage' : 'ghost') + '">' + inv.status.replace(/_/g, ' ') + '</span></div>' +
+          '<div class="muted" style="font-size:12px">Quoted ' + money2(inv.quotedCents) + ' · Invoiced ' + money2(inv.invoicedCents) + ' · Paid ' + money2(inv.paidCents) + ' · Out ' + money2(inv.paidOutCents) + '</div>' +
+          '<div class="muted mt-8" style="font-size:11px">Balance ' + money2(bal) + ' · ' + inv.dueLabel + '</div></div>';
+      }).join('');
+    } else if (tab === 'payments') {
+      list = bizPaymentAttempts.map(function (p) {
+        return '<div class="card mb-8"><div class="between"><span class="strong">' + p.label + '</span><span class="pill ghost">' + p.status.replace(/_/g, ' ') + '</span></div>' +
+          '<div class="muted mt-8" style="font-size:12px">' + money2(p.amountCents) + ' · ' + p.atLabel + '</div></div>';
+      }).join('');
+    } else if (tab === 'payouts') {
+      list = bizPayouts.map(function (p) {
+        return '<div class="card mb-8"><div class="between"><span class="strong">' + p.label + '</span><span class="pill ' + (p.status === 'completed' ? 'sage' : 'ghost') + '">' + p.status + '</span></div>' +
+          '<div class="muted mt-8" style="font-size:12px">' + money2(p.amountCents) + ' → ' + p.dest + '</div>' +
+          '<div class="muted" style="font-size:11px">' + p.arrivedLabel + '</div></div>';
+      }).join('');
+    } else {
+      var ex = bizInvoices.filter(function (i) { return i.status === 'exception' || i.status === 'outstanding'; });
+      list = ex.map(function (inv) {
+        return '<div class="card tap mb-8" onclick="openBizInvoice(\'' + inv.id + '\')">' +
+          '<div class="strong">' + inv.label + '</div><p class="sub mt-8">' + inv.notes + '</p></div>';
+      }).join('') || '<p class="muted">No exceptions</p>';
+    }
+
+    body.innerHTML =
+      '<div class="banner private mb-12"><span>◎</span><span>Business ledger · distinct from personal You → Ledger. Quoted ≠ invoiced ≠ paid ≠ paid-out (P59).</span></div>' +
+      '<div class="banner info mb-12"><span>ℹ</span><span>Last reconciled <strong>' + bizLastReconciledLabel + '</strong> (demo).</span></div>' +
+      '<div class="section-label" style="margin-top:0">September CT</div>' +
+      '<div class="biz-stat-strip mb-16">' +
+        '<div class="biz-stat"><div class="biz-stat-n">' + money(s.rev) + '</div><div class="biz-stat-l">Collected</div></div>' +
+        '<div class="biz-stat"><div class="biz-stat-n">' + money(s.out) + '</div><div class="biz-stat-l">Outstanding</div></div>' +
+        '<div class="biz-stat"><div class="biz-stat-n">' + money2(s.fees) + '</div><div class="biz-stat-l">Fees</div></div>' +
+        '<div class="biz-stat"><div class="biz-stat-n">' + money(s.net) + '</div><div class="biz-stat-l">Paid out</div></div>' +
+      '</div>' +
+      tabHtml + list +
+      '<button type="button" class="btn btn-secondary mt-12" onclick="demoExportStatement()">Export statement (demo)</button>' +
+      '<button type="button" class="btn btn-ghost mt-8" style="width:100%" onclick="go(\'biz-payments\')">Open Payments &amp; payouts</button>';
+  }
+
+  function renderBizInvoiceDetail() {
+    var body = $('#biz-invoice-detail-body');
+    if (!body) return;
+    var inv = findBizInvoice(activeBizInvoiceId);
+    if (!inv) {
+      body.innerHTML = '<div class="banner warn"><span>⚠</span><span>Invoice not found.</span></div>';
+      return;
+    }
+    var bal = inv.invoicedCents - inv.paidCents;
+    var lines = inv.lines.map(function (l) {
+      return '<div class="fact-row"><span class="muted" style="font-size:12px">' + l.desc + '</span><span class="strong" style="font-size:12px">' + money2(l.amountCents) + '</span></div>';
+    }).join('');
+    var jobLink = inv.jobId && findJob(inv.jobId)
+      ? '<button type="button" class="btn btn-ghost mt-8" style="width:100%" onclick="openBizJob(\'' + inv.jobId + '\')">Open linked job</button>'
+      : '';
+    body.innerHTML =
+      '<h1 class="h1" style="font-size:20px">' + inv.label + '</h1>' +
+      '<div class="chip-row mb-12"><span class="pill sage">' + inv.status.replace(/_/g, ' ') + '</span><span class="pill ghost">' + inv.issuedLabel + '</span></div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Quoted</span><span class="strong">' + money2(inv.quotedCents) + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Invoiced</span><span class="strong">' + money2(inv.invoicedCents) + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Paid</span><span class="strong">' + money2(inv.paidCents) + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Paid out</span><span class="strong">' + money2(inv.paidOutCents) + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Deposit / credit</span><span class="strong">' + money2(inv.depositCents) + ' / ' + money2(inv.creditCents) + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Fees</span><span class="strong">' + money2(inv.feeCents) + '</span></div>' +
+      '</div>' +
+      '<div class="section-label">Line items</div><div class="card mb-12">' + lines + '</div>' +
+      '<div class="card mb-12"><div class="between"><span class="strong">Balance</span><span class="strong" style="font-size:18px">' + money2(bal) + '</span></div>' +
+        '<p class="muted mt-8" style="font-size:11px">' + inv.notes + '</p></div>' +
+      '<button type="button" class="btn btn-secondary" onclick="toast(\'Receipt PDF (demo) · not emailed\')">View receipt (demo)</button>' +
+      '<button type="button" class="btn btn-ghost mt-8" style="width:100%" onclick="demoRefundInvoice(\'' + inv.id + '\')">Refund (demo)</button>' +
+      jobLink;
+  }
+
+  window.demoTriggerPayout = function () {
+    if (!requireBizOwner('Payout')) return;
+    var pending = bizPayouts.filter(function (p) { return p.status === 'scheduled'; })[0];
+    if (!pending) { toast('No scheduled payout'); return; }
+    pending.status = 'completed';
+    pending.arrivedLabel = 'Just now · demo';
+    // Mark loft invoice paid-out fractionally
+    var loft = findBizInvoice('inv_loft_turnover_02');
+    if (loft && loft.paidOutCents < loft.paidCents - loft.feeCents) {
+      loft.paidOutCents = loft.paidCents - loft.feeCents;
+      loft.status = 'paid_out';
+    }
+    toast('Payout ' + money2(pending.amountCents) + ' sent (demo · hosted processor)');
+    if (current === 'biz-payments') renderBizPayments();
+    if (current === 'biz-finance') renderBizFinance();
+  };
+
+  function renderBizPayments() {
+    var body = $('#biz-payments-body');
+    if (!body) return;
+    var attempts = bizPaymentAttempts.map(function (p) {
+      return '<div class="team-row"><div class="flex-1"><div class="strong" style="font-size:13px">' + p.label + '</div><div class="muted" style="font-size:11px">' + p.atLabel + '</div></div>' +
+        '<div style="text-align:right"><div class="strong" style="font-size:13px">' + money2(p.amountCents) + '</div><span class="pill ghost">' + p.status.replace(/_/g, ' ') + '</span></div></div>';
+    }).join('');
+    var pos = bizPayouts.map(function (p) {
+      return '<div class="team-row"><div class="flex-1"><div class="strong" style="font-size:13px">' + p.label + '</div><div class="muted" style="font-size:11px">' + p.arrivedLabel + ' · ' + p.dest + '</div></div>' +
+        '<div style="text-align:right"><div class="strong">' + money2(p.amountCents) + '</div><span class="pill ' + (p.status === 'completed' ? 'sage' : 'ghost') + '">' + p.status + '</span></div></div>';
+    }).join('');
+    body.innerHTML =
+      '<div class="banner warn mb-12"><span>⚠</span><span><strong>Hosted processor</strong> honesty: Domicile does not store card numbers. Not a stored-value wallet. Prototype only — no real charges.</span></div>' +
+      '<div class="card mb-12">' +
+        '<div class="between mb-8"><span class="strong">Payee onboarding</span><span class="pill sage">Connected</span></div>' +
+        '<p class="sub">Demo processor linked · payout to checking ·····4821. Schedule: twice weekly (Tue/Fri CT).</p>' +
+      '</div>' +
+      '<div class="section-label">Payout schedule</div>' +
+      '<div class="card mb-12">' + pos + '</div>' +
+      '<button type="button" class="btn btn-primary mb-16" onclick="demoTriggerPayout()">Run next payout (demo)</button>' +
+      '<div class="section-label">Payment attempts · returns · refunds</div>' +
+      '<div class="card mb-12">' + attempts + '</div>';
+  }
+
+  window.toggleBizIntegration = function (id) {
+    if (!requireBizOwner('Integration')) return;
+    var item = null;
+    for (var i = 0; i < bizIntegrations.length; i++) if (bizIntegrations[i].id === id) item = bizIntegrations[i];
+    if (!item) return;
+    if (item.status === 'connected') item.status = 'not_connected';
+    else if (item.status === 'needs_reauth') item.status = 'connected';
+    else item.status = 'connected';
+    toast(item.name + ' → ' + item.status.replace(/_/g, ' ') + ' (demo)');
+    renderBizIntegrations();
+  };
+
+  function renderBizIntegrations() {
+    var body = $('#biz-integrations-body');
+    if (!body) return;
+    var cards = bizIntegrations.map(function (it) {
+      var pill = it.status === 'connected' ? 'sage' : it.status === 'needs_reauth' ? 'warn' : 'ghost';
+      return '<div class="card mb-8">' +
+        '<div class="between mb-8"><span class="strong">' + it.name + '</span><span class="pill ' + pill + '">' + it.status.replace(/_/g, ' ') + '</span></div>' +
+        '<p class="sub">Authority: ' + it.authority + '</p>' +
+        '<p class="muted mt-8" style="font-size:11px">' + it.honesty + '</p>' +
+        '<button type="button" class="btn btn-secondary mt-12" onclick="toggleBizIntegration(\'' + it.id + '\')">Toggle (demo)</button>' +
+      '</div>';
+    }).join('');
+    body.innerHTML =
+      '<div class="banner private mb-12"><span>◎</span><span>Connectors declare authority explicitly (P58). Demo toggles only — not real OAuth.</span></div>' +
+      cards;
+  }
+
+  function renderBizGrowth() {
+    var body = $('#biz-growth-body');
+    if (!body) return;
+    var g = bizGrowth;
+    var camps = g.campaigns.map(function (c) {
+      return '<div class="card mb-8">' +
+        '<div class="between mb-8"><span class="strong">' + c.name + '</span><span class="pill ' + (c.channel === 'sponsored' ? 'warn' : 'sage') + '">' + c.channel + '</span></div>' +
+        '<div class="muted" style="font-size:12px">Inquiries ' + c.inquiries + ' · Quotes ' + c.quotes + ' · Accepted ' + c.accepted + '</div>' +
+        '<div class="muted mt-8" style="font-size:11px">Status: ' + c.status + (c.channel === 'sponsored' ? ' · Ad-labeled upstream' : ' · Organic') + '</div></div>';
+    }).join('');
+    body.innerHTML =
+      '<div class="banner info mb-12"><span>ℹ</span><span>Honest funnel metrics — inquiries → quotes → accepted → completed. Not vanity impressions.</span></div>' +
+      '<div class="section-label" style="margin-top:0">' + g.periodLabel + '</div>' +
+      '<div class="biz-stat-strip mb-16">' +
+        '<div class="biz-stat"><div class="biz-stat-n">' + g.inquiries + '</div><div class="biz-stat-l">Inquiries</div></div>' +
+        '<div class="biz-stat"><div class="biz-stat-n">' + g.quotesSent + '</div><div class="biz-stat-l">Quotes</div></div>' +
+        '<div class="biz-stat"><div class="biz-stat-n">' + g.accepted + '</div><div class="biz-stat-l">Accepted</div></div>' +
+        '<div class="biz-stat"><div class="biz-stat-n">' + g.completed + '</div><div class="biz-stat-l">Completed</div></div>' +
+      '</div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Organic inquiries</span><span class="strong">' + g.organicInquiries + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Sponsored clicks (Ad)</span><span class="strong">' + g.sponsoredClicks + '</span></div>' +
+      '</div>' +
+      '<div class="section-label">Campaigns</div>' + camps;
+  }
+
+  window.openBizPauseSheet = function () {
+    if (!requireBizOwner('Pause business')) return;
+    var bd = $('#biz-pause-backdrop');
+    var sh = $('#biz-pause-sheet');
+    if (bd) bd.classList.add('show');
+    if (sh) sh.classList.add('show');
+  };
+  window.closeBizPauseSheet = function () {
+    var bd = $('#biz-pause-backdrop');
+    var sh = $('#biz-pause-sheet');
+    if (bd) bd.classList.remove('show');
+    if (sh) sh.classList.remove('show');
+  };
+  window.confirmBizPause = function () {
+    if (!requireBizOwner('Pause')) return;
+    bizPausedAccepting = true;
+    closeBizPauseSheet();
+    toast('Paused accepting new work (demo)');
+    if (current === 'biz-settings') renderBizSettings();
+    if (current === 'biz-profile') renderBizProfile();
+  };
+  window.toggleBizNotify = function (key) {
+    if (!requireBizOwner('Settings')) return;
+    bizSettings[key] = !bizSettings[key];
+    toast((key.replace('notify', '')) + ' → ' + (bizSettings[key] ? 'on' : 'off') + ' (demo)');
+    renderBizSettings();
+  };
+  window.demoBizDataExport = function () {
+    if (!requireBizOwner('Export')) return;
+    toast('Org data export queued (demo) · JSON zip');
+  };
+
+  function renderBizSettings() {
+    var body = $('#biz-settings-body');
+    if (!body) return;
+    if (activeWorkspace !== 'business' || activeAccount !== 'al') {
+      body.innerHTML = '<div class="banner warn mb-12"><span>⚠</span><span>Business settings are <strong>owner-only</strong>. Switch to Cedar &amp; Stone · Owner.</span></div>' +
+        '<button class="btn btn-primary" onclick="openAccountSwitcher()">Switch account…</button>';
+      return;
+    }
+    var s = bizSettings;
+    body.innerHTML =
+      '<div class="banner private mb-12"><span>◎</span><span>Owner-only org settings. Quiet hours &amp; role defaults do not change personal Pause sharing.</span></div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Legal name</span><span class="strong" style="font-size:12px">' + s.legalName + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Timezone</span><span class="strong" style="font-size:12px">' + s.timezone + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Quiet hours</span><span class="strong" style="font-size:12px">' + s.quietHours + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Accepting work</span><span class="strong" style="font-size:12px">' + (bizPausedAccepting ? 'Paused' : 'Open') + '</span></div>' +
+      '</div>' +
+      '<div class="section-label">Notifications</div>' +
+      '<div class="card mb-12" style="padding:4px 16px">' +
+        '<div class="you-row" onclick="toggleBizNotify(\'notifyInquiries\')"><span class="y-label">New inquiries</span><span class="y-meta">' + (s.notifyInquiries ? 'On' : 'Off') + '</span></div>' +
+        '<div class="you-row" onclick="toggleBizNotify(\'notifyPayouts\')"><span class="y-label">Payouts</span><span class="y-meta">' + (s.notifyPayouts ? 'On' : 'Off') + '</span></div>' +
+        '<div class="you-row" onclick="toggleBizNotify(\'notifyExceptions\')"><span class="y-label">Exceptions / refunds</span><span class="y-meta">' + (s.notifyExceptions ? 'On' : 'Off') + '</span></div>' +
+      '</div>' +
+      '<div class="section-label">Role defaults</div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Owner</span><span class="strong" style="font-size:11px">' + s.roleDefaultOwner + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Crew</span><span class="strong" style="font-size:11px">' + s.roleDefaultCrew + '</span></div>' +
+      '</div>' +
+      '<button type="button" class="btn btn-secondary" onclick="demoBizDataExport()">Export org data (demo)</button>' +
+      '<button type="button" class="btn btn-ghost mt-8" style="width:100%" onclick="openBizPauseSheet()">' + (bizPausedAccepting ? 'Already paused' : 'Pause / close business…') + '</button>' +
+      '<p class="muted mt-16" style="font-size:11px;text-align:center">Optional View-as-Crew lens removed from hub — use Switch → Casey.</p>';
   }
 
   window.setBizRoleLens = function (role) {
@@ -3532,7 +4457,7 @@
     if (current === 'biz-inquiry-detail') renderBizInquiryDetail();
   };
 
-  /* ========== Crew account (Casey Nguyen @ Cedar & Stone) ========== */
+  /* ========== Crew account (Casey Nguyen @ Cedar & Stone) ========== */  /* ========== Crew account (Casey Nguyen @ Cedar & Stone) ========== */
 
   window.openCrewJob = function (id) {
     var j = findJob(id);
