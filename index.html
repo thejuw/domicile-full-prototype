@@ -158,6 +158,20 @@
               </div>
             </div>
 
+            <div class="section-label">Messages</div>
+            <div class="card tap" onclick="go('messages')">
+              <div class="between">
+                <div class="row gap-md">
+                  <div class="spend-ico" style="background:var(--accent-soft);font-size:16px">💬</div>
+                  <div>
+                    <div class="strong" style="font-size:14px">Messages</div>
+                    <div class="muted" id="today-messages-meta">3 unread · Stay · Service · Support</div>
+                  </div>
+                </div>
+                <span class="pill sage" id="today-messages-badge">3</span>
+              </div>
+            </div>
+
             <div class="section-label">Quiet</div>
             <div class="card tap" onclick="goPermissionsTab('shared')">
               <div class="between">
@@ -1067,7 +1081,7 @@
             </div>
 
             <div class="btn-row mb-8">
-              <button class="btn btn-secondary" onclick="go('trip-messaging')">Message host</button>
+              <button class="btn btn-secondary" onclick="openMessageThread('thr_mira_01')">Message host</button>
               <button class="btn btn-primary" onclick="go('trip-active')">I’m here · check in</button>
             </div>
           </div>
@@ -1080,15 +1094,9 @@
             <span></span>
           </div>
           <div class="pad">
-            <div id="msg-thread" style="min-height:280px;padding-bottom:12px">
-              <div class="msg host">Welcome! Address unlocks tomorrow afternoon. Text if you need anything.<div class="when">Yesterday</div></div>
-              <div class="msg guest">Thanks — looking forward to it.<div class="when">Yesterday</div></div>
-              <div class="msg host">Street parking is easier on the east side after 6.<div class="when">10:12 AM</div></div>
-            </div>
-            <div class="row gap-sm" style="position:sticky;bottom:calc(var(--nav-h) + 8px);background:var(--bg);padding:8px 0">
-              <div class="field flex-1" style="padding:8px 12px"><input id="msg-input" placeholder="Message Mira…" /></div>
-              <button class="btn btn-primary btn-sm" style="width:auto;padding:0 16px" onclick="sendMsg()">Send</button>
-            </div>
+            <div class="banner info mb-12"><span>ℹ</span><span>Stay messaging now lives in the shared Messages inbox (E19).</span></div>
+            <button class="btn btn-primary" onclick="openMessageThread('thr_mira_01')">Open Mira thread</button>
+            <button class="btn btn-secondary mt-8" onclick="go('messages')">All Messages</button>
           </div>
         </section>
 
@@ -1111,7 +1119,7 @@
               <div class="quote-line"><span>Access code</span><span class="strong">48291#</span></div>
               <div class="quote-line"><span>Checkout</span><span>Sep 26 · 11:00 AM</span></div>
             </div>
-            <button class="btn btn-secondary mb-8" onclick="go('trip-messaging')">Message host</button>
+            <button class="btn btn-secondary mb-8" onclick="openMessageThread('thr_mira_01')">Message host</button>
             <button class="btn btn-primary" onclick="go('trip-checkout-flow')">Ready to check out</button>
           </div>
         </section>
@@ -1197,6 +1205,10 @@
               <div class="you-row" onclick="go('permissions')"><span>◎</span><span class="y-label">Permissions &amp; sharing</span><span class="y-chev">›</span></div>
               <div class="you-row" onclick="go('connected-services')"><span>↔</span><span class="y-label">Connected services</span><span class="y-meta" id="you-cs-meta">9</span><span class="y-chev">›</span></div>
               <div class="you-row" onclick="go('move-planning')"><span>→</span><span class="y-label">Move planning</span><span class="y-meta" id="you-move-meta">3/8</span><span class="y-chev">›</span></div>
+            </div>
+            <div class="card mb-8">
+              <div class="you-row" onclick="go('messages')"><span>💬</span><span class="y-label">Messages</span><span class="y-meta" id="you-messages-meta">3 unread</span><span class="y-chev">›</span></div>
+              <div class="you-row" onclick="go('notifications')"><span>🔔</span><span class="y-label">Notifications</span><span class="y-meta">Prefs</span><span class="y-chev">›</span></div>
             </div>
             <div class="card">
               <div class="you-row" onclick="go('public-gallery')"><span>◎</span><span class="y-label">Public &amp; guest links (demo)</span><span class="y-meta">W8</span><span class="y-chev">›</span></div>
@@ -1497,12 +1509,74 @@ AL</div>
 
         <section class="screen" data-screen="support" data-nav="you">
           <div class="topbar"><button class="back" onclick="go('you')">‹ You</button><span class="title">Support</span><span></span></div>
-          <div class="pad">
-            <div class="card mb-8 tap" onclick="toast('Help center (prototype)')"><div class="between"><span class="strong">Help center</span><span>›</span></div></div>
-            <div class="card mb-8 tap" onclick="toast('Message support (prototype)')"><div class="between"><span class="strong">Message Domicile</span><span>›</span></div></div>
-            <div class="card mb-8 tap" onclick="go('public-gallery')"><div class="between"><span class="strong">Public &amp; guest links (demo)</span><span>›</span></div></div>
-            <div class="card"><div class="h3">About this prototype</div><p class="sub mt-8">Planning edition 3.2 · fictional Austin sample · not production. No real payments, auth, or map tiles. Includes W8 public/guest share shell.</p></div>
+          <div class="pad" id="support-hub-body"><!-- filled by JS --></div>
+        </section>
+
+        <!-- ========== MESSAGES / ASSIST / CASES (E19 · E22) ========== -->
+        <section class="screen" data-screen="messages" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('you')">‹ You</button>
+            <span class="title">Messages</span>
+            <div class="row gap-sm" style="gap:6px">
+              <button class="icon-btn" onclick="openMsgOverflow()" title="More">⋯</button>
+              <button class="icon-btn" onclick="go('message-compose')" title="New">＋</button>
+            </div>
           </div>
+          <div class="pad" id="messages-hub-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="message-thread" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('messages')">‹ Inbox</button>
+            <span class="title" id="msg-thread-title">Thread</span>
+            <button class="icon-btn" onclick="openAssistFromThread()" title="Assist">✦</button>
+          </div>
+          <div class="pad" id="message-thread-body" style="padding-bottom:88px"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="message-compose" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('messages')">‹ Inbox</button>
+            <span class="title">New message</span>
+            <span></span>
+          </div>
+          <div class="pad" id="message-compose-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="notifications" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('you')">‹ You</button>
+            <span class="title">Notifications</span>
+            <span></span>
+          </div>
+          <div class="pad" id="notifications-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="assist" data-nav="you">
+          <div class="topbar">
+            <button class="back" id="assist-back-btn" onclick="leaveAssist()">‹ Back</button>
+            <span class="title">Assist</span>
+            <button class="icon-btn" onclick="escalateAssistToHuman()" title="Escalate">⇪</button>
+          </div>
+          <div class="pad" id="assist-body" style="padding-bottom:88px"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="support-cases" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('support')">‹ Support</button>
+            <span class="title">Cases</span>
+            <span></span>
+          </div>
+          <div class="pad" id="support-cases-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="support-case" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('support-cases')">‹ Cases</button>
+            <span class="title" id="support-case-title">Case</span>
+            <span></span>
+          </div>
+          <div class="pad" id="support-case-body"><!-- filled by JS --></div>
         </section>
 
 
@@ -1669,7 +1743,7 @@ AL</div>
             <div class="card mb-16">
               <p class="sub">Guest code issues at pre-arrival window. Household codes stay separate.</p>
             </div>
-            <button class="btn btn-ghost" style="width:100%" onclick="go('trip-messaging')">Message guest</button>
+            <button class="btn btn-ghost" style="width:100%" onclick="openMessageThread('thr_mira_01')">Message guest</button>
           </div>
         </section>
 
@@ -2133,6 +2207,36 @@ AL</div>
       </div>
 
       <!-- Account switcher -->
+      <!-- Messages / Assist sheets -->
+      <div class="sheet-backdrop" id="msg-action-backdrop" onclick="closeMsgActionSheet()"></div>
+      <div class="sheet" id="msg-action-sheet" role="dialog" aria-modal="true">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" style="font-size:18px;margin-bottom:8px">Attach action</h2>
+        <p class="sub mb-12">Structured actions allowed for this thread context.</p>
+        <div id="msg-action-sheet-body"></div>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeMsgActionSheet()">Cancel</button>
+      </div>
+
+      <div class="sheet-backdrop" id="assist-tool-backdrop" onclick="closeAssistToolSheet()"></div>
+      <div class="sheet" id="assist-tool-sheet" role="dialog" aria-modal="true">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" style="font-size:18px;margin-bottom:8px" id="assist-tool-title">Confirm action</h2>
+        <p class="sub mb-12" id="assist-tool-sub">Review exact parameters before Assist writes.</p>
+        <div id="assist-tool-sheet-body"></div>
+        <button class="btn btn-primary mt-12" id="assist-tool-confirm-btn" onclick="confirmAssistTool()">Confirm</button>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeAssistToolSheet()">Cancel</button>
+      </div>
+
+      <div class="sheet-backdrop" id="msg-overflow-backdrop" onclick="closeMsgOverflow()"></div>
+      <div class="sheet" id="msg-overflow-sheet" role="dialog" aria-modal="true">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" style="font-size:18px;margin-bottom:12px">Messages</h2>
+        <div class="card mb-8 tap" onclick="closeMsgOverflow();go('notifications')"><div class="between"><span class="strong">Notification preferences</span><span>›</span></div></div>
+        <div class="card mb-8 tap" onclick="closeMsgOverflow();go('message-compose')"><div class="between"><span class="strong">New contextual message</span><span>›</span></div></div>
+        <div class="card mb-8 tap" onclick="closeMsgOverflow();scheduleThreadReminder()"><div class="between"><span class="strong">Schedule reminder</span><span class="muted">Fri 9am CT</span></div></div>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeMsgOverflow()">Close</button>
+      </div>
+
       <div class="sheet-backdrop" id="acct-switch-backdrop" onclick="closeAccountSwitcher()"></div>
       <div class="sheet" id="acct-switch-sheet" role="dialog" aria-modal="true" aria-labelledby="acct-switch-title">
         <div class="sheet-handle"></div>

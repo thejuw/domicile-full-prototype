@@ -14,7 +14,7 @@ open /workspace/domicile-full-prototype/index.html
 python3 -m http.server 8765 --directory /workspace/domicile-full-prototype
 ```
 
-Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-prototype/. Hash routes work (e.g. `#stays-search`, `#permissions`, `#service-inquiry`, `#org-events`, `#org-event-detail`, `#org-event-edit`, `#biz-today`, `#biz-inbox`, `#biz-jobs`, `#biz-profile`, `#biz-finance`, `#biz-payments`, `#biz-settings`, `#biz-catalog`, `#biz-customers`, `#biz-team`, `#crew-today`, `#crew-jobs`, `#crew-job-detail`, `#crew-me`, plus **W8** `#public`, `#public-business`, `#public-event`, `#public-stay`, `#public-stay-invite`, `#public-place`, `#public-qr`, `#public-handle`, `#public-signin`, `#public-gallery`). Bottom nav remembers the last screen per tab; **Owner / Crew / Personal navs replace each other** after Switch account (or cross-mode hash). **Public workspace hides all bottom navs.**
+Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-prototype/. Hash routes work (e.g. `#stays-search`, `#permissions`, `#service-inquiry`, `#org-events`, `#org-event-detail`, `#org-event-edit`, `#biz-today`, `#biz-inbox`, `#biz-jobs`, `#biz-profile`, `#biz-finance`, `#biz-payments`, `#biz-settings`, plus **Messages** `#messages`, `#message-thread`, `#message-compose`, `#notifications`, `#assist`, `#support-cases`, `#support-case`, `#biz-catalog`, `#biz-customers`, `#biz-team`, `#crew-today`, `#crew-jobs`, `#crew-job-detail`, `#crew-me`, plus **W8** `#public`, `#public-business`, `#public-event`, `#public-stay`, `#public-stay-invite`, `#public-place`, `#public-qr`, `#public-handle`, `#public-signin`, `#public-gallery`). Bottom nav remembers the last screen per tab; **Owner / Crew / Personal navs replace each other** after Switch account (or cross-mode hash). **Public workspace hides all bottom navs.**
 
 **Files:** `index.html` · `app.css` · `app.js` · this README.
 
@@ -27,7 +27,7 @@ Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-pr
 | **Map** | Permissioned faux MapLibre UI · layer toggles (destinations / businesses / events) · SVG city blobs |
 | **Places** | Homes list → **East Cesar Chavez Cottage** Home Profile → Household · Facts/assets · Spending · Bills · Community (HOA balance) · Maintenance · **Hosting** |
 | **Explore** | Hub → **Stays** · Services · Events · Packages · Sponsored (Ad-labeled) |
-| **You** | Identity · Trips · Hosting · **Events I'm organizing** · Ledger · **Permissions & sharing** · **Connected services** · Move planning · **Public & guest links (W8)** · Support |
+| **You** | Identity · Trips · Hosting · **Events I'm organizing** · Ledger · **Permissions & sharing** · **Connected services** · Move planning · **Messages** · Notifications · **Public & guest links (W8)** · Support / Assist / Cases |
 
 ### Stays — guest (Explore → Stays)
 Search → results list/map → listing → checkout (instant / request) → confirmation → Trips → pre-arrival lock → **Demo unlock** → address / house guide / code → messaging → active stay → checkout checklist → receipt / review
@@ -207,7 +207,37 @@ Base: `https://thejuw.github.io/domicile-full-prototype/`
 7. Sign-in continuation unlocks permitted fields without full account switcher  
 8. Personal / business / crew flows unchanged  
 
-Kit engines: E01, E03–E06, E08–E11, E13, E19, E23 · inventory **W8**.
+Kit engines: E01, E03–E06, E08–E11, E13, **E19**, **E22**, E23 · inventory **W8** · Messages/Assist/Cases on personal shell.
+
+
+### Messages · Assist · Support cases (~90s · E19 / E22 · P70/P71)
+
+Personal inbox for **contextual** threads (not a free-floating social DM). Owner Inbox stays the business inquiry CRM.
+
+#### Deep links
+| Surface | Hash |
+|---------|------|
+| Inbox hub | `#messages` |
+| Thread (Mira stay) | open from hub or `openMessageThread('thr_mira_01')` |
+| Compose (context-first) | `#message-compose` |
+| Notification prefs | `#notifications` |
+| Assist (context-scoped) | `#assist` |
+| Support hub | `#support` |
+| Cases list / detail | `#support-cases` · `#support-case` |
+
+Also: Today → Messages card · You → Messages (unread badge) · Stay **Message host/guest** → same Mira thread · trip-messaging redirects into shared store.
+
+#### 90s click path (E19 + E22)
+1. **You → Messages** — filter chips All / Stays / Services / Events / Sharing / Move / Support · 7 seeded threads  
+2. Open **Mira R.** — bubbles + house-guide action card · tap outbound ✓ to cycle Sent→Delivered→Read · **Reminder**  
+3. Open **Cedar & Stone** — alias banner **River Guest** · Approve exact + View/Accept quote action cards  
+4. Thread ✦ **Assist** — permission banner · citations (HA-*) · Look up status (read) · refuse “issue a refund” · **Escalate to human** → case with handoff packet  
+5. **Support → Cases** — open Amazon case · note **Closing chat ≠ closing case** · Close case control separate · simulate human reply  
+6. Overflow ⋯ → **Notification preferences** — quiet hours CT · per-context toggles · marketing off  
+
+Seeds: Mira stay · Cedar/River Guest inquiry · Casey job update · Porch Social · Maya grant · Holly Grove move draft · Support case. Biz Owner Inbox unchanged.
+
+Kit: **E19** contextual threads, structured actions, delivery, reminders, notification prefs · **E22** Assist retrieval with citations, bounded tools + confirm, human handoff packet, case management · **P70/P71** permission-filtered knowledge, no general DB/SQL, writes need exact-param confirm, closed chat ≠ issue resolved.
 
 ### Move Planning (AI-assisted sketch)
 Overview (East Cesar Chavez → South Lamar) → recipient checklist with channel/status chips → Assist draft preview (facts from Move Engine; you send) → USPS official-form handoff (never auto-filed) → Suggest missing recipients (DMV, voter reg demo tips)

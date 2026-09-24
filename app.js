@@ -12,6 +12,8 @@
   const YOU_SCREENS = {
     'ledger': 1, 'move-planning': 1, 'move-checklist': 1, 'move-draft': 1, 'move-usps': 1,
     'permissions': 1, 'permission-detail': 1, 'connections': 1, 'connected-services': 1, 'connected-service-detail': 1, 'support': 1,
+    'messages': 1, 'message-thread': 1, 'message-compose': 1, 'notifications': 1, 'assist': 1,
+    'support-cases': 1, 'support-case': 1, 'trip-messaging': 1,
     'org-events': 1, 'org-event-edit': 1, 'org-event-detail': 1, 'org-event-participant': 1
   };
 
@@ -815,6 +817,10 @@
 
   window.go = function (name) {
     if (name === 'connections') name = 'connected-services';
+    if (name === 'trip-messaging') {
+      if (typeof openMessageThread === 'function') { openMessageThread('thr_mira_01'); return; }
+      name = 'message-thread';
+    }
     name = normalizePublicRoute(name);
     const next = $('[data-screen="' + name + '"]');
     if (!next) { console.warn('Missing screen:', name); return; }
@@ -909,6 +915,15 @@
     if (name === 'org-event-detail') renderOrgEventDetail();
     if (name === 'org-event-participant') renderOrgEventParticipant();
     if (name === 'you') updateOrgEventsSummaries();
+    if (name === 'messages') renderMessagesHub();
+    if (name === 'message-thread') renderMessageThread();
+    if (name === 'message-compose') renderMessageCompose();
+    if (name === 'notifications') renderNotifications();
+    if (name === 'assist') renderAssist();
+    if (name === 'support') renderSupportHub();
+    if (name === 'support-cases') renderSupportCases();
+    if (name === 'support-case') renderSupportCase();
+    if (name === 'you' || name === 'today') updateMessagesBadges();
     if (name === 'public-entry') renderPublicEntry();
     if (name === 'public-qr') renderPublicQr();
     if (name === 'public-business') renderPublicBusiness();
@@ -6272,6 +6287,1092 @@
   }
 
     var toastTimer;
+
+  // ========== E19 Messages · E22 Assist / Support ==========
+  var msgFilter = 'all';
+  var activeThreadId = 'thr_mira_01';
+  var activeCaseId = 'case_amazon_01';
+  var assistReturnScreen = 'messages';
+  var assistContext = { threadId: null, label: 'General', type: 'general', objectId: null };
+  var assistChat = [];
+  var pendingAssistTool = null;
+  var composeStep = 'context';
+  var composeContext = null;
+  var caseFilter = 'open';
+
+  var notifPrefs = {
+    messages: true,
+    reminders: true,
+    marketing: false,
+    quietStart: '21:00',
+    quietEnd: '07:00',
+    quietOn: true,
+    channels: { inapp: true, push: true, email: false },
+    contexts: { stays: true, services: true, events: true, sharing: true, move: true, support: true }
+  };
+
+  var helpArticles = [
+    { id: 'HA-120', title: 'Stay check-in & house guide', blurb: 'Address unlocks 24h before check-in. House guide and codes appear after unlock.' },
+    { id: 'HA-214', title: 'Private inquiry & exact address', blurb: 'Approx area is default. Exact needs your Approve. Quote ≠ booking.' },
+    { id: 'HA-308', title: 'Move drafts & USPS handoff', blurb: 'Assist drafts language only. Move Engine owns recipients and status. You confirm every send.' },
+    { id: 'HA-401', title: 'Connected services updates', blurb: 'API apply vs deep link vs draft. Confirmed orders do not silently move.' },
+    { id: 'HA-512', title: 'Support cases vs chat', blurb: 'Closing a chat does not close a case. Cases keep their own state and handoff packet.' }
+  ];
+
+  var messageThreads = [
+    {
+      id: 'thr_mira_01',
+      context: 'stays',
+      contextLabel: 'Stay',
+      title: 'Mira R.',
+      subtitle: 'Oak & Waller Loft · Sep 23–26',
+      avatar: 'MR',
+      avatarColor: '#6a7a55',
+      preview: 'Street parking is easier on the east side after 6.',
+      timeLabel: '10:12a',
+      unread: 1,
+      objectType: 'trip',
+      objectId: 'trip_oak_waller',
+      objectScreen: 'trip-prearrival',
+      counterpart: 'Mira R.',
+      alias: null,
+      reminder: null,
+      allowedActions: ['view_house_guide', 'unlock_stay']
+    },
+    {
+      id: 'thr_cedar_01',
+      context: 'services',
+      contextLabel: 'Service',
+      title: 'Cedar & Stone',
+      subtitle: 'Deep clean inquiry · River Guest',
+      avatar: 'CS',
+      avatarColor: '#2F5D50',
+      preview: 'Quote ready · $185 · Deep clean 3hr',
+      timeLabel: 'Yesterday',
+      unread: 1,
+      objectType: 'inquiry',
+      objectId: 'grant_inq_cedar_7a2f',
+      objectScreen: 'permission-detail',
+      counterpart: 'Cedar & Stone Clean Co.',
+      alias: 'River Guest',
+      reminder: null,
+      allowedActions: ['approve_exact', 'view_quote', 'accept_quote']
+    },
+    {
+      id: 'thr_job_01',
+      context: 'services',
+      contextLabel: 'Job',
+      title: 'Casey · Crew',
+      subtitle: 'Turnover · East Cesar Chavez',
+      avatar: 'CN',
+      avatarColor: '#5a7a8a',
+      preview: 'On the way · ETA ~15 min',
+      timeLabel: '8:40a',
+      unread: 0,
+      objectType: 'job',
+      objectId: 'job_turnover_02',
+      objectScreen: 'appointment-detail',
+      counterpart: 'Casey Nguyen',
+      alias: null,
+      reminder: null,
+      allowedActions: ['view_job']
+    },
+    {
+      id: 'thr_porch_01',
+      context: 'events',
+      contextLabel: 'Event',
+      title: 'Porch Social',
+      subtitle: 'Organizer broadcast · Sat Oct 4',
+      avatar: 'PS',
+      avatarColor: '#C45C26',
+      preview: 'Venue window confirmed · porch garden',
+      timeLabel: 'Mon',
+      unread: 0,
+      objectType: 'event',
+      objectId: 'evt_porch_01',
+      objectScreen: 'org-event-detail',
+      counterpart: 'Lantern Guest',
+      alias: 'Lantern Guest',
+      reminder: null,
+      allowedActions: ['confirm_rsvp', 'view_event']
+    },
+    {
+      id: 'thr_maya_01',
+      context: 'sharing',
+      contextLabel: 'Sharing',
+      title: 'Maya Chen',
+      subtitle: 'Pin grant · approx area',
+      avatar: 'MC',
+      avatarColor: '#2F5D50',
+      preview: 'Maya viewed your pin',
+      timeLabel: 'Tue',
+      unread: 1,
+      objectType: 'grant',
+      objectId: 'grant_maya_4c2e',
+      objectScreen: 'permission-detail',
+      counterpart: 'Maya Chen',
+      alias: null,
+      reminder: null,
+      allowedActions: ['extend_grant', 'revoke_grant', 'view_grant']
+    },
+    {
+      id: 'thr_move_01',
+      context: 'move',
+      contextLabel: 'Move',
+      title: 'Holly Grove HOA',
+      subtitle: 'Address change draft · Nov 1',
+      avatar: 'HG',
+      avatarColor: '#6B5B4A',
+      preview: 'Draft ready for your confirm',
+      timeLabel: 'Sun',
+      unread: 0,
+      objectType: 'move',
+      objectId: 'hoa',
+      objectScreen: 'move-draft',
+      counterpart: 'Holly Grove Association',
+      alias: null,
+      reminder: null,
+      allowedActions: ['open_move_draft', 'mark_recipient_updated']
+    },
+    {
+      id: 'thr_support_01',
+      context: 'support',
+      contextLabel: 'Support',
+      title: 'Domicile Support',
+      subtitle: 'Case · Connected service update',
+      avatar: 'DS',
+      avatarColor: '#57534E',
+      preview: 'Human handoff packet attached',
+      timeLabel: 'Fri',
+      unread: 1,
+      objectType: 'case',
+      objectId: 'case_amazon_01',
+      objectScreen: 'support-case',
+      counterpart: 'Domicile Support',
+      alias: null,
+      reminder: null,
+      allowedActions: ['view_case', 'open_assist']
+    }
+  ];
+
+  var messageStore = {
+    thr_mira_01: [
+      { id: 'm1', from: 'them', text: 'Welcome! Address unlocks tomorrow afternoon. Text if you need anything.', time: 'Yesterday', delivery: null },
+      { id: 'm2', from: 'me', text: 'Thanks — looking forward to it.', time: 'Yesterday', delivery: 'read' },
+      { id: 'm3', from: 'them', text: 'Street parking is easier on the east side after 6.', time: '10:12 AM', delivery: null },
+      { id: 'm4', from: 'system', text: 'Check-in tips shared · house guide available after unlock', time: '10:13 AM', delivery: null },
+      { id: 'm5', from: 'action', action: 'view_house_guide', title: 'House guide', body: 'Wifi, parking, quiet hours, trash day — unlocks with address.', primary: 'View house guide', time: '10:13 AM' }
+    ],
+    thr_cedar_01: [
+      { id: 'c1', from: 'them', text: 'Thanks for the private inquiry. We can deep-clean Thu 10–1.', time: 'Mon', delivery: null },
+      { id: 'c2', from: 'me', text: 'That window works. Approx area is fine for now.', time: 'Mon', delivery: 'read' },
+      { id: 'c3', from: 'system', text: 'Exact address still pending your approval · identity shown as River Guest', time: 'Mon', delivery: null },
+      { id: 'c4', from: 'action', action: 'approve_exact', title: 'Approve exact address', body: 'Cedar & Stone requested exact pin for this inquiry only. Quote ≠ booking.', primary: 'Approve exact', secondary: 'Not now', time: 'Tue' },
+      { id: 'c5', from: 'them', text: 'Quote ready when you are.', time: 'Yesterday', delivery: null },
+      { id: 'c6', from: 'action', action: 'view_quote', title: 'Quote · $185', body: 'Deep clean · 3 hr · expires Fri · quote_cedar_demo', primary: 'View quote', secondary: 'Accept quote', time: 'Yesterday' }
+    ],
+    thr_job_01: [
+      { id: 'j1', from: 'system', text: 'Casey Nguyen started turnover job', time: '8:14 AM', delivery: null },
+      { id: 'j2', from: 'them', text: 'On the way — traffic light on Chavez. ETA ~15 min.', time: '8:40 AM', delivery: null },
+      { id: 'j3', from: 'action', action: 'view_job', title: 'Turnover job', body: 'East Cesar Chavez Cottage · crew on the way', primary: 'View job', time: '8:40 AM' }
+    ],
+    thr_porch_01: [
+      { id: 'p1', from: 'me', text: 'Broadcast: Porch Social is confirmed Sat Oct 4 · 4–7p. Bring a dish if you like.', time: 'Mon', delivery: 'delivered' },
+      { id: 'p2', from: 'them', text: 'Thanks! Looking forward to it.', time: 'Mon', delivery: null },
+      { id: 'p3', from: 'action', action: 'confirm_rsvp', title: 'RSVP status', body: 'Lantern Guest · Interest recorded · not a seat yet', primary: 'Confirm venue window', secondary: 'View event', time: 'Mon' }
+    ],
+    thr_maya_01: [
+      { id: 'y1', from: 'system', text: 'Maya viewed your pin · approx area · grant_maya_4c2e', time: 'Tue 2:14p', delivery: null },
+      { id: 'y2', from: 'action', action: 'extend_grant', title: 'Maya’s pin grant', body: 'Approx area · expires Fri · Follow home off', primary: 'Extend', secondary: 'Revoke', time: 'Tue' }
+    ],
+    thr_move_01: [
+      { id: 'v1', from: 'system', text: 'Assist drafted HOA notice · facts from Move Engine', time: 'Sun', delivery: null },
+      { id: 'v2', from: 'action', action: 'open_move_draft', title: 'HOA address-change draft', body: 'Holly Grove · Unit 204 · effective Nov 1, 2026', primary: 'Open draft', secondary: 'Mark recipient updated', time: 'Sun' }
+    ],
+    thr_support_01: [
+      { id: 's1', from: 'me', text: 'Amazon connected-service update failed after I pinned South Lamar.', time: 'Fri 11:02a', delivery: 'read' },
+      { id: 's2', from: 'system', text: 'Assist attempted status lookup + draft maintenance request', time: 'Fri 11:03a', delivery: null },
+      { id: 's3', from: 'them', text: 'Thanks — we received the handoff packet. A human will follow up.', time: 'Fri 11:18a', delivery: null },
+      { id: 's4', from: 'action', action: 'view_case', title: 'Support case open', body: 'case_amazon_01 · Waiting on Domicile · closing chat ≠ closing case', primary: 'Open case', time: 'Fri' }
+    ]
+  };
+
+  var supportCases = [
+    {
+      id: 'case_amazon_01',
+      title: 'Connected service update failed (Amazon)',
+      status: 'waiting_domicile',
+      statusLabel: 'Waiting on Domicile',
+      openedAt: 'Fri Sep 19 · 11:03a CT',
+      issue: 'Amazon destination update failed after pinning South Lamar. Follow-home path unclear; confirmed order risk.',
+      permittedRefs: ['conn_amazon_01', 'place_south_lamar', 'move_plan_nov1'],
+      attempted: [
+        { tool: 'lookup_status', result: 'Amazon · Follow home · last apply failed (demo)', at: '11:03a' },
+        { tool: 'draft_maintenance', result: 'Draft prepared · not submitted (needs confirm)', at: '11:04a' }
+      ],
+      citations: ['HA-401', 'HA-512'],
+      escalationReason: 'Assist cannot issue merchant-side refunds or force API retries beyond bound tools.',
+      threadId: 'thr_support_01',
+      timeline: [
+        { at: '11:02a', who: 'You', text: 'Reported update failure in chat' },
+        { at: '11:03a', who: 'Assist', text: 'Status lookup + draft tool (bounded)' },
+        { at: '11:05a', who: 'You', text: 'Escalated to human with handoff packet' },
+        { at: '11:18a', who: 'Support', text: 'Acknowledged · investigating merchant path' }
+      ],
+      humanReply: 'We see the failed apply on the Amazon connection. Next step: retry with Follow home from Connected services, or keep the pin and exclude from Move until merchant confirms. Closing this chat won’t close the case.',
+      resolutionProposal: null
+    },
+    {
+      id: 'case_stay_02',
+      title: 'Stay unlock timing question',
+      status: 'waiting_you',
+      statusLabel: 'Waiting on you',
+      openedAt: 'Thu Sep 18 · 4:20p CT',
+      issue: 'Guest asked whether unlock can happen earlier than 24h.',
+      permittedRefs: ['trip_oak_waller', 'thr_mira_01'],
+      attempted: [{ tool: 'lookup_status', result: 'Stay · unlock window 24h before check-in', at: '4:21p' }],
+      citations: ['HA-120'],
+      escalationReason: 'Policy exception needs host/support decision.',
+      threadId: 'thr_mira_01',
+      timeline: [
+        { at: '4:20p', who: 'You', text: 'Asked about early unlock' },
+        { at: '4:22p', who: 'Support', text: 'Need host confirmation — reply here' }
+      ],
+      humanReply: 'Early unlock needs Mira’s OK. Reply if you want us to request it.',
+      resolutionProposal: null
+    },
+    {
+      id: 'case_closed_03',
+      title: 'RSVP alias confusion',
+      status: 'closed',
+      statusLabel: 'Closed',
+      openedAt: 'Mon Sep 15 · 9:00a CT',
+      issue: 'Participant worried alias mapped to root handle.',
+      permittedRefs: ['evt_porch_01'],
+      attempted: [],
+      citations: ['HA-512'],
+      escalationReason: 'Clarification only.',
+      threadId: 'thr_porch_01',
+      timeline: [
+        { at: '9:00a', who: 'You', text: 'Asked about alias privacy' },
+        { at: '9:12a', who: 'Support', text: 'Confirmed aliases are context-only' },
+        { at: '9:30a', who: 'System', text: 'Case closed · chat left open' }
+      ],
+      humanReply: 'Aliases never map to @root handles in this product.',
+      resolutionProposal: 'Explained alias privacy · no further action'
+    }
+  ];
+
+  function findThread(id) {
+    for (var i = 0; i < messageThreads.length; i++) if (messageThreads[i].id === id) return messageThreads[i];
+    return null;
+  }
+  function findCase(id) {
+    for (var i = 0; i < supportCases.length; i++) if (supportCases[i].id === id) return supportCases[i];
+    return null;
+  }
+  function unreadCount() {
+    return messageThreads.reduce(function (n, t) { return n + (t.unread || 0); }, 0);
+  }
+  function updateMessagesBadges() {
+    var n = unreadCount();
+    var meta = $('#you-messages-meta');
+    if (meta) meta.textContent = n ? (n + ' unread') : 'Inbox';
+    var tm = $('#today-messages-meta');
+    if (tm) tm.textContent = n ? (n + ' unread · Stay · Service · Support') : 'All caught up';
+    var tb = $('#today-messages-badge');
+    if (tb) { tb.textContent = String(n); tb.style.display = n ? '' : 'none'; }
+  }
+
+  function contextPillClass(ctx) {
+    if (ctx === 'stays') return 'sage';
+    if (ctx === 'services') return 'olive';
+    if (ctx === 'events') return 'warn';
+    if (ctx === 'sharing') return 'sky';
+    if (ctx === 'move') return 'ghost';
+    if (ctx === 'support') return 'danger';
+    return 'ghost';
+  }
+
+  function deliveryTicks(status) {
+    if (status === 'sent') return '✓';
+    if (status === 'delivered') return '✓✓';
+    if (status === 'read') return '✓✓';
+    return '';
+  }
+
+  function showSheet(bdId, shId) {
+    var bd = $('#' + bdId); var sh = $('#' + shId);
+    if (bd) bd.classList.add('show');
+    if (sh) sh.classList.add('show');
+  }
+  function hideSheet(bdId, shId) {
+    var bd = $('#' + bdId); var sh = $('#' + shId);
+    if (bd) bd.classList.remove('show');
+    if (sh) sh.classList.remove('show');
+  }
+
+  window.openMsgOverflow = function () { showSheet('msg-overflow-backdrop', 'msg-overflow-sheet'); };
+  window.closeMsgOverflow = function () { hideSheet('msg-overflow-backdrop', 'msg-overflow-sheet'); };
+  window.closeMsgActionSheet = function () { hideSheet('msg-action-backdrop', 'msg-action-sheet'); };
+  window.closeAssistToolSheet = function () { hideSheet('assist-tool-backdrop', 'assist-tool-sheet'); pendingAssistTool = null; };
+
+  window.openMessageThread = function (id) {
+    var t = findThread(id);
+    if (!t) { toast('Thread not found (demo)'); return; }
+    activeThreadId = id;
+    if (t.unread) { t.unread = 0; updateMessagesBadges(); }
+    go('message-thread');
+  };
+
+  window.setMsgFilter = function (f) {
+    msgFilter = f;
+    renderMessagesHub();
+  };
+
+  function renderMessagesHub() {
+    var body = $('#messages-hub-body');
+    if (!body) return;
+    updateMessagesBadges();
+    var filters = [
+      ['all', 'All'], ['stays', 'Stays'], ['services', 'Services'], ['events', 'Events'],
+      ['sharing', 'Sharing'], ['move', 'Move'], ['support', 'Support']
+    ];
+    var chips = filters.map(function (f) {
+      return '<button type="button" class="layer-chip' + (msgFilter === f[0] ? ' on' : '') + '" onclick="setMsgFilter(\'' + f[0] + '\')">' + f[1] + '</button>';
+    }).join('');
+    var list = messageThreads.filter(function (t) {
+      if (msgFilter === 'all') return true;
+      if (msgFilter === 'services') return t.context === 'services';
+      return t.context === msgFilter;
+    });
+    var rows = list.map(function (t) {
+      return '<div class="card tap msg-thread-row mb-8' + (t.unread ? ' unread' : '') + '" onclick="openMessageThread(\'' + t.id + '\')">' +
+        '<div class="row gap-md">' +
+          '<div class="avatar sm" style="background:' + t.avatarColor + '">' + t.avatar + '</div>' +
+          '<div class="flex-1">' +
+            '<div class="between"><div class="strong" style="font-size:14px">' + t.title + '</div><span class="muted" style="font-size:11px">' + t.timeLabel + '</span></div>' +
+            '<div class="row wrap" style="gap:6px;margin-top:4px"><span class="pill ' + contextPillClass(t.context) + '">' + t.contextLabel + '</span>' +
+              (t.unread ? '<span class="pill warn">' + t.unread + ' new</span>' : '') +
+              (t.alias ? '<span class="pill ghost">Alias</span>' : '') +
+            '</div>' +
+            '<div class="muted mt-8" style="font-size:12px;line-height:1.35">' + t.preview + '</div>' +
+          '</div>' +
+        '</div></div>';
+    }).join('');
+    body.innerHTML =
+      '<p class="sub mb-12">Contextual threads only — every conversation links a stay, job, event, grant, move, or case. <span class="muted">Prototype · E19</span></p>' +
+      '<div class="layer-chips mb-12">' + chips + '</div>' +
+      (rows || '<div class="banner gated mb-12"><span>∅</span><span>No threads in this filter. Try All.</span></div>') +
+      '<button class="btn btn-secondary mt-8" onclick="go(\'message-compose\')">New contextual message</button>' +
+      '<button class="btn btn-ghost mt-8" style="width:100%" onclick="go(\'notifications\')">Notification preferences</button>';
+  }
+
+  function renderMessageThread() {
+    var t = findThread(activeThreadId);
+    var body = $('#message-thread-body');
+    var title = $('#msg-thread-title');
+    if (!body || !t) return;
+    if (title) title.textContent = t.title;
+    var msgs = messageStore[t.id] || [];
+    var html = '';
+    html += '<div class="card mb-12">' +
+      '<div class="between">' +
+        '<div><div class="strong">' + t.counterpart + '</div><div class="muted" style="font-size:12px">' + t.subtitle + '</div></div>' +
+        '<button class="btn btn-secondary btn-sm" style="width:auto" onclick="openThreadObject()">Open</button>' +
+      '</div></div>';
+    if (t.alias) {
+      html += '<div class="banner private mb-12"><span>◎</span><span>Counterpart uses context alias <strong>' + t.alias + '</strong> — not a root-handle map.</span></div>';
+    }
+    if (t.reminder) {
+      html += '<div class="banner info mb-12"><span>⏰</span><span>Reminder scheduled · ' + t.reminder + '</span></div>';
+    }
+    html += '<div class="msg-timeline" id="msg-timeline">';
+    msgs.forEach(function (m) {
+      if (m.from === 'system') {
+        html += '<div class="msg-system"><span>' + m.text + '</span><div class="when">' + m.time + '</div></div>';
+      } else if (m.from === 'action') {
+        html += '<div class="msg-action-card">' +
+          '<div class="strong" style="font-size:13px">' + m.title + '</div>' +
+          '<p class="sub mt-8" style="font-size:12px">' + m.body + '</p>' +
+          '<div class="row gap-sm mt-12">' +
+            '<button class="btn btn-primary btn-sm" style="width:auto;flex:1" onclick="runThreadAction(\'' + m.action + '\',\'primary\')">' + m.primary + '</button>' +
+            (m.secondary ? '<button class="btn btn-secondary btn-sm" style="width:auto;flex:1" onclick="runThreadAction(\'' + m.action + '\',\'secondary\')">' + m.secondary + '</button>' : '') +
+          '</div>' +
+          '<div class="when">' + m.time + '</div></div>';
+      } else {
+        var cls = m.from === 'me' ? 'guest' : 'host';
+        var del = '';
+        if (m.from === 'me' && m.delivery) {
+          del = ' <button type="button" class="msg-delivery ' + m.delivery + '" onclick="cycleDelivery(\'' + t.id + '\',\'' + m.id + '\')" title="Tap to cycle">' +
+            deliveryTicks(m.delivery) + ' ' + m.delivery + '</button>';
+        }
+        html += '<div class="msg ' + cls + '">' + m.text +
+          '<div class="when">' + m.time + del + '</div></div>';
+      }
+    });
+    html += '</div>';
+    html += '<div class="msg-composer">' +
+      '<button type="button" class="icon-btn" onclick="openMsgActionSheet()" title="Attach action">＋</button>' +
+      '<div class="field flex-1" style="padding:8px 12px"><input id="thread-msg-input" placeholder="Message ' + t.title + '…" /></div>' +
+      '<button class="btn btn-primary btn-sm" style="width:auto;padding:0 14px" onclick="sendThreadMessage()">Send</button>' +
+      '</div>';
+    html += '<div class="row gap-sm mt-8" style="padding-bottom:8px">' +
+      '<button class="btn btn-ghost btn-sm" style="width:auto;flex:1" onclick="scheduleThreadReminder()">Reminder</button>' +
+      '<button class="btn btn-ghost btn-sm" style="width:auto;flex:1" onclick="openAssistFromThread()">Assist ✦</button>' +
+      '</div>';
+    body.innerHTML = html;
+  }
+
+  window.openThreadObject = function () {
+    var t = findThread(activeThreadId);
+    if (!t) return;
+    if (t.objectType === 'grant' || t.objectType === 'inquiry') {
+      if (typeof openGrantDetail === 'function') { openGrantDetail(t.objectId); return; }
+      if (typeof window.activeGrantId !== 'undefined') window.activeGrantId = t.objectId;
+      go('permission-detail');
+      return;
+    }
+    if (t.objectType === 'event') {
+      if (typeof openOrgEvent === 'function') { openOrgEvent(t.objectId); return; }
+      go('org-event-detail');
+      return;
+    }
+    if (t.objectType === 'case') {
+      openSupportCase(t.objectId);
+      return;
+    }
+    if (t.objectType === 'move') {
+      if (typeof window.activeDraftId !== 'undefined') window.activeDraftId = t.objectId;
+      go(t.objectScreen || 'move-draft');
+      return;
+    }
+    go(t.objectScreen || 'messages');
+  };
+
+  window.cycleDelivery = function (threadId, msgId) {
+    var msgs = messageStore[threadId] || [];
+    for (var i = 0; i < msgs.length; i++) {
+      if (msgs[i].id === msgId && msgs[i].from === 'me') {
+        var order = ['sent', 'delivered', 'read'];
+        var idx = order.indexOf(msgs[i].delivery || 'sent');
+        msgs[i].delivery = order[(idx + 1) % order.length];
+        toast('Delivery · ' + msgs[i].delivery);
+        renderMessageThread();
+        return;
+      }
+    }
+  };
+
+  window.sendThreadMessage = function () {
+    var input = $('#thread-msg-input');
+    var text = (input && input.value || '').trim();
+    if (!text) { toast('Type a message first'); return; }
+    var msgs = messageStore[activeThreadId] || (messageStore[activeThreadId] = []);
+    msgs.push({ id: 'local_' + Date.now(), from: 'me', text: text, time: 'Just now', delivery: 'sent' });
+    var t = findThread(activeThreadId);
+    if (t) { t.preview = text; t.timeLabel = 'Now'; }
+    if (input) input.value = '';
+    renderMessageThread();
+    setTimeout(function () {
+      var m = msgs[msgs.length - 1];
+      if (m && m.delivery === 'sent') { m.delivery = 'delivered'; renderMessageThread(); }
+    }, 600);
+    setTimeout(function () {
+      var m = msgs[msgs.length - 1];
+      if (m && m.delivery === 'delivered') { m.delivery = 'read'; renderMessageThread(); }
+    }, 1400);
+  };
+
+  window.openMsgActionSheet = function () {
+    var t = findThread(activeThreadId);
+    var body = $('#msg-action-sheet-body');
+    if (!t || !body) return;
+    var labels = {
+      view_house_guide: 'View house guide',
+      unlock_stay: 'Unlock stay access (demo)',
+      approve_exact: 'Approve exact address',
+      view_quote: 'View quote',
+      accept_quote: 'Accept quote',
+      view_job: 'View job',
+      confirm_rsvp: 'Confirm RSVP / venue',
+      view_event: 'View event',
+      extend_grant: 'Extend grant',
+      revoke_grant: 'Revoke grant',
+      view_grant: 'View grant',
+      open_move_draft: 'Open move draft',
+      mark_recipient_updated: 'Mark recipient updated',
+      view_case: 'Open support case',
+      open_assist: 'Open Assist'
+    };
+    body.innerHTML = (t.allowedActions || []).map(function (a) {
+      return '<div class="card tap mb-8" onclick="closeMsgActionSheet();runThreadAction(\'' + a + '\',\'primary\')"><div class="between"><span class="strong">' + (labels[a] || a) + '</span><span>›</span></div></div>';
+    }).join('') || '<p class="sub">No structured actions for this thread.</p>';
+    showSheet('msg-action-backdrop', 'msg-action-sheet');
+  };
+
+  window.runThreadAction = function (action, which) {
+    var t = findThread(activeThreadId);
+    if (!t) return;
+    if (action === 'view_house_guide' || action === 'unlock_stay') {
+      go('trip-prearrival');
+      toast(action === 'unlock_stay' ? 'Demo unlock from stay thread' : 'House guide on stay screen');
+      return;
+    }
+    if (action === 'approve_exact') {
+      if (which === 'secondary') { toast('Exact address still pending'); return; }
+      var g = typeof findOutgoing === 'function' ? findOutgoing('grant_inq_cedar_7a2f') : null;
+      if (g) { g.precision = 'exact'; g.exactRequested = false; }
+      pushSystemMessage(t.id, 'Exact address approved for this inquiry (demo)');
+      toast('Exact address approved · inquiry only');
+      renderMessageThread();
+      return;
+    }
+    if (action === 'view_quote') {
+      if (which === 'secondary') {
+        toast('Quote accepted (demo) · quote ≠ booking complete until job assigned');
+        pushSystemMessage(t.id, 'Quote accepted · job may appear on provider Jobs board');
+        renderMessageThread();
+        return;
+      }
+      toast('Quote quote_cedar_demo · $185 · Deep clean 3hr');
+      return;
+    }
+    if (action === 'accept_quote') {
+      toast('Quote accepted (demo)');
+      pushSystemMessage(t.id, 'Quote accepted · waiting on provider assign');
+      renderMessageThread();
+      return;
+    }
+    if (action === 'view_job') { go('appointment-detail'); return; }
+    if (action === 'confirm_rsvp') {
+      if (which === 'secondary') { openThreadObject(); return; }
+      toast('Venue window confirmed for alias participant (demo)');
+      pushSystemMessage(t.id, 'RSVP / venue window confirmed');
+      renderMessageThread();
+      return;
+    }
+    if (action === 'view_event') { openThreadObject(); return; }
+    if (action === 'extend_grant') {
+      if (which === 'secondary') {
+        toast('Grant revoke sheet — open grant detail');
+        if (typeof window.activeGrantId !== 'undefined') window.activeGrantId = 'grant_maya_4c2e';
+        go('permission-detail');
+        return;
+      }
+      toast('Grant extended +7 days (demo)');
+      pushSystemMessage(t.id, 'Grant extended · still approx · expires next Fri');
+      renderMessageThread();
+      return;
+    }
+    if (action === 'revoke_grant' || action === 'view_grant') {
+      if (typeof window.activeGrantId !== 'undefined') window.activeGrantId = t.objectId;
+      go('permission-detail');
+      return;
+    }
+    if (action === 'open_move_draft') {
+      if (typeof window.activeDraftId !== 'undefined') window.activeDraftId = 'hoa';
+      go('move-draft');
+      return;
+    }
+    if (action === 'mark_recipient_updated') {
+      toast('Recipient marked updated (demo)');
+      pushSystemMessage(t.id, 'You marked Holly Grove updated · Move Engine status');
+      renderMessageThread();
+      return;
+    }
+    if (action === 'view_case') { openSupportCase(t.objectId); return; }
+    if (action === 'open_assist') { openAssistFromThread(); return; }
+    toast('Action · ' + action);
+  };
+
+  function pushSystemMessage(threadId, text) {
+    var msgs = messageStore[threadId] || (messageStore[threadId] = []);
+    msgs.push({ id: 'sys_' + Date.now(), from: 'system', text: text, time: 'Just now', delivery: null });
+    var t = findThread(threadId);
+    if (t) t.preview = text;
+  }
+
+  window.scheduleThreadReminder = function () {
+    closeMsgOverflow();
+    var t = findThread(activeThreadId);
+    if (!t) { toast('Open a thread first'); return; }
+    t.reminder = t.reminder ? null : 'Fri 9:00a CT';
+    toast(t.reminder ? ('Reminder scheduled · ' + t.reminder) : 'Reminder cleared');
+    if (current === 'message-thread') renderMessageThread();
+  };
+
+  // ----- Compose -----
+  function renderMessageCompose() {
+    var body = $('#message-compose-body');
+    if (!body) return;
+    if (composeStep === 'context' || !composeContext) {
+      composeStep = 'context';
+      var contexts = [
+        ['stays', 'Stay reservation', 'Mira · Oak & Waller'],
+        ['services', 'Service inquiry / job', 'Cedar & Stone · River Guest'],
+        ['events', 'Event', 'Porch Social'],
+        ['sharing', 'Share grant', 'Maya pin'],
+        ['move', 'Move recipient', 'Holly Grove HOA'],
+        ['support', 'Support', 'Domicile Support']
+      ];
+      body.innerHTML =
+        '<div class="banner gated mb-12"><span>◎</span><span>Pick a context first — no free-floating messages to arbitrary handles (E19).</span></div>' +
+        contexts.map(function (c) {
+          return '<div class="card tap mb-8" onclick="pickComposeContext(\'' + c[0] + '\')"><div class="between"><div><div class="strong">' + c[1] + '</div><div class="muted" style="font-size:12px">' + c[2] + '</div></div><span>›</span></div></div>';
+        }).join('');
+      return;
+    }
+    var map = {
+      stays: { id: 'thr_mira_01', name: 'Mira R.' },
+      services: { id: 'thr_cedar_01', name: 'Cedar & Stone / River Guest' },
+      events: { id: 'thr_porch_01', name: 'Porch Social participants' },
+      sharing: { id: 'thr_maya_01', name: 'Maya Chen' },
+      move: { id: 'thr_move_01', name: 'Holly Grove HOA' },
+      support: { id: 'thr_support_01', name: 'Domicile Support' }
+    };
+    var pick = map[composeContext];
+    body.innerHTML =
+      '<p class="sub mb-12">Context: <strong>' + composeContext + '</strong></p>' +
+      '<div class="card tap mb-12" onclick="openMessageThread(\'' + pick.id + '\')"><div class="between"><div><div class="strong">' + pick.name + '</div><div class="muted" style="font-size:12px">Open existing seeded thread</div></div><span>›</span></div></div>' +
+      '<button class="btn btn-ghost" style="width:100%" onclick="composeStep=\'context\';composeContext=null;renderMessageCompose()">Change context</button>';
+  }
+  window.pickComposeContext = function (ctx) {
+    composeContext = ctx;
+    composeStep = 'counterpart';
+    renderMessageCompose();
+  };
+
+  // ----- Notifications -----
+  function renderNotifications() {
+    var body = $('#notifications-body');
+    if (!body) return;
+    function tog(key, path) {
+      var on = path ? notifPrefs[path][key] : notifPrefs[key];
+      return '<button type="button" class="perm-toggle' + (on ? ' on' : '') + '" onclick="toggleNotifPref(\'' + (path || '') + '\',\'' + key + '\')" aria-label="Toggle"><span class="perm-toggle-knob"></span></button>';
+    }
+    body.innerHTML =
+      '<p class="sub mb-16">Pushes for messages &amp; reminders. Marketing off by default. Quiet hours CT.</p>' +
+      '<div class="section-label" style="margin-top:0">Master</div>' +
+      '<div class="card mb-12">' +
+        rowPref('Message pushes', tog('messages')) +
+        rowPref('Reminders', tog('reminders')) +
+        rowPref('Marketing', tog('marketing')) +
+        rowPref('Quiet hours ' + notifPrefs.quietStart + '–' + notifPrefs.quietEnd + ' CT', tog('quietOn')) +
+      '</div>' +
+      '<div class="section-label">Channels</div>' +
+      '<div class="card mb-12">' +
+        rowPref('In-app', tog('inapp', 'channels')) +
+        rowPref('Push (demo)', tog('push', 'channels')) +
+        rowPref('Email (demo)', tog('email', 'channels')) +
+      '</div>' +
+      '<div class="section-label">Per context</div>' +
+      '<div class="card mb-12">' +
+        rowPref('Stays', tog('stays', 'contexts')) +
+        rowPref('Jobs / services', tog('services', 'contexts')) +
+        rowPref('Events', tog('events', 'contexts')) +
+        rowPref('Sharing', tog('sharing', 'contexts')) +
+        rowPref('Move', tog('move', 'contexts')) +
+        rowPref('Support', tog('support', 'contexts')) +
+      '</div>' +
+      '<p class="muted" style="font-size:11px;text-align:center">Prototype prefs · not persisted</p>';
+  }
+  function rowPref(label, control) {
+    return '<div class="between" style="padding:10px 0;border-bottom:1px solid var(--line)"><span class="strong" style="font-size:13px">' + label + '</span>' + control + '</div>';
+  }
+  window.toggleNotifPref = function (path, key) {
+    if (path) notifPrefs[path][key] = !notifPrefs[path][key];
+    else notifPrefs[key] = !notifPrefs[key];
+    toast('Preference updated (demo)');
+    renderNotifications();
+  };
+
+  // ----- Assist -----
+  window.openAssistFromThread = function () {
+    var t = findThread(activeThreadId);
+    assistReturnScreen = 'message-thread';
+    assistContext = t ? {
+      threadId: t.id,
+      label: t.subtitle || t.title,
+      type: t.context,
+      objectId: t.objectId
+    } : { threadId: null, label: 'General', type: 'general', objectId: null };
+    seedAssistChat();
+    go('assist');
+  };
+  window.openAssistFromSupport = function (label) {
+    assistReturnScreen = 'support';
+    assistContext = { threadId: null, label: label || 'Support help', type: 'support', objectId: null };
+    seedAssistChat();
+    go('assist');
+  };
+  window.leaveAssist = function () {
+    go(assistReturnScreen || 'messages');
+  };
+  function seedAssistChat() {
+    assistChat = [
+      {
+        role: 'assist',
+        text: 'I can help with this context only — lookups, explanations, and drafts you confirm. I won’t reach into other households or issue refunds.',
+        citations: ['HA-512']
+      }
+    ];
+  }
+  function renderAssist() {
+    var body = $('#assist-body');
+    if (!body) return;
+    var prompts = suggestAssistPrompts();
+    var html = '';
+    html += '<div class="banner private mb-12"><span>◎</span><span>Assist only sees what you can see in this context · <strong>' + assistContext.label + '</strong></span></div>';
+    html += '<div class="chip-row mb-12"><span class="pill sage">Context</span><span class="muted" style="font-size:12px">' + assistContext.label + '</span></div>';
+    html += '<div class="assist-timeline mb-12">';
+    assistChat.forEach(function (m) {
+      if (m.role === 'user') {
+        html += '<div class="msg guest">' + m.text + '</div>';
+      } else {
+        html += '<div class="msg host assist-bubble">' + m.text;
+        if (m.citations && m.citations.length) {
+          html += '<div class="assist-citations mt-8">' + m.citations.map(function (id) {
+            var art = helpArticles.filter(function (a) { return a.id === id; })[0];
+            return '<span class="cite-chip" title="' + (art ? art.title : id) + '">' + id + (art ? ' · ' + art.title : '') + '</span>';
+          }).join('') + '</div>';
+        }
+        if (m.refused) html += '<div class="pill danger mt-8">Refused</div>';
+        html += '</div>';
+      }
+    });
+    html += '</div>';
+    html += '<div class="section-label">Suggested</div><div class="assist-chip-row mb-12">';
+    prompts.forEach(function (p) {
+      html += '<button type="button" class="assist-chip" onclick="askAssist(\'' + p.id + '\')">' + p.label + '</button>';
+    });
+    html += '</div>';
+    html += '<div class="section-label">Bounded tools</div><div class="assist-chip-row mb-12">' +
+      '<button type="button" class="assist-chip" onclick="assistTool(\'lookup_status\')">Look up status</button>' +
+      '<button type="button" class="assist-chip" onclick="assistTool(\'explain_move\')">Explain last move update</button>' +
+      '<button type="button" class="assist-chip" onclick="assistTool(\'draft_case\')">Draft support case</button>' +
+      '<button type="button" class="assist-chip" onclick="assistTool(\'draft_maint\')">Draft maintenance</button>' +
+      '</div>';
+    html += '<div class="msg-composer">' +
+      '<div class="field flex-1" style="padding:8px 12px"><input id="assist-input" placeholder="Ask Assist…" /></div>' +
+      '<button class="btn btn-primary btn-sm" style="width:auto;padding:0 14px" onclick="submitAssistInput()">Ask</button>' +
+      '</div>';
+    html += '<button class="btn btn-secondary mt-12" onclick="escalateAssistToHuman()">Escalate to human…</button>' +
+      '<p class="muted mt-8" style="font-size:11px;text-align:center">Writes need confirm · no general DB/SQL · P70/P71</p>';
+    body.innerHTML = html;
+  }
+  function suggestAssistPrompts() {
+    var type = assistContext.type;
+    if (type === 'stays') return [
+      { id: 'stay_unlock', label: 'When does address unlock?' },
+      { id: 'refuse_other', label: 'Show me another guest’s address' }
+    ];
+    if (type === 'services') return [
+      { id: 'inq_status', label: 'What’s the inquiry status?' },
+      { id: 'refuse_refund', label: 'Issue me a refund' }
+    ];
+    if (type === 'move') return [
+      { id: 'move_explain', label: 'Explain last move update' },
+      { id: 'move_draft', label: 'Draft HOA notice' }
+    ];
+    if (type === 'support' || type === 'sharing') return [
+      { id: 'svc_status', label: 'Look up connection status' },
+      { id: 'refuse_refund', label: 'Force Amazon retry / refund' }
+    ];
+    return [
+      { id: 'stay_unlock', label: 'Stay unlock timing' },
+      { id: 'refuse_other', label: 'Reveal another household' }
+    ];
+  }
+  window.askAssist = function (promptId) {
+    var map = {
+      stay_unlock: { q: 'When does address unlock?', a: 'For Oak & Waller, address unlocks 24 hours before check-in (Sep 22 afternoon in this demo). House guide and code appear after unlock.', cites: ['HA-120'] },
+      refuse_other: { q: 'Show me another guest’s address', a: 'I can’t reveal another household’s address. I only see your permitted stay context.', cites: ['HA-512'], refused: true },
+      inq_status: { q: 'What’s the inquiry status?', a: 'Cedar inquiry grant_inq_cedar_7a2f · quoted · exact may still need Approve. Quote ≠ booking.', cites: ['HA-214'] },
+      refuse_refund: { q: 'Issue me a refund', a: 'I can’t issue a refund — escalate to Support. I can draft a case with the handoff packet.', cites: ['HA-512'], refused: true },
+      move_explain: { q: 'Explain last move update', a: 'Move Engine owns recipients and status. Last HOA draft is ready for your confirm — Assist only wrote language. USPS remains a handoff.', cites: ['HA-308'] },
+      move_draft: { q: 'Draft HOA notice', a: 'I can open the existing HOA draft with Move Engine facts. Confirm before any send.', cites: ['HA-308'] },
+      svc_status: { q: 'Look up connection status', a: 'Amazon connection · Follow home / pin path · last apply failed in this demo seed. Retry from Connected services or escalate.', cites: ['HA-401'] }
+    };
+    var item = map[promptId] || map.stay_unlock;
+    assistChat.push({ role: 'user', text: item.q });
+    assistChat.push({ role: 'assist', text: item.a, citations: item.cites, refused: !!item.refused });
+    if (promptId === 'move_draft') {
+      assistChat.push({ role: 'assist', text: 'Open move draft tool is available — uses confirm before write.', citations: ['HA-308'] });
+    }
+    renderAssist();
+  };
+  window.submitAssistInput = function () {
+    var input = $('#assist-input');
+    var text = (input && input.value || '').trim();
+    if (!text) return;
+    assistChat.push({ role: 'user', text: text });
+    var lower = text.toLowerCase();
+    if (lower.indexOf('refund') !== -1 || lower.indexOf('another') !== -1 && lower.indexOf('address') !== -1) {
+      assistChat.push({ role: 'assist', text: lower.indexOf('refund') !== -1
+        ? 'I can’t issue a refund — escalate to Support.'
+        : 'I can’t reveal another household’s address.',
+        citations: ['HA-512'], refused: true });
+    } else {
+      assistChat.push({
+        role: 'assist',
+        text: 'Based on your current context (“' + assistContext.label + '”), here’s what I can see: status lookup and drafts only. Cite HA articles below — no general database access.',
+        citations: assistContext.type === 'move' ? ['HA-308'] : ['HA-512', 'HA-120']
+      });
+    }
+    if (input) input.value = '';
+    renderAssist();
+  };
+  window.assistTool = function (tool) {
+    pendingAssistTool = { tool: tool };
+    var title = $('#assist-tool-title');
+    var sub = $('#assist-tool-sub');
+    var body = $('#assist-tool-sheet-body');
+    var params = '';
+    if (tool === 'lookup_status') {
+      if (title) title.textContent = 'Look up status (read)';
+      if (sub) sub.textContent = 'Read-only · no writes';
+      params = '<div class="card"><div class="quote-line"><span>Context</span><span class="strong">' + assistContext.label + '</span></div>' +
+        '<div class="quote-line"><span>Object</span><span class="strong">' + (assistContext.objectId || 'context-scoped') + '</span></div></div>';
+    } else if (tool === 'explain_move') {
+      if (title) title.textContent = 'Explain last move update';
+      if (sub) sub.textContent = 'Read-only explanation from Move Engine facts';
+      params = '<div class="card"><div class="quote-line"><span>Recipient</span><span class="strong">Holly Grove HOA</span></div>' +
+        '<div class="quote-line"><span>Status</span><span class="strong">Draft ready</span></div></div>';
+    } else if (tool === 'draft_case') {
+      if (title) title.textContent = 'Draft support case';
+      if (sub) sub.textContent = 'Preview → Confirm creates a case · does not close chat';
+      params = '<div class="card"><div class="quote-line"><span>Issue</span><span class="strong">From Assist context</span></div>' +
+        '<div class="quote-line"><span>Refs</span><span class="strong">' + (assistContext.objectId || 'none') + '</span></div>' +
+        '<div class="quote-line"><span>Citations</span><span class="strong">HA-512</span></div></div>';
+    } else {
+      if (title) title.textContent = 'Draft maintenance request';
+      if (sub) sub.textContent = 'Preview → Confirm · bounded write';
+      params = '<div class="card"><div class="quote-line"><span>Place</span><span class="strong">East Cesar Chavez Cottage</span></div>' +
+        '<div class="quote-line"><span>Topic</span><span class="strong">Access / service follow-up</span></div></div>';
+    }
+    if (body) body.innerHTML = params + '<p class="muted mt-12" style="font-size:11px">Exact params above · confirm to run (P71)</p>';
+    showSheet('assist-tool-backdrop', 'assist-tool-sheet');
+  };
+  window.confirmAssistTool = function () {
+    if (!pendingAssistTool) { closeAssistToolSheet(); return; }
+    var tool = pendingAssistTool.tool;
+    closeAssistToolSheet();
+    if (tool === 'lookup_status') {
+      assistChat.push({ role: 'user', text: 'Look up status' });
+      assistChat.push({
+        role: 'assist',
+        text: statusLookupBlurb(),
+        citations: ['HA-120', 'HA-401']
+      });
+    } else if (tool === 'explain_move') {
+      assistChat.push({ role: 'user', text: 'Explain last move update' });
+      assistChat.push({
+        role: 'assist',
+        text: 'Holly Grove HOA draft is ready. Facts (old/new address, Nov 1) came from Move Engine. Assist drafted email language only — you still confirm send. USPS is a separate handoff.',
+        citations: ['HA-308']
+      });
+    } else if (tool === 'draft_case') {
+      var c = createCaseFromAssist('Drafted from Assist · ' + assistContext.label);
+      assistChat.push({ role: 'user', text: 'Draft support case' });
+      assistChat.push({
+        role: 'assist',
+        text: 'Created case ' + c.id + ' (open). Closing this Assist chat does not close the case.',
+        citations: ['HA-512']
+      });
+      toast('Case ' + c.id + ' created');
+    } else if (tool === 'draft_maint') {
+      assistChat.push({ role: 'user', text: 'Draft maintenance request' });
+      assistChat.push({
+        role: 'assist',
+        text: 'Maintenance draft ready (demo): “Follow up on access / connected-service update for East Cesar Chavez.” Not submitted — open Support case to file.',
+        citations: ['HA-401']
+      });
+      toast('Maintenance draft prepared · not submitted');
+    }
+    renderAssist();
+  };
+  function statusLookupBlurb() {
+    var type = assistContext.type;
+    if (type === 'stays') return 'Stay Oak & Waller · check-in tomorrow 3p · address locked until unlock window · Mira thread open.';
+    if (type === 'services') return 'Inquiry grant_inq_cedar_7a2f · quoted $185 · River Guest alias · exact pending or approved per Permissions.';
+    if (type === 'move') return 'Move plan · 3/8 notified · HOA draft ready · USPS not confirmed.';
+    if (type === 'sharing') return 'Grant grant_maya_4c2e · Maya · approx · expires Fri.';
+    if (type === 'support') return 'Amazon connection · last apply failed (seed) · case_amazon_01 open.';
+    if (type === 'events') return 'Porch Social evt_porch_01 · published · RSVP interest open · ticketing off.';
+    return 'Context-scoped status only · no cross-household data.';
+  }
+  function createCaseFromAssist(issue) {
+    var id = 'case_assist_' + Math.floor(Math.random() * 900 + 100);
+    var c = {
+      id: id,
+      title: issue.slice(0, 64),
+      status: 'open',
+      statusLabel: 'Open',
+      openedAt: 'Just now · CT',
+      issue: issue,
+      permittedRefs: [assistContext.objectId || 'context_only'].filter(Boolean),
+      attempted: assistChat.filter(function (m) { return m.role === 'assist'; }).slice(-3).map(function (m, i) {
+        return { tool: 'assist_turn_' + i, result: (m.text || '').slice(0, 80), at: 'now' };
+      }),
+      citations: ['HA-512'],
+      escalationReason: 'User confirmed Assist draft case / escalation.',
+      threadId: assistContext.threadId || 'thr_support_01',
+      timeline: [
+        { at: 'now', who: 'Assist', text: 'Case drafted with context packet' },
+        { at: 'now', who: 'You', text: 'Confirmed exact params' }
+      ],
+      humanReply: null,
+      resolutionProposal: null
+    };
+    supportCases.unshift(c);
+    activeCaseId = id;
+    return c;
+  }
+  window.escalateAssistToHuman = function () {
+    var c = createCaseFromAssist('Escalated from Assist · ' + assistContext.label);
+    c.status = 'waiting_domicile';
+    c.statusLabel = 'Waiting on Domicile';
+    c.escalationReason = 'User requested human handoff after Assist attempts.';
+    c.timeline.push({ at: 'now', who: 'You', text: 'Escalated to human' });
+    // Link support thread system message
+    pushSystemMessage('thr_support_01', 'Human handoff packet created · ' + c.id);
+    toast('Escalated · case ' + c.id);
+    openSupportCase(c.id);
+  };
+
+  // ----- Support hub + cases -----
+  function renderSupportHub() {
+    var body = $('#support-hub-body');
+    if (!body) return;
+    var openN = supportCases.filter(function (c) { return c.status !== 'closed'; }).length;
+    body.innerHTML =
+      '<p class="sub mb-16">Help, Assist, and cases. Closing a chat does not resolve a case.</p>' +
+      '<div class="card mb-8 tap" onclick="go(\'support-cases\')"><div class="between"><div><div class="strong">Message Domicile / Cases</div><div class="muted" style="font-size:12px">' + openN + ' open · handoff packets</div></div><span>›</span></div></div>' +
+      '<div class="card mb-8 tap" onclick="openAssistFromSupport(\'Support help\')"><div class="between"><div><div class="strong">Assist</div><div class="muted" style="font-size:12px">Permission-filtered · citations · bounded tools</div></div><span>›</span></div></div>' +
+      '<div class="card mb-8 tap" onclick="toast(\'Help topics · see HA-120 / HA-214 / HA-308 / HA-401 / HA-512\')"><div class="between"><div><div class="strong">Help topics</div><div class="muted" style="font-size:12px">Approved articles with ids</div></div><span>›</span></div></div>' +
+      '<div class="card mb-8 tap" onclick="go(\'messages\')"><div class="between"><div><div class="strong">Messages inbox</div><div class="muted" style="font-size:12px">Incl. support thread</div></div><span>›</span></div></div>' +
+      '<div class="card mb-8 tap" onclick="go(\'public-gallery\')"><div class="between"><div><div class="strong">Public &amp; guest links</div><div class="muted" style="font-size:12px">W8 demo gallery</div></div><span>›</span></div></div>' +
+      '<div class="card"><div class="h3">About this prototype</div><p class="sub mt-8">Planning kit E19 / E22 · fictional Austin sample · not production. No real payments, auth, or map tiles.</p></div>';
+  }
+  window.setCaseFilter = function (f) { caseFilter = f; renderSupportCases(); };
+  function renderSupportCases() {
+    var body = $('#support-cases-body');
+    if (!body) return;
+    var filters = [
+      ['open', 'Open'], ['waiting_you', 'Waiting on you'], ['waiting_domicile', 'Waiting on Domicile'], ['closed', 'Closed']
+    ];
+    var chips = filters.map(function (f) {
+      return '<button type="button" class="layer-chip' + (caseFilter === f[0] ? ' on' : '') + '" onclick="setCaseFilter(\'' + f[0] + '\')">' + f[1] + '</button>';
+    }).join('');
+    var list = supportCases.filter(function (c) {
+      if (caseFilter === 'open') return c.status === 'open' || c.status === 'waiting_you' || c.status === 'waiting_domicile';
+      return c.status === caseFilter;
+    });
+    body.innerHTML =
+      '<div class="banner warn mb-12"><span>⚠</span><span><strong>Closing chat ≠ closing case.</strong> Cases have their own state.</span></div>' +
+      '<div class="layer-chips mb-12">' + chips + '</div>' +
+      (list.map(function (c) {
+        return '<div class="card tap mb-8" onclick="openSupportCase(\'' + c.id + '\')"><div class="between mb-8"><span class="pill ' +
+          (c.status === 'closed' ? 'ghost' : c.status === 'waiting_you' ? 'warn' : 'sage') + '">' + c.statusLabel +
+          '</span><span class="muted" style="font-size:11px">' + c.openedAt + '</span></div>' +
+          '<div class="strong" style="font-size:14px">' + c.title + '</div>' +
+          '<div class="muted mt-8" style="font-size:12px">' + c.id + ' · ' + (c.permittedRefs || []).length + ' refs</div></div>';
+      }).join('') || '<div class="banner gated"><span>∅</span><span>No cases in this filter.</span></div>');
+  }
+  window.openSupportCase = function (id) {
+    activeCaseId = id || activeCaseId;
+    go('support-case');
+  };
+  function renderSupportCase() {
+    var c = findCase(activeCaseId);
+    var body = $('#support-case-body');
+    var title = $('#support-case-title');
+    if (!body || !c) return;
+    if (title) title.textContent = c.id;
+    var html = '';
+    html += '<span class="pill ' + (c.status === 'closed' ? 'ghost' : 'sage') + ' mb-8">' + c.statusLabel + '</span>';
+    html += '<h1 class="h1" style="font-size:20px">' + c.title + '</h1>';
+    html += '<p class="sub mb-16">' + c.openedAt + '</p>';
+    html += '<div class="banner warn mb-12"><span>⚠</span><span>Leaving this screen or closing chat does <strong>not</strong> close the case.</span></div>';
+    html += '<div class="section-label" style="margin-top:0">Issue</div><div class="card mb-12"><p class="sub">' + c.issue + '</p></div>';
+    html += '<div class="section-label">Permitted record refs</div><div class="card mb-12">' +
+      (c.permittedRefs || []).map(function (r) { return '<div class="quote-line"><span class="muted">ref</span><span class="strong">' + r + '</span></div>'; }).join('') +
+      '<p class="muted mt-8" style="font-size:11px">Ids only · no raw address dump</p></div>';
+    html += '<div class="section-label">Attempted Assist actions</div><div class="card mb-12">' +
+      (c.attempted || []).map(function (a) {
+        return '<div class="mb-8"><div class="strong" style="font-size:13px">' + a.tool + '</div><div class="muted" style="font-size:12px">' + a.result + ' · ' + a.at + '</div></div>';
+      }).join('') + (c.attempted && c.attempted.length ? '' : '<p class="sub">None recorded</p>') + '</div>';
+    html += '<div class="section-label">Citations</div><div class="assist-citations mb-12">' +
+      (c.citations || []).map(function (id) {
+        var art = helpArticles.filter(function (a) { return a.id === id; })[0];
+        return '<span class="cite-chip">' + id + (art ? ' · ' + art.title : '') + '</span>';
+      }).join('') + '</div>';
+    html += '<div class="section-label">Escalation reason</div><div class="card mb-12"><p class="sub">' + c.escalationReason + '</p></div>';
+    html += '<div class="section-label">Timeline</div><div class="card mb-12 case-timeline">' +
+      (c.timeline || []).map(function (e) {
+        return '<div class="case-tl-item"><div class="muted" style="font-size:11px">' + e.at + ' · ' + e.who + '</div><div style="font-size:13px">' + e.text + '</div></div>';
+      }).join('') + '</div>';
+    if (c.humanReply) {
+      html += '<div class="section-label">Human reply</div><div class="card mb-12"><p class="sub">' + c.humanReply + '</p></div>';
+    } else {
+      html += '<button class="btn btn-secondary mb-8" onclick="simulateHumanReply()">Simulate human reply</button>';
+    }
+    if (c.resolutionProposal) {
+      html += '<div class="banner info mb-12"><span>✦</span><span>Proposed resolution: ' + c.resolutionProposal + '</span></div>';
+    } else if (c.status !== 'closed') {
+      html += '<button class="btn btn-secondary mb-8" onclick="proposeCaseResolution()">Propose resolution (demo)</button>';
+    }
+    if (c.threadId) {
+      html += '<button class="btn btn-ghost mb-8" style="width:100%" onclick="openMessageThread(\'' + c.threadId + '\')">Open related chat</button>';
+    }
+    if (c.status !== 'closed') {
+      html += '<button class="btn btn-primary" onclick="closeSupportCase()">Close case</button>';
+      html += '<p class="muted mt-8" style="font-size:11px;text-align:center">Separate from leaving chat</p>';
+    } else {
+      html += '<div class="banner gated"><span>✓</span><span>Case closed · chat may still exist</span></div>';
+    }
+    body.innerHTML = html;
+  }
+  window.simulateHumanReply = function () {
+    var c = findCase(activeCaseId);
+    if (!c) return;
+    c.humanReply = 'Thanks for the packet — we’re on it. We’ll update this case; you can leave the chat anytime.';
+    c.timeline.push({ at: 'now', who: 'Support', text: 'Human reply simulated' });
+    c.status = 'waiting_you';
+    c.statusLabel = 'Waiting on you';
+    toast('Human reply added');
+    renderSupportCase();
+  };
+  window.proposeCaseResolution = function () {
+    var c = findCase(activeCaseId);
+    if (!c) return;
+    c.resolutionProposal = 'Retry connection update · verify pin · confirm with you before close';
+    c.timeline.push({ at: 'now', who: 'Support', text: 'Proposed resolution (demo)' });
+    toast('Resolution proposed');
+    renderSupportCase();
+  };
+  window.closeSupportCase = function () {
+    var c = findCase(activeCaseId);
+    if (!c) return;
+    c.status = 'closed';
+    c.statusLabel = 'Closed';
+    c.timeline.push({ at: 'now', who: 'You', text: 'Closed case (chat unaffected)' });
+    toast('Case closed · chat still available');
+    renderSupportCase();
+  };
+
+  // Public render hooks used by go()
+  window.renderMessagesHub = renderMessagesHub;
+  window.renderMessageThread = renderMessageThread;
+  window.renderMessageCompose = renderMessageCompose;
+  window.renderNotifications = renderNotifications;
+  window.renderAssist = renderAssist;
+  window.renderSupportHub = renderSupportHub;
+  window.renderSupportCases = renderSupportCases;
+  window.renderSupportCase = renderSupportCase;
+  window.updateMessagesBadges = updateMessagesBadges;
+
   window.toast = function (msg) {
     var t = $('#toast');
     t.textContent = msg;
@@ -6286,6 +7387,7 @@
     updateConnectedServicesSummaries();
     updatePermissionsSummaries();
     updateOrgEventsSummaries();
+    if (typeof updateMessagesBadges === 'function') updateMessagesBadges();
     var hash = (location.hash || '').replace(/^#/, '');
     hash = normalizePublicRoute(hash);
     if (hash && $('[data-screen="' + hash + '"]')) {
