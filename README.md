@@ -2,7 +2,7 @@
 
 **Prototype · planning only · not production**
 
-Founder click-through of the **Domicile personal app** (kit ed. 3.2) plus gated **business** and **crew** workspaces for Cedar & Stone. Three accounts via Switch account: **Al · Personal** · **Cedar & Stone · Owner** · **Casey Nguyen · Crew**. Personal: Today · Map · Places · Explore · You (incl. Event organizer under You). Owner: Today · Inbox · Jobs · Business. Crew: Today · Jobs · Me. Also Stays, Ledger, move planning, Permissions MAP, private inquiry disclosure.
+Founder click-through of the **Domicile personal app** (kit ed. 3.2) plus gated **business** and **crew** workspaces for Cedar & Stone, plus a standalone **W8 public/guest share shell**. Three accounts via Switch account: **Al · Personal** · **Cedar & Stone · Owner** · **Casey Nguyen · Crew**. Personal: Today · Map · Places · Explore · You (incl. Event organizer under You). Owner: Today · Inbox · Jobs · Business. Crew: Today · Jobs · Me. Also Stays, Ledger, move planning, Permissions MAP, private inquiry disclosure, and cold public hashes (business / event / stay / invite / grant / QR) without personal nav.
 
 Phone frame (~390×844) on desktop with ambient glow; full-bleed on real phones. Warm parchment / terracotta / olive system. Zero build step, no CDN, system fonts.
 
@@ -14,7 +14,7 @@ open /workspace/domicile-full-prototype/index.html
 python3 -m http.server 8765 --directory /workspace/domicile-full-prototype
 ```
 
-Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-prototype/. Hash routes work (e.g. `#stays-search`, `#permissions`, `#service-inquiry`, `#org-events`, `#org-event-detail`, `#org-event-edit`, `#biz-today`, `#biz-inbox`, `#biz-jobs`, `#biz-profile`, `#biz-finance`, `#biz-payments`, `#biz-settings`, `#biz-catalog`, `#biz-customers`, `#biz-team`, `#crew-today`, `#crew-jobs`, `#crew-job-detail`, `#crew-me`). Bottom nav remembers the last screen per tab; **Owner / Crew / Personal navs replace each other** after Switch account (or cross-mode hash).
+Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-prototype/. Hash routes work (e.g. `#stays-search`, `#permissions`, `#service-inquiry`, `#org-events`, `#org-event-detail`, `#org-event-edit`, `#biz-today`, `#biz-inbox`, `#biz-jobs`, `#biz-profile`, `#biz-finance`, `#biz-payments`, `#biz-settings`, `#biz-catalog`, `#biz-customers`, `#biz-team`, `#crew-today`, `#crew-jobs`, `#crew-job-detail`, `#crew-me`, plus **W8** `#public`, `#public-business`, `#public-event`, `#public-stay`, `#public-stay-invite`, `#public-place`, `#public-qr`, `#public-handle`, `#public-signin`, `#public-gallery`). Bottom nav remembers the last screen per tab; **Owner / Crew / Personal navs replace each other** after Switch account (or cross-mode hash). **Public workspace hides all bottom navs.**
 
 **Files:** `index.html` · `app.css` · `app.js` · this README.
 
@@ -27,7 +27,7 @@ Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-pr
 | **Map** | Permissioned faux MapLibre UI · layer toggles (destinations / businesses / events) · SVG city blobs |
 | **Places** | Homes list → **East Cesar Chavez Cottage** Home Profile → Household · Facts/assets · Spending · Bills · Community (HOA balance) · Maintenance · **Hosting** |
 | **Explore** | Hub → **Stays** · Services · Events · Packages · Sponsored (Ad-labeled) |
-| **You** | Identity · Trips · Hosting · **Events I'm organizing** · Ledger · **Permissions & sharing** · **Connected services** · Move planning · Support |
+| **You** | Identity · Trips · Hosting · **Events I'm organizing** · Ledger · **Permissions & sharing** · **Connected services** · Move planning · **Public & guest links (W8)** · Support |
 
 ### Stays — guest (Explore → Stays)
 Search → results list/map → listing → checkout (instant / request) → confirmation → Trips → pre-arrival lock → **Demo unlock** → address / house guide / code → messaging → active stay → checkout checklist → receipt / review
@@ -161,6 +161,54 @@ Kit: W2 · P38 team roles · P39 coverage · P43 inquiries/quotes · P45 ops. Cr
 
 Kit: **W2** Business management · **P38** team/permissions · **P39** coverage/schedules · **P45** ops (coverage ≠ capacity) · **P55** catalogs · **P56** crews/dispatch · **P57** jobs · **P58** CRM/calendar integrations · **P59** invoices/payments/reconciliation · **P80** business finance ledger. Owner-only finance mutations, settings, payouts, refunds. Prototype labels throughout — no real payments/OAuth.
 
+### Public / guest share shell (~60s · W8)
+
+Standalone guest experience for recipients who open a link or QR **without** personal / business / crew chrome. Mode: `data-workspace="public"` · phone class `public-mode` · no bottom nav · slim “Domicile · Guest link · Sign in” chrome.
+
+#### Cold deep links (GitHub Pages)
+Base: `https://thejuw.github.io/domicile-full-prototype/`
+
+| Surface | Hash | Seed |
+|---------|------|------|
+| Entry (handle / paste / QR) | `#public` or `#public-entry` | Resolve demos below |
+| Business public page | `#public-business` · `#/p/b/cedar` | `@cedarstone` |
+| Personal handle card | `#public-handle` | `@al` (message-only · no address) |
+| Event (guest) | `#public-event` | `evt_porch_01` Porch Social |
+| Stay listing card | `#public-stay` | Oak & Waller · cohort gate |
+| Private stay invite | `#public-stay-invite` | `ecc-7f3a9c` |
+| Permitted location card | `#public-place` · `#public-grant` | `grant_maya_4c2e` |
+| QR landing | `#public-qr` | `maya_4c2e_opaque` |
+| Sign-in continuation | `#public-signin` | Mock → unlock permitted fields |
+| Demo gallery | `#public-gallery` | All of the above |
+
+**Resolve chips on `#public`:** `@cedarstone` · `@al` · `domicile.app/grant/grant_maya_4c2e` · `domicile.app/stay/invite/ecc-7f3a9c` · `domicile.app/event/evt_porch_01` · `domicile.app/qr/maya_4c2e_opaque`.
+
+#### 60s guest click path
+1. Open `#public` cold → tap `@cedarstone` → public business (coverage blurb · **no street**) → **Inquire** → context alias “Garden Guest” · approx default → Send  
+2. Back entry → stay invite chip → `#public-stay-invite` → banner invite-bound · Accept  
+3. Entry → grant link → limited location card → **Continue with Domicile** → mock sign-in → permitted fields toast  
+4. `#public-event` → RSVP interest with **event alias** · exact venue locked  
+5. `#public-qr` → opaque token · recipient-bound honesty → Continue to location card  
+
+#### How signed-in app opens W8
+- **You → Public & guest links (demo)** or **Support → Public & guest links** or Permissions → **Public & handle → Open guest link gallery**
+- Owner **Business → Public profile → Open public link** → `#public-business`
+- Hosting **Invite guest → Open guest link / Copy link** → `#public-stay-invite` (`ecc-7f3a9c`)
+- Permissions grant detail → **Open recipient link** / **Open QR landing** (and QR sheet CTA) → `#public-place` / `#public-qr`
+- Organizer event detail → **Preview as guest** → `#public-event`
+
+#### Product rules shown in UI
+1. Public page ≠ address book  
+2. Share/QR recipient-bound (forwarding ≠ grant)  
+3. Handle ≠ location  
+4. Exact venue/home only after eligibility  
+5. Context aliases for inquire / RSVP (not root handle by default)  
+6. Private stay invite ≠ public Stays discovery  
+7. Sign-in continuation unlocks permitted fields without full account switcher  
+8. Personal / business / crew flows unchanged  
+
+Kit engines: E01, E03–E06, E08–E11, E13, E19, E23 · inventory **W8**.
+
 ### Move Planning (AI-assisted sketch)
 Overview (East Cesar Chavez → South Lamar) → recipient checklist with channel/status chips → Assist draft preview (facts from Move Engine; you send) → USPS official-form handoff (never auto-filed) → Suggest missing recipients (DMV, voter reg demo tips)
 
@@ -168,6 +216,7 @@ Overview (East Cesar Chavez → South Lamar) → recipient checklist with channe
 - Personal bottom nav: Today · Map · Places · Explore · You  
 - Owner bottom nav (after switch): Today · Inbox · Jobs · Business  
 - Crew bottom nav (Casey): Today · Jobs · Me  
+- Public/guest shell: no bottom nav · cold hash entry · recipient-bound share honesty  
 - Account switch required before any Owner or Crew role UI  
 - Quote ≠ job until Accept; Accept creates/activates the job  
 - Crew sees only assigned jobs; reassign revokes prior exact access  

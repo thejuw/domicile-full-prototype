@@ -30,12 +30,27 @@
     'crew-today': 1, 'crew-jobs': 1, 'crew-job-detail': 1, 'crew-me': 1
   };
 
+  var PUBLIC_SCREENS = {
+    'public-entry': 1, 'public-qr': 1, 'public-business': 1, 'public-event': 1,
+    'public-stay': 1, 'public-stay-invite': 1, 'public-place': 1, 'public-handle': 1,
+    'public-signin': 1, 'public-gallery': 1
+  };
+
   // Three platform accounts: Al Personal · Al Owner @ Cedar · Casey Crew @ Cedar
   var activeWorkspace = 'personal'; // personal | business | crew
   var activeOrg = null; // 'cedar' when business or crew
   var activeAccount = 'al'; // 'al' | 'casey'
   var activeBizRole = 'owner'; // owner | crew (legacy lens on owner profile)
   var activeBizInquiryId = 'grant_inq_cedar_7a2f';
+  // W8 public/guest session (standalone shell — not full account switcher)
+  var publicSession = { signedIn: false, alias: null, continuedAt: null };
+  var publicReturnScreen = 'public-entry';
+  var publicGrantId = 'grant_maya_4c2e';
+  var publicQrToken = 'maya_4c2e_opaque';
+  var publicPriorWorkspace = 'personal';
+  var publicInquiryAlias = 'Garden Guest';
+  var publicEventAlias = 'Porch Curious';
+  var publicStayInviteAccepted = null; // null | true | false
   var activeBizJobId = null;
   var activeCrewJobId = null;
   var activeBizCustomerId = null;
@@ -444,6 +459,10 @@
     return !!CREW_SCREENS[name] || (name && name.indexOf('crew-') === 0);
   }
 
+  function isPublicScreen(name) {
+    return !!PUBLIC_SCREENS[name] || (name && name.indexOf('public-') === 0);
+  }
+
   function applyWorkspaceChrome() {
     var phone = document.querySelector('.phone') || document.body;
     var pers = $('#bottom-nav-personal');
@@ -453,9 +472,12 @@
     if (biz) biz.classList.add('hide');
     if (crew) crew.classList.add('hide');
     if (phone) {
-      phone.classList.remove('biz-mode', 'crew-mode');
+      phone.classList.remove('biz-mode', 'crew-mode', 'public-mode');
     }
-    if (activeWorkspace === 'business') {
+    if (activeWorkspace === 'public') {
+      if (phone) phone.classList.add('public-mode');
+      // No bottom nav in guest shell
+    } else if (activeWorkspace === 'business') {
       if (biz) biz.classList.remove('hide');
       if (phone) phone.classList.add('biz-mode');
     } else if (activeWorkspace === 'crew') {
@@ -470,7 +492,11 @@
     opts = opts || {};
     var prev = activeWorkspace;
     var prevAcct = activeAccount;
-    if (mode === 'business') {
+    if (mode === 'public') {
+      if (prev !== 'public') publicPriorWorkspace = prev;
+      activeWorkspace = 'public';
+      // Keep activeAccount as-is for demo continuity; guest shell does not use bottom nav
+    } else if (mode === 'business') {
       activeWorkspace = 'business';
       activeOrg = opts.org || 'cedar';
       activeAccount = 'al';
@@ -488,10 +514,14 @@
     }
     applyWorkspaceChrome();
     if (opts.toast && (prev !== activeWorkspace || prevAcct !== activeAccount)) {
-      if (activeWorkspace === 'business') {
+      if (activeWorkspace === 'public') {
+        /* silent — guest shell */
+      } else if (activeWorkspace === 'business') {
         toast('Switched to Cedar & Stone · Owner');
       } else if (activeWorkspace === 'crew') {
         toast('Switched to Casey · Crew @ Cedar & Stone');
+      } else if (prev === 'public') {
+        /* returning from guest — optional soft toast handled by exitPublicToApp */
       } else {
         toast('Switched to Personal · @al');
       }
@@ -785,13 +815,20 @@
 
   window.go = function (name) {
     if (name === 'connections') name = 'connected-services';
+    name = normalizePublicRoute(name);
     const next = $('[data-screen="' + name + '"]');
     if (!next) { console.warn('Missing screen:', name); return; }
 
     // Workspace auto-switch on cross-mode navigation
+    var targetPublic = isPublicScreen(name);
     var targetBiz = isBizScreen(name);
     var targetCrew = isCrewScreen(name);
-    if (targetCrew) {
+    if (targetPublic) {
+      if (activeWorkspace !== 'public') {
+        switchWorkspace('public', { toast: false });
+      }
+      if (name !== 'public-signin') publicReturnScreen = name;
+    } else if (targetCrew) {
       if (activeWorkspace !== 'crew') {
         switchWorkspace('crew', { org: 'cedar', toast: true });
       }
@@ -799,9 +836,10 @@
       if (activeWorkspace !== 'business') {
         switchWorkspace('business', { org: 'cedar', role: 'owner', toast: true });
       }
-    } else if (activeWorkspace === 'business' || activeWorkspace === 'crew') {
-      // Personal (or other non-biz/crew) screens → Personal
-      switchWorkspace('personal', { toast: true });
+    } else if (activeWorkspace === 'business' || activeWorkspace === 'crew' || activeWorkspace === 'public') {
+      // Personal (or other non-biz/crew/public) screens → Personal
+      var leaveToast = activeWorkspace !== 'public';
+      switchWorkspace('personal', { toast: leaveToast });
     }
 
     const prev = $('[data-screen="' + current + '"]');
@@ -871,6 +909,16 @@
     if (name === 'org-event-detail') renderOrgEventDetail();
     if (name === 'org-event-participant') renderOrgEventParticipant();
     if (name === 'you') updateOrgEventsSummaries();
+    if (name === 'public-entry') renderPublicEntry();
+    if (name === 'public-qr') renderPublicQr();
+    if (name === 'public-business') renderPublicBusiness();
+    if (name === 'public-event') renderPublicEvent();
+    if (name === 'public-stay') renderPublicStay();
+    if (name === 'public-stay-invite') renderPublicStayInvite();
+    if (name === 'public-place') renderPublicPlace();
+    if (name === 'public-handle') renderPublicHandle();
+    if (name === 'public-signin') renderPublicSignin();
+    if (name === 'public-gallery') renderPublicGallery();
   };
 
   window.navTo = function (tab) {
@@ -2450,7 +2498,8 @@
     html += '</div>';
 
     html += '<div class="banner info mb-8"><span>ℹ</span><span><strong>Distinguisher:</strong> Public off ≠ peer grants revoked ≠ Pause sharing with people. Three separate controls.</span></div>';
-    html += '<div class="banner private"><span>◎</span><span>Disabling public visibility does not revoke existing peer grants. Pause suspends peer/public-personal only.</span></div>';
+    html += '<div class="banner private mb-12"><span>◎</span><span>Disabling public visibility does not revoke existing peer grants. Pause suspends peer/public-personal only.</span></div>';
+    html += '<div class="card tap" onclick="go(\'public-gallery\')"><div class="between"><div><div class="strong" style="font-size:14px">Open guest link gallery</div><div class="muted" style="font-size:11px">W8 public shell · business · event · stay · grant · QR</div></div><span>›</span></div>';
     list.innerHTML = html;
   }
 
@@ -2588,7 +2637,9 @@
         ? '<button class="btn btn-secondary mt-8" onclick="extendGrant()">Extend</button>'
         : '<button class="btn btn-secondary mt-8" onclick="extendGrant()">Extend</button>') +
       '<button class="btn btn-secondary mt-8" onclick="copyRecipientLink()">Copy recipient-bound link</button>' +
+      '<button class="btn btn-secondary mt-8" onclick="openRecipientPublicLink()">Open recipient link</button>' +
       '<button class="btn btn-secondary mt-8" onclick="openQrSheet()">Show QR</button>' +
+      '<button class="btn btn-secondary mt-8" onclick="openPublicQrFromGrant(activeGrantId)">Open QR landing</button>' +
       (g.class !== 'task' && g.status !== 'expired'
         ? '<button class="btn btn-ghost mt-8" style="width:100%;color:var(--danger)" onclick="openRevokeSheet()">Revoke</button>'
         : (g.status === 'expired' ? '<p class="muted mt-8" style="font-size:11px;text-align:center">Expired — use Extend to create a new window.</p>' : '')) +
@@ -2830,6 +2881,12 @@
     setTimeout(function () {
       toast('Forwarding does not transfer ' + g.name + "'s grant");
     }, 2300);
+  };
+
+  window.openRecipientPublicLink = function () {
+    var g = findOutgoing(activeGrantId);
+    if (!g) return;
+    openPublicPlaceFromGrant(g.id);
   };
 
   window.openQrSheet = function () {
@@ -3888,7 +3945,9 @@
       '<div class="card mb-12">' +
         '<p class="sub">Inbox, exact addresses, finance, team capabilities, and CRM contacts stay behind account switch. Public Explore match never creates a lead until inquiry.</p>' +
       '</div>' +
-      '<button type="button" class="btn btn-secondary" onclick="go(\'biz-catalog\')">Edit catalog</button>';
+      '<button type="button" class="btn btn-primary" onclick="openPublicBusiness()">Open public link</button>' +
+      '<button type="button" class="btn btn-secondary mt-8" onclick="go(\'biz-catalog\')">Edit catalog</button>' +
+      '<p class="muted mt-12" style="font-size:11px;text-align:center">Opens guest shell <strong>#public-business</strong> · no owner chrome</p>';
   }
 
   window.openBizCatalog = function (id) {
@@ -5334,7 +5393,7 @@
               '<span class="strong" style="font-size:12px;text-align:right;max-width:62%">' + a.line + '</span></div>';
           }).join('') + '</div>'
         ) : '') +
-        '<p class="muted mb-16" style="font-size:11px;text-align:center"><button class="btn btn-ghost btn-sm" style="width:auto" onclick="go(\'event-detail\')">Preview as guest (Explore)</button></p>' +
+        '<p class="muted mb-16" style="font-size:11px;text-align:center"><button class="btn btn-ghost btn-sm" style="width:auto" onclick="openPublicEventGuest()">Preview as guest</button></p>' +
       '</div>';
   }
 
@@ -5715,6 +5774,503 @@
   }
 
 
+
+  /* ========== W8 Public / guest share shell ========== */
+  function normalizePublicRoute(name) {
+    if (!name) return name;
+    var h = String(name).replace(/^\/+/, '');
+    var map = {
+      'public': 'public-entry',
+      'p': 'public-entry',
+      'p/': 'public-entry',
+      'p/b/cedar': 'public-business',
+      'p/b/cedarstone': 'public-business',
+      'p/event': 'public-event',
+      'p/event/porch': 'public-event',
+      'p/stay': 'public-stay',
+      'p/stay/invite': 'public-stay-invite',
+      'p/grant': 'public-place',
+      'p/place': 'public-place',
+      'p/qr': 'public-qr',
+      'p/handle': 'public-handle',
+      'p/signin': 'public-signin',
+      'p/gallery': 'public-gallery',
+      'public-grant': 'public-place'
+    };
+    if (map[h]) return map[h];
+    if (map[name]) return map[name];
+    return name;
+  }
+
+  window.exitPublicToApp = function () {
+    var dest = 'you';
+    if (publicPriorWorkspace === 'business') dest = 'biz-profile';
+    else if (publicPriorWorkspace === 'crew') dest = 'crew-me';
+    switchWorkspace(publicPriorWorkspace === 'business' ? 'business' : (publicPriorWorkspace === 'crew' ? 'crew' : 'personal'), { toast: false });
+    go(dest);
+    toast('Back in signed-in app (demo)');
+  };
+
+  window.openPublicGallery = function () { go('public-gallery'); };
+
+  window.openPublicBusiness = function () { go('public-business'); };
+  window.openPublicStayInvite = function () {
+    publicStayInviteAccepted = null;
+    go('public-stay-invite');
+  };
+  window.copyHostInviteLink = function () {
+    toast('Copied domicile.app/stay/invite/ecc-7f3a9c');
+    setTimeout(function () { toast('Invite-bound · forwarding does not transfer the slot'); }, 2200);
+  };
+  window.openPublicEventGuest = function () { go('public-event'); };
+  window.openPublicPlaceFromGrant = function (grantId) {
+    publicGrantId = grantId || activeGrantId || 'grant_maya_4c2e';
+    publicQrToken = String(publicGrantId).replace('grant_', '') + '_opaque';
+    go('public-place');
+  };
+  window.openPublicQrFromGrant = function (grantId) {
+    publicGrantId = grantId || activeGrantId || 'grant_maya_4c2e';
+    publicQrToken = String(publicGrantId).replace('grant_', '') + '_opaque';
+    go('public-qr');
+  };
+
+  function publicSessionBarHtml() {
+    if (!publicSession.signedIn) return '';
+    return '<div class="public-session-bar"><span>✓</span><span>Continued with Domicile · demo session' +
+      (publicSession.alias ? ' · ' + publicSession.alias : '') + '</span></div>';
+  }
+
+  function renderPublicEntry() {
+    var body = $('#public-entry-body');
+    if (!body) return;
+    body.innerHTML =
+      publicSessionBarHtml() +
+      '<h1 class="h1" style="font-size:24px">Open a guest link</h1>' +
+      '<p class="sub mb-16">Paste a share link, type a handle, or say you scanned a QR. Public pages never dump street addresses by default.</p>' +
+      '<div class="field mb-8"><label>Handle or share link</label>' +
+        '<div class="public-entry-field">' +
+          '<input id="public-resolve-input" placeholder="@cedarstone or domicile.app/…" autocomplete="off" />' +
+        '</div></div>' +
+      '<button class="btn btn-primary mb-16" onclick="resolvePublicEntry()">Resolve</button>' +
+      '<div class="section-label">Demo seeds</div>' +
+      '<div class="mb-12">' +
+        '<button type="button" class="public-demo-chip" onclick="fillPublicResolve(\'@cedarstone\')">@cedarstone</button>' +
+        '<button type="button" class="public-demo-chip" onclick="fillPublicResolve(\'@al\')">@al</button>' +
+        '<button type="button" class="public-demo-chip" onclick="fillPublicResolve(\'domicile.app/grant/grant_maya_4c2e\')">grant link</button>' +
+        '<button type="button" class="public-demo-chip" onclick="fillPublicResolve(\'domicile.app/stay/invite/ecc-7f3a9c\')">stay invite</button>' +
+        '<button type="button" class="public-demo-chip" onclick="fillPublicResolve(\'domicile.app/event/evt_porch_01\')">event</button>' +
+        '<button type="button" class="public-demo-chip" onclick="fillPublicResolve(\'domicile.app/qr/maya_4c2e_opaque\')">QR token</button>' +
+      '</div>' +
+      '<button class="btn btn-secondary" onclick="go(\'public-qr\')">I scanned a QR</button>' +
+      '<button class="btn btn-ghost mt-8" style="width:100%" onclick="go(\'public-gallery\')">Guest link gallery</button>' +
+      '<p class="muted mt-16" style="font-size:11px;text-align:center;line-height:1.45">Prototype · no real auth · share/QR is recipient-bound</p>';
+  }
+
+  window.fillPublicResolve = function (val) {
+    var inp = $('#public-resolve-input');
+    if (inp) inp.value = val;
+    resolvePublicEntry();
+  };
+
+  window.resolvePublicEntry = function () {
+    var inp = $('#public-resolve-input');
+    var raw = ((inp && inp.value) || '').trim().toLowerCase();
+    if (!raw) { toast('Enter a handle or paste a link'); return; }
+    if (raw.indexOf('@cedarstone') !== -1 || raw.indexOf('cedarstone') !== -1 && raw.indexOf('@') === 0) {
+      go('public-business'); return;
+    }
+    if (raw === '@al' || raw === 'al' || raw.indexOf('@al') === 0) {
+      go('public-handle'); return;
+    }
+    if (raw.indexOf('stay/invite') !== -1 || raw.indexOf('ecc-7f3a9c') !== -1) {
+      go('public-stay-invite'); return;
+    }
+    if (raw.indexOf('event') !== -1 || raw.indexOf('evt_porch') !== -1 || raw.indexOf('porch') !== -1) {
+      go('public-event'); return;
+    }
+    if (raw.indexOf('/qr/') !== -1 || raw.indexOf('qr/') === 0 || raw.indexOf('opaque') !== -1) {
+      var tok = raw.split('/').pop();
+      publicQrToken = tok || 'maya_4c2e_opaque';
+      if (publicQrToken.indexOf('maya') !== -1) publicGrantId = 'grant_maya_4c2e';
+      go('public-qr'); return;
+    }
+    if (raw.indexOf('grant') !== -1 || raw.indexOf('dml.link') !== -1 || raw.indexOf('/r/') !== -1) {
+      if (raw.indexOf('maya') !== -1) publicGrantId = 'grant_maya_4c2e';
+      else if (raw.indexOf('devon') !== -1) publicGrantId = 'grant_devon_8a1f';
+      else publicGrantId = 'grant_maya_4c2e';
+      go('public-place'); return;
+    }
+    if (raw.indexOf('stay') !== -1 || raw.indexOf('oak') !== -1 || raw.indexOf('waller') !== -1) {
+      go('public-stay'); return;
+    }
+    toast('Unrecognized demo token — try a chip below');
+  };
+
+  function renderPublicQr() {
+    var body = $('#public-qr-body');
+    if (!body) return;
+    var token = publicQrToken || 'maya_4c2e_opaque';
+    var cells = '';
+    var seed = token.length * 3;
+    for (var y = 0; y < 11; y++) {
+      for (var x = 0; x < 11; x++) {
+        var on = ((x * 7 + y * 13 + seed) % 5) !== 0;
+        if (x < 3 && y < 3) on = true;
+        if (x > 7 && y < 3) on = true;
+        if (x < 3 && y > 7) on = true;
+        if (on) cells += '<rect x="' + (x * 14 + 8) + '" y="' + (y * 14 + 8) + '" width="12" height="12" fill="#1C1917"/>';
+      }
+    }
+    body.innerHTML =
+      publicSessionBarHtml() +
+      '<h1 class="h1" style="font-size:22px">QR scanned</h1>' +
+      '<p class="sub mb-12">Opaque token resolved. This QR is bound to a named recipient account — forwarding does not transfer the grant.</p>' +
+      '<div class="public-qr-hero"><svg viewBox="0 0 170 170" width="140" height="140" xmlns="http://www.w3.org/2000/svg"><rect width="170" height="170" fill="#F7F4EF"/>' + cells + '</svg></div>' +
+      '<div class="card mb-12">' +
+        '<div class="muted mb-8" style="font-size:11px">Opaque token</div>' +
+        '<div class="strong" style="font-size:13px;word-break:break-all">dml.link/r/' + token + '</div>' +
+        '<p class="muted mt-8" style="font-size:11px">Pairwise ref · not a street address · history-safe</p>' +
+      '</div>' +
+      '<div class="banner private mb-16"><span>◎</span><span><strong>Recipient-bound.</strong> Wrong-account redemption is denied. Share/QR honesty is part of the product.</span></div>' +
+      '<button class="btn btn-primary" onclick="go(\'public-place\')">Continue to location card</button>' +
+      '<button class="btn btn-secondary mt-8" onclick="go(\'public-signin\')">Continue with Domicile</button>' +
+      '<button class="btn btn-ghost mt-8" style="width:100%" onclick="go(\'public-entry\')">Back to entry</button>';
+  }
+
+  function renderPublicBusiness() {
+    var body = $('#public-business-body');
+    if (!body) return;
+    var o = BIZ_ORG;
+    body.innerHTML =
+      publicSessionBarHtml() +
+      '<div class="banner private mb-12"><span>◎</span><span><strong>Public page ≠ address book.</strong> Coverage is an area blurb — not a street, unit, or customer list.</span></div>' +
+      '<div class="card mb-12">' +
+        '<div class="row gap-md">' +
+          '<div class="avatar lg" style="background:#2F5D50">CS</div>' +
+          '<div class="flex-1">' +
+            '<div class="strong" style="font-size:18px;font-family:var(--font-display)">' + o.displayName + '</div>' +
+            '<div class="muted">' + o.handle + ' · verified merchant (demo)</div>' +
+            '<div class="chip-row mt-8">' + o.categories.map(function (c) { return '<span class="pill sage">' + c + '</span>'; }).join('') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<p class="sub mt-12">' + o.about + '</p>' +
+      '</div>' +
+      '<div class="section-label">Coverage &amp; hours</div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Serves</span><span class="strong" style="font-size:12px;text-align:right;max-width:58%">East Austin corridors</span></div>' +
+        '<div class="fact-row"><span class="muted">Hours</span><span class="strong" style="font-size:12px">' + o.hours + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Street</span><span class="strong" style="font-size:12px">Not published</span></div>' +
+      '</div>' +
+      '<div class="section-label">Offerings</div>' +
+      '<div class="card mb-8"><div class="between"><span class="strong">Deep clean</span><span class="muted">From $185</span></div><p class="muted mt-8" style="font-size:11px">Quote ≠ booking</p></div>' +
+      '<div class="card mb-8"><div class="between"><span class="strong">Turnover</span><span class="muted">From $120</span></div></div>' +
+      '<div class="card mb-16"><div class="between"><span class="strong">Tidy</span><span class="muted">From $75</span></div></div>' +
+      '<button class="btn btn-primary" onclick="openPublicInquireSheet()">Inquire</button>' +
+      '<button class="btn btn-ghost mt-8" style="width:100%" onclick="go(\'public-entry\')">Guest entry</button>' +
+      '<p class="muted mt-12" style="font-size:11px;text-align:center">Inquiry uses a <strong>context alias</strong> · approx area default</p>';
+  }
+
+  window.openPublicInquireSheet = function () {
+    var box = $('#public-inquire-body');
+    if (box) {
+      box.innerHTML =
+        '<div class="public-alias-preview mb-12">' +
+          '<div class="muted mb-4" style="font-size:11px">Context alias (not root @handle)</div>' +
+          '<div class="field mb-0"><input id="pub-inq-alias" value="' + publicInquiryAlias + '" /></div>' +
+          '<p class="muted mt-8" style="font-size:11px">Provider sees this alias on the inquiry — not your public handle by default.</p>' +
+        '</div>' +
+        '<div class="field mb-8"><label>Service</label><select id="pub-inq-service"><option>Deep clean</option><option>Turnover</option><option>Tidy</option></select></div>' +
+        '<div class="field mb-8"><label>Preferred window</label><input id="pub-inq-window" value="Thu Sep 25 · 10–1 CT" /></div>' +
+        '<div class="card mb-12">' +
+          '<div class="fact-row"><span class="muted">Disclosure</span><span class="strong" style="font-size:12px">Approximate area</span></div>' +
+          '<div class="fact-row" style="border:none"><span class="muted">Street</span><span class="strong" style="font-size:12px">Locked until eligibility</span></div>' +
+        '</div>' +
+        '<div class="banner info mb-12"><span>ℹ</span><span>Same honesty as private inquiry: approx ON · exact OFF · alias · no street dump from public page.</span></div>';
+    }
+    $('#public-inquire-backdrop').classList.add('show');
+    $('#public-inquire-sheet').classList.add('show');
+  };
+  window.closePublicInquireSheet = function () {
+    $('#public-inquire-backdrop').classList.remove('show');
+    $('#public-inquire-sheet').classList.remove('show');
+  };
+  window.submitPublicInquire = function () {
+    var a = ($('#pub-inq-alias') && $('#pub-inq-alias').value) || publicInquiryAlias;
+    publicInquiryAlias = a.trim() || 'Garden Guest';
+    closePublicInquireSheet();
+    toast('Inquiry sent as “' + publicInquiryAlias + '” · opaque ref · no street');
+  };
+
+  function renderPublicEvent() {
+    var body = $('#public-event-body');
+    if (!body) return;
+    var ev = findOrgEvent('evt_porch_01') || { title: 'East Side Porch Social', venueLabel: 'East Cesar Chavez neighborhood · approximate area', capacity: 40 };
+    var unlocked = publicSession.signedIn && publicSession.eventConfirmed;
+    body.innerHTML =
+      publicSessionBarHtml() +
+      '<div class="photo med event mb-12"><span class="photo-label">Oct 4</span></div>' +
+      '<h1 class="h1" style="font-size:22px">' + (ev.title || 'East Side Porch Social') + '</h1>' +
+      '<p class="sub mb-12">Saturday, Oct 4 · 5:00–8:00 PM CT · ' + (ev.organizerLabel || 'Al · Personal') + '</p>' +
+      '<div class="banner private mb-12"><span>◎</span><span>Exact venue locked until you are a <strong>confirmed</strong> participant in the disclosure window.</span></div>' +
+      '<div class="card mb-12">' +
+        '<div class="h3">Venue</div>' +
+        '<p class="sub">' + (ev.venueLabel || 'East Cesar Chavez neighborhood · approximate area') + '</p>' +
+        (unlocked
+          ? '<p class="strong mt-8" style="font-size:13px">' + (ev.venueExact || 'Exact pin unlocked (demo)') + '</p>'
+          : '<div class="public-lock mt-12"><div class="lock-ico">🔒</div><div class="strong" style="font-size:13px">Exact address locked</div><p class="muted mt-4" style="font-size:11px">Confirm + in-window required</p></div>') +
+      '</div>' +
+      '<div class="map-canvas mb-12" style="height:140px">' +
+        '<div class="map-blob sky" style="top:30%;left:35%"><span>Venue area</span></div>' +
+        '<div class="map-note">Approx area only on public page · ticketed off</div>' +
+      '</div>' +
+      '<div class="card mb-16">' +
+        '<div class="h3">Attendance</div>' +
+        '<p class="sub">Interest list · capacity ~' + (ev.capacity || 40) + ' · no ticket fee · open RSVP interest</p>' +
+      '</div>' +
+      '<button class="btn btn-primary" onclick="openPublicRsvpSheet()">RSVP interest</button>' +
+      '<button class="btn btn-ghost mt-8" style="width:100%" onclick="go(\'public-entry\')">Guest entry</button>';
+  }
+
+  window.openPublicRsvpSheet = function () {
+    var box = $('#public-rsvp-body');
+    if (box) {
+      box.innerHTML =
+        '<div class="public-alias-preview mb-12">' +
+          '<div class="muted mb-4" style="font-size:11px">Event context alias</div>' +
+          '<div class="field mb-0"><input id="pub-rsvp-alias" value="' + publicEventAlias + '" /></div>' +
+          '<p class="muted mt-8" style="font-size:11px">Organizer sees this alias — not your root @handle by default (P41).</p>' +
+        '</div>' +
+        '<div class="field mb-12"><label>Note (optional)</label><textarea id="pub-rsvp-note" rows="2" placeholder="Hope to make it…">Looking forward to the porch hang.</textarea></div>' +
+        '<div class="banner info mb-8"><span>ℹ</span><span>Interest ≠ seat. Exact venue stays locked until confirmed + window.</span></div>';
+    }
+    $('#public-rsvp-backdrop').classList.add('show');
+    $('#public-rsvp-sheet').classList.add('show');
+  };
+  window.closePublicRsvpSheet = function () {
+    $('#public-rsvp-backdrop').classList.remove('show');
+    $('#public-rsvp-sheet').classList.remove('show');
+  };
+  window.submitPublicRsvp = function () {
+    var a = ($('#pub-rsvp-alias') && $('#pub-rsvp-alias').value) || publicEventAlias;
+    publicEventAlias = a.trim() || 'Porch Curious';
+    closePublicRsvpSheet();
+    toast('Interest sent as “' + publicEventAlias + '” · not a seat');
+  };
+
+  function renderPublicStay() {
+    var body = $('#public-stay-body');
+    if (!body) return;
+    var reveal = publicSession.signedIn && publicSession.stayBooked;
+    body.innerHTML =
+      publicSessionBarHtml() +
+      '<div class="photo tall loft mb-12"><span class="photo-label">Oak &amp; Waller</span></div>' +
+      '<div class="between mb-8"><h1 class="h1" style="font-size:22px;margin:0">Oak &amp; Waller Loft</h1><span class="pill">Instant book</span></div>' +
+      '<p class="sub mb-8">Entire loft · East Austin · up to 3 guests</p>' +
+      '<div class="banner warn mb-12"><span>⚠</span><span><strong>Cohort gate:</strong> Public discovery listing — not a private host invite. Guest ≠ household.</span></div>' +
+      '<div class="card mb-12"><p class="sub">Light-filled loft near Waller Creek. Quiet evenings. Self check-in after confirmation.</p></div>' +
+      '<div class="section-label">Location</div>' +
+      '<div class="map-canvas mb-8" style="height:140px">' +
+        '<div class="map-blob" style="top:30%;left:35%"><span>Neighborhood</span></div>' +
+        '<div class="map-note">Approximate neighborhood — exact address locked</div>' +
+      '</div>' +
+      (reveal
+        ? '<div class="card mb-16"><div class="strong">2110 Oak &amp; Waller area · unit after confirm</div><p class="muted mt-8" style="font-size:11px">Demo unlock after booked continuation</p></div>'
+        : '<div class="public-lock mb-16"><div class="lock-ico">🔒</div><div class="strong" style="font-size:13px">Exact address locked</div><p class="muted mt-4" style="font-size:11px">Unlocks for confirmed guests before arrival</p></div>') +
+      '<div class="sticky-cta">' +
+        '<div class="between mb-8"><div><span class="strong">$148</span> <span class="muted">/ night</span></div><span class="muted">Request / Book</span></div>' +
+        '<button class="btn btn-primary" onclick="publicStayCta()">Request / Book</button>' +
+      '</div>' +
+      '<button class="btn btn-ghost mt-8" style="width:100%" onclick="go(\'public-entry\')">Guest entry</button>';
+  }
+
+  window.publicStayCta = function () {
+    if (!publicSession.signedIn) {
+      publicReturnScreen = 'public-stay';
+      toast('Sign in to continue booking (demo)');
+      setTimeout(function () { go('public-signin'); }, 500);
+      return;
+    }
+    publicSession.stayBooked = true;
+    renderPublicStay();
+    toast('Request sent · exact address still locked until confirm (demo)');
+  };
+
+  function renderPublicStayInvite() {
+    var body = $('#public-stay-invite-body');
+    if (!body) return;
+    var status = publicStayInviteAccepted;
+    body.innerHTML =
+      publicSessionBarHtml() +
+      '<div class="banner private mb-12"><span>◎</span><span><strong>Private invitation</strong> · invite-bound · not transferable · not public Stays discovery.</span></div>' +
+      '<h1 class="h1" style="font-size:22px">You’re invited</h1>' +
+      '<p class="sub mb-16">Host <strong>Mira</strong> invited you to a short stay — East Cesar Chavez area.</p>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Guest</span><span class="strong" style="font-size:13px">Jordan K. (invite slot)</span></div>' +
+        '<div class="fact-row"><span class="muted">Dates</span><span class="strong" style="font-size:13px">Oct 3–6, 2026</span></div>' +
+        '<div class="fact-row"><span class="muted">Place</span><span class="strong" style="font-size:13px">East Cesar Chavez · approx</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Token</span><span class="strong" style="font-size:12px">ecc-7f3a9c</span></div>' +
+      '</div>' +
+      '<div class="public-lock mb-16"><div class="lock-ico">🔒</div><div class="strong" style="font-size:13px">Exact home locked</div><p class="muted mt-4" style="font-size:11px">Reveals after accept + host confirm window</p></div>' +
+      (status === true
+        ? '<div class="banner info mb-12"><span>✓</span><span>Accepted (demo). Exact address still locked until window.</span></div>'
+        : status === false
+          ? '<div class="banner warn mb-12"><span>—</span><span>Declined (demo). Invite slot released.</span></div>'
+          : '<div class="btn-row mb-12">' +
+              '<button class="btn btn-primary" style="flex:1;width:auto" onclick="acceptPublicStayInvite()">Accept</button>' +
+              '<button class="btn btn-secondary" style="flex:1;width:auto" onclick="declinePublicStayInvite()">Decline</button>' +
+            '</div>') +
+      '<p class="muted" style="font-size:11px;text-align:center;line-height:1.45">Forwarding this link does not move the invite to someone else.</p>' +
+      '<button class="btn btn-ghost mt-12" style="width:100%" onclick="go(\'public-entry\')">Guest entry</button>';
+  }
+
+  window.acceptPublicStayInvite = function () {
+    publicStayInviteAccepted = true;
+    renderPublicStayInvite();
+    toast('Invite accepted · cohort slot held (demo)');
+  };
+  window.declinePublicStayInvite = function () {
+    publicStayInviteAccepted = false;
+    renderPublicStayInvite();
+    toast('Invite declined (demo)');
+  };
+
+  function renderPublicPlace() {
+    var body = $('#public-place-body');
+    if (!body) return;
+    var g = findOutgoing(publicGrantId) || findOutgoing('grant_maya_4c2e');
+    if (!g) {
+      body.innerHTML = '<p class="sub">Grant not found.</p>';
+      return;
+    }
+    var continued = !!publicSession.signedIn;
+    var approx = g.precision === 'approx' || !continued;
+    var revealExact = continued && g.precision === 'exact';
+    var btn = $('#public-place-signin-btn');
+    if (btn) btn.textContent = continued ? 'Signed in' : 'Sign in';
+
+    var mapHtml;
+    if (revealExact) {
+      var pl = g.selection === 'fixed' && g.placeId ? placeById(g.placeId) : (typeof PLACE_HOME !== 'undefined' ? PLACE_HOME : { street: 'Exact pin', unit: '', city: 'Austin', zip: '78702', label: 'Home' });
+      mapHtml =
+        '<div class="card mb-12">' +
+          '<div class="strong">' + (pl.label || 'Place') + '</div>' +
+          '<div class="muted mt-8">' + pl.street + (pl.unit ? ' · ' + pl.unit : '') + '</div>' +
+          '<div class="muted">' + pl.city + ', ' + pl.zip + '</div>' +
+        '</div>';
+    } else {
+      mapHtml =
+        '<div class="map-canvas mb-12" style="height:160px">' +
+          '<div class="map-blob" style="top:28%;left:30%;width:100px;height:78px"><span>Approx area</span></div>' +
+          '<div class="map-note">Approximate neighborhood · no street / unit</div>' +
+        '</div>';
+    }
+
+    body.innerHTML =
+      publicSessionBarHtml() +
+      '<div class="banner private mb-12"><span>◎</span><span><strong>Recipient-bound share.</strong> Forwarding does not transfer ' + g.name + '\'s grant. Wrong-account redemption denied.</span></div>' +
+      '<div class="pd-hero mb-12">' +
+        '<div class="grant-avatar" style="background:' + g.color + '">' + g.initials + '</div>' +
+        '<div>' +
+          '<div class="strong" style="font-size:18px;font-family:var(--font-display)">Shared location</div>' +
+          '<div class="muted" style="font-size:12px;margin-top:2px">From AL · for ' + g.name + ' (' + g.handle + ')</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Purpose</span><span class="strong" style="font-size:12px">' + g.purpose + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Precision</span><span class="strong" style="font-size:12px">' + (approx ? 'Approximate area' : 'Exact pin') + '</span></div>' +
+        '<div class="fact-row"><span class="muted">Routing</span><span class="strong" style="font-size:12px">' + (g.selection === 'fixed' ? 'Fixed address version' : 'Follow home') + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Window</span><span class="strong" style="font-size:12px;text-align:right;max-width:58%">' + g.endLabel + '</span></div>' +
+      '</div>' +
+      mapHtml +
+      (!continued
+        ? '<div class="public-lock mb-16"><div class="lock-ico">🔒</div><div class="strong" style="font-size:13px">Limited preview</div><p class="muted mt-4" style="font-size:11px">Continue with Domicile to redeem as the bound recipient</p></div>' +
+          '<button class="btn btn-primary" onclick="go(\'public-signin\')">Continue with Domicile</button>'
+        : '<div class="banner info mb-12"><span>✓</span><span>Permitted fields revealed for this grant · history-safe · no raw dump beyond precision.</span></div>' +
+          (g.precision === 'approx'
+            ? '<p class="muted mb-12" style="font-size:11px;text-align:center">Grant is still approximate — exact pin not authorized.</p>'
+            : '') +
+          '<button class="btn btn-secondary" onclick="toast(\'Opened in Map (demo)\')">Open in Map</button>') +
+      '<button class="btn btn-ghost mt-8" style="width:100%" onclick="go(\'public-qr\')">View QR token</button>' +
+      '<p class="muted mt-12" style="font-size:11px;text-align:center">Pairwise <strong>' + g.id + '</strong> · prototype</p>';
+  }
+
+  function renderPublicHandle() {
+    var body = $('#public-handle-body');
+    if (!body) return;
+    body.innerHTML =
+      publicSessionBarHtml() +
+      '<div class="banner private mb-12"><span>◎</span><span><strong>Handle ≠ location.</strong> Resolving @al shows profile / message — not a map pin.</span></div>' +
+      '<div class="card mb-16">' +
+        '<div class="row gap-md">' +
+          '<div class="avatar lg">AL</div>' +
+          '<div class="flex-1">' +
+            '<div class="strong" style="font-size:18px;font-family:var(--font-display)">AL</div>' +
+            '<div class="muted">@al · Personal</div>' +
+            '<div class="chip-row mt-8"><span class="pill sage">Message only</span><span class="pill ghost">No address</span></div>' +
+          '</div>' +
+        '</div>' +
+        '<p class="sub mt-12">Public discoverability is message / profile only. A handle does not publish home coordinates.</p>' +
+      '</div>' +
+      '<button class="btn btn-primary" onclick="toast(\'Message composer (demo) · no address attached\')">Message @al</button>' +
+      '<button class="btn btn-ghost mt-8" style="width:100%" onclick="go(\'public-entry\')">Guest entry</button>';
+  }
+
+  function renderPublicSignin() {
+    var body = $('#public-signin-body');
+    if (!body) return;
+    body.innerHTML =
+      '<h1 class="h1" style="font-size:24px">Continue</h1>' +
+      '<p class="sub mb-16">Lightweight guest continuation — mock sign-in returns you to the prior public card with permitted fields unlocked. No full account switcher.</p>' +
+      '<div class="card mb-12">' +
+        '<div class="strong" style="font-size:14px">Return to</div>' +
+        '<div class="muted mt-4">' + (publicReturnScreen || 'public-place') + '</div>' +
+      '</div>' +
+      '<button class="btn btn-primary" onclick="publicContinueSignIn()">Sign in with Domicile (mock)</button>' +
+      '<button class="btn btn-secondary mt-8" onclick="publicContinueGuest()">Continue as guest demo</button>' +
+      '<button class="btn btn-ghost mt-8" style="width:100%" onclick="go(publicReturnScreen || \'public-entry\')">Cancel</button>' +
+      '<p class="muted mt-16" style="font-size:11px;text-align:center">Prototype only · no real auth / payments</p>';
+  }
+
+  window.publicContinueSignIn = function () {
+    publicSession.signedIn = true;
+    publicSession.continuedAt = Date.now();
+    publicSession.alias = publicSession.alias || 'Demo guest';
+    var dest = publicReturnScreen || 'public-place';
+    go(dest);
+    toast('Signed in · permitted fields unlocked (demo)');
+  };
+  window.publicContinueGuest = function () {
+    publicSession.signedIn = true;
+    publicSession.alias = 'Guest demo';
+    var dest = publicReturnScreen || 'public-place';
+    go(dest);
+    toast('Guest continuation · limited unlock (demo)');
+  };
+
+  function renderPublicGallery() {
+    var body = $('#public-gallery-body');
+    if (!body) return;
+    var rows = [
+      ['public-entry', 'Handle / link entry', '#public'],
+      ['public-business', 'Cedar & Stone public', '#public-business'],
+      ['public-event', 'Porch Social (guest)', '#public-event'],
+      ['public-stay', 'Oak & Waller stay card', '#public-stay'],
+      ['public-stay-invite', 'Private stay invite', '#public-stay-invite'],
+      ['public-place', 'Permitted location card', '#public-place'],
+      ['public-qr', 'QR landing', '#public-qr'],
+      ['public-handle', '@al handle card', '#public-handle'],
+      ['public-signin', 'Sign-in continuation', '#public-signin']
+    ];
+    body.innerHTML =
+      '<h1 class="h1" style="font-size:22px">Public &amp; guest links</h1>' +
+      '<p class="sub mb-16">W8 demo gallery — open cold without personal/business/crew chrome.</p>' +
+      rows.map(function (r) {
+        return '<div class="card tap mb-8" onclick="go(\'' + r[0] + '\')"><div class="between"><div><div class="strong" style="font-size:14px">' + r[1] + '</div><div class="muted" style="font-size:11px">' + r[2] + '</div></div><span>›</span></div></div>';
+      }).join('') +
+      '<button class="btn btn-secondary mt-8" onclick="exitPublicToApp()">Return to signed-in app</button>' +
+      '<p class="muted mt-12" style="font-size:11px;text-align:center">Seeds: @cedarstone · @al · grant_maya_4c2e · ecc-7f3a9c · evt_porch_01</p>';
+  }
+
     var toastTimer;
   window.toast = function (msg) {
     var t = $('#toast');
@@ -5731,10 +6287,14 @@
     updatePermissionsSummaries();
     updateOrgEventsSummaries();
     var hash = (location.hash || '').replace(/^#/, '');
+    hash = normalizePublicRoute(hash);
     if (hash && $('[data-screen="' + hash + '"]')) {
       $all('.screen').forEach(function (s) { s.classList.remove('active'); });
       // Pre-set workspace so first go() doesn't double-toast
-      if (isCrewScreen(hash)) {
+      if (isPublicScreen(hash)) {
+        activeWorkspace = 'public';
+        applyWorkspaceChrome();
+      } else if (isCrewScreen(hash)) {
         activeWorkspace = 'crew';
         activeOrg = 'cedar';
         activeAccount = 'casey';
@@ -5753,6 +6313,7 @@
   boot();
   window.addEventListener('hashchange', function () {
     var hash = (location.hash || '').replace(/^#/, '');
+    hash = normalizePublicRoute(hash);
     if (hash && hash !== current) go(hash);
   });
 })();

@@ -26,6 +26,12 @@
     <div class="path">You → Permissions &amp; sharing → grant detail → Pause / New share</div>
     <div class="hint" style="margin-top:8px"><strong>Connected services:</strong> demo connectors only (API / deep link / draft). Pairwise IDs — not real OAuth.</div>
     <div class="hint"><strong>Permissions (MAP):</strong> peer grants need expiry · Pause ≠ revoke merchants · Public handle ≠ address · prototype only.</div>
+    <div class="hint"><strong>W8 Public/guest:</strong> open <code>#public</code> cold · business / event / stay / invite / grant / QR without personal nav · Continue mock unlocks permitted fields.</div>
+    <div class="path">#public → resolve @cedarstone / grant / stay invite / event / QR</div>
+    <div class="path">Owner Public profile → Open public link → #public-business</div>
+    <div class="path">Host invite → Open guest link → #public-stay-invite</div>
+    <div class="path">Grant detail → Open recipient link / QR → #public-place · #public-qr</div>
+    <div class="path">Organizer → Preview as guest → #public-event</div>
     <p class="muted" style="margin-top:14px;font-size:11px;line-height:1.45">Private-cohort chrome. Exact address &amp; codes only after pre-arrival unlock. Guest ≠ household. Fictional Austin sample data.</p>
   </aside>
 
@@ -1193,6 +1199,7 @@
               <div class="you-row" onclick="go('move-planning')"><span>→</span><span class="y-label">Move planning</span><span class="y-meta" id="you-move-meta">3/8</span><span class="y-chev">›</span></div>
             </div>
             <div class="card">
+              <div class="you-row" onclick="go('public-gallery')"><span>◎</span><span class="y-label">Public &amp; guest links (demo)</span><span class="y-meta">W8</span><span class="y-chev">›</span></div>
               <div class="you-row" onclick="go('support')"><span>?</span><span class="y-label">Support</span><span class="y-chev">›</span></div>
             </div>
           </div>
@@ -1493,7 +1500,8 @@ AL</div>
           <div class="pad">
             <div class="card mb-8 tap" onclick="toast('Help center (prototype)')"><div class="between"><span class="strong">Help center</span><span>›</span></div></div>
             <div class="card mb-8 tap" onclick="toast('Message support (prototype)')"><div class="between"><span class="strong">Message Domicile</span><span>›</span></div></div>
-            <div class="card"><div class="h3">About this prototype</div><p class="sub mt-8">Planning edition 3.2 · fictional Austin sample · not production. No real payments, auth, or map tiles.</p></div>
+            <div class="card mb-8 tap" onclick="go('public-gallery')"><div class="between"><span class="strong">Public &amp; guest links (demo)</span><span>›</span></div></div>
+            <div class="card"><div class="h3">About this prototype</div><p class="sub mt-8">Planning edition 3.2 · fictional Austin sample · not production. No real payments, auth, or map tiles. Includes W8 public/guest share shell.</p></div>
           </div>
         </section>
 
@@ -1694,8 +1702,9 @@ AL</div>
               <div class="strong" style="font-size:13px;word-break:break-all" id="invite-link">domicile.app/stay/invite/ecc-7f3a9c</div>
               <p class="muted mt-8">Expires Oct 6, 2026 · one listing · private cohort</p>
             </div>
-            <button class="btn btn-primary" onclick="toast('Invite link copied & sent (prototype)')">Send invite</button>
-            <button class="btn btn-secondary mt-8" onclick="toast('Link copied to clipboard (prototype)')">Copy link</button>
+            <button class="btn btn-primary" onclick="toast('Invite link copied & sent (prototype)'); setTimeout(function(){ openPublicStayInvite(); }, 400)">Send invite</button>
+            <button class="btn btn-secondary mt-8" onclick="copyHostInviteLink()">Copy link</button>
+            <button class="btn btn-ghost mt-8" style="width:100%" onclick="openPublicStayInvite()">Open guest link</button>
           </div>
         </section>
 
@@ -1939,6 +1948,98 @@ AL</div>
           <div class="pad" id="crew-me-body"><!-- filled by JS --></div>
         </section>
 
+
+        <!-- ========== W8 Public / guest share shell ========== -->
+        <section class="screen" data-screen="public-entry" data-nav="public" data-workspace="public">
+          <div class="public-chrome">
+            <div class="mark"><span class="dot">D</span>Domicile</div>
+            <span class="guest-pill">Guest link</span>
+            <button type="button" class="signin-link" onclick="go('public-signin')">Sign in</button>
+          </div>
+          <div class="pad" id="public-entry-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="public-qr" data-nav="public" data-workspace="public">
+          <div class="public-chrome">
+            <div class="mark"><span class="dot">D</span>Domicile</div>
+            <span class="guest-pill">QR landing</span>
+            <button type="button" class="signin-link" onclick="go('public-signin')">Sign in</button>
+          </div>
+          <div class="pad" id="public-qr-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="public-business" data-nav="public" data-workspace="public">
+          <div class="public-chrome">
+            <div class="mark"><span class="dot">D</span>Domicile</div>
+            <span class="guest-pill">Business</span>
+            <button type="button" class="signin-link" onclick="go('public-signin')">Sign in</button>
+          </div>
+          <div class="pad" id="public-business-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="public-event" data-nav="public" data-workspace="public">
+          <div class="public-chrome">
+            <div class="mark"><span class="dot">D</span>Domicile</div>
+            <span class="guest-pill">Event</span>
+            <button type="button" class="signin-link" onclick="go('public-signin')">Sign in</button>
+          </div>
+          <div class="pad" id="public-event-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="public-stay" data-nav="public" data-workspace="public">
+          <div class="public-chrome">
+            <div class="mark"><span class="dot">D</span>Domicile</div>
+            <span class="guest-pill">Stay</span>
+            <button type="button" class="signin-link" onclick="go('public-signin')">Sign in</button>
+          </div>
+          <div class="pad" id="public-stay-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="public-stay-invite" data-nav="public" data-workspace="public">
+          <div class="public-chrome">
+            <div class="mark"><span class="dot">D</span>Domicile</div>
+            <span class="guest-pill">Private invite</span>
+            <button type="button" class="signin-link" onclick="go('public-signin')">Sign in</button>
+          </div>
+          <div class="pad" id="public-stay-invite-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="public-place" data-nav="public" data-workspace="public">
+          <div class="public-chrome">
+            <div class="mark"><span class="dot">D</span>Domicile</div>
+            <span class="guest-pill">Location card</span>
+            <button type="button" class="signin-link" id="public-place-signin-btn" onclick="go('public-signin')">Sign in</button>
+          </div>
+          <div class="pad" id="public-place-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="public-handle" data-nav="public" data-workspace="public">
+          <div class="public-chrome">
+            <div class="mark"><span class="dot">D</span>Domicile</div>
+            <span class="guest-pill">Handle</span>
+            <button type="button" class="signin-link" onclick="go('public-signin')">Sign in</button>
+          </div>
+          <div class="pad" id="public-handle-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="public-signin" data-nav="public" data-workspace="public">
+          <div class="public-chrome">
+            <div class="mark"><span class="dot">D</span>Domicile</div>
+            <span class="guest-pill">Continue</span>
+            <span style="width:64px"></span>
+          </div>
+          <div class="pad" id="public-signin-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="public-gallery" data-nav="public" data-workspace="public">
+          <div class="public-chrome">
+            <div class="mark"><span class="dot">D</span>Domicile</div>
+            <span class="guest-pill">Demo gallery</span>
+            <button type="button" class="signin-link" onclick="exitPublicToApp()">App</button>
+          </div>
+          <div class="pad" id="public-gallery-body"><!-- filled by JS --></div>
+        </section>
+
       </div><!-- /screens -->
 
       <nav class="bottom-nav" id="bottom-nav-personal">
@@ -2096,6 +2197,7 @@ AL</div>
         <p class="sub mb-12">Opaque ref for the named account. Forwarding does not transfer their grant.</p>
         <div class="perm-qr-box" id="perm-qr-box"></div>
         <p class="muted mt-12" style="font-size:11px;text-align:center;word-break:break-all" id="perm-qr-token"></p>
+        <button class="btn btn-primary mt-8" onclick="closeQrSheet(); openPublicQrFromGrant(activeGrantId)">Open QR landing</button>
         <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeQrSheet()">Close</button>
       </div>
 
@@ -2163,6 +2265,28 @@ AL</div>
         <div class="banner warn mb-12"><span>⚠</span><span><strong>Venue authority:</strong> cancel ends future exact pin access for confirmed guests.</span></div>
         <button class="btn btn-primary" style="background:var(--danger)" onclick="confirmOrgCancel()">Cancel event</button>
         <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeOrgCancelSheet()">Keep event</button>
+      </div>
+
+
+      <!-- W8 Public sheets -->
+      <div class="sheet-backdrop" id="public-inquire-backdrop" onclick="closePublicInquireSheet()"></div>
+      <div class="sheet sheet-tall" id="public-inquire-sheet" role="dialog" aria-modal="true" aria-labelledby="public-inquire-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="public-inquire-title" style="font-size:18px;margin-bottom:6px">Service inquiry</h2>
+        <p class="sub mb-12">Context alias · approximate area by default · never dumps a street address from this public page.</p>
+        <div id="public-inquire-body"></div>
+        <button class="btn btn-primary" onclick="submitPublicInquire()">Send inquiry (demo)</button>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closePublicInquireSheet()">Cancel</button>
+      </div>
+
+      <div class="sheet-backdrop" id="public-rsvp-backdrop" onclick="closePublicRsvpSheet()"></div>
+      <div class="sheet" id="public-rsvp-sheet" role="dialog" aria-modal="true" aria-labelledby="public-rsvp-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="public-rsvp-title" style="font-size:18px;margin-bottom:6px">Event interest</h2>
+        <p class="sub mb-12">Interest is not a seat. Uses an event context alias — not your root @handle by default.</p>
+        <div id="public-rsvp-body"></div>
+        <button class="btn btn-primary" onclick="submitPublicRsvp()">Send interest (demo)</button>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closePublicRsvpSheet()">Cancel</button>
       </div>
 
       <div class="toast" id="toast"></div>
