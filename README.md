@@ -14,7 +14,7 @@ open /workspace/domicile-full-prototype/index.html
 python3 -m http.server 8765 --directory /workspace/domicile-full-prototype
 ```
 
-Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-prototype/. Hash routes work (e.g. `#stays-search`, `#permissions`, `#service-inquiry`, `#org-events`, `#org-event-detail`, `#org-event-edit`, `#biz-today`, `#biz-inbox`, `#biz-jobs`, `#biz-profile`, `#biz-finance`, `#biz-payments`, `#biz-settings`, plus **Messages** `#messages`, `#message-thread`, `#message-compose`, `#notifications`, `#assist`, `#support-cases`, `#support-case`, `#biz-catalog`, `#biz-customers`, `#biz-team`, `#crew-today`, `#crew-jobs`, `#crew-job-detail`, `#crew-me`, plus **W8** `#public`, `#public-business`, `#public-event`, `#public-stay`, `#public-stay-invite`, `#public-place`, `#public-qr`, `#public-handle`, `#public-signin`, `#public-gallery`). Bottom nav remembers the last screen per tab; **Owner / Crew / Personal navs replace each other** after Switch account (or cross-mode hash). **Public workspace hides all bottom navs.**
+Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-prototype/. Hash routes work (e.g. `#stays-search`, `#permissions`, `#home-devices`, `#home-device-detail`, `#home-access-issue`, `#home-access-grant`, `#service-inquiry`, `#org-events`, `#org-event-detail`, `#org-event-edit`, `#biz-today`, `#biz-inbox`, `#biz-jobs`, `#biz-profile`, `#biz-finance`, `#biz-payments`, `#biz-settings`, plus **Messages** `#messages`, `#message-thread`, `#message-compose`, `#notifications`, `#assist`, `#support-cases`, `#support-case`, `#biz-catalog`, `#biz-customers`, `#biz-team`, `#crew-today`, `#crew-jobs`, `#crew-job-detail`, `#crew-me`, plus **W8** `#public`, `#public-business`, `#public-event`, `#public-stay`, `#public-stay-invite`, `#public-place`, `#public-qr`, `#public-handle`, `#public-signin`, `#public-gallery`). Bottom nav remembers the last screen per tab; **Owner / Crew / Personal navs replace each other** after Switch account (or cross-mode hash). **Public workspace hides all bottom navs.**
 
 **Files:** `index.html` · `app.css` · `app.js` · this README.
 
@@ -27,7 +27,7 @@ Then visit `http://localhost:8765/` or https://thejuw.github.io/domicile-full-pr
 | **Map** | Permissioned faux MapLibre UI · layer toggles (destinations / businesses / events) · SVG city blobs |
 | **Places** | Homes list → **East Cesar Chavez Cottage** Home Profile → Household · Facts/assets · Spending · Bills · Community (HOA balance) · Maintenance · **Hosting** |
 | **Explore** | Hub → **Stays** · Services · Events · Packages · Sponsored (Ad-labeled) |
-| **You** | Identity · Trips · Hosting · **Events I'm organizing** · Ledger · **Permissions & sharing** · **Connected services** · Move planning · **Messages** · Notifications · **Public & guest links (W8)** · Support / Assist / Cases |
+| **You** | Identity · Trips · Hosting · **Events I'm organizing** · Ledger · **Permissions & sharing** · **Connected services** · **Home devices** · Move planning · **Messages** · Notifications · **Public & guest links (W8)** · Support / Assist / Cases |
 
 ### Stays — guest (Explore → Stays)
 Search → results list/map → listing → checkout (instant / request) → confirmation → Trips → pre-arrival lock → **Demo unlock** → address / house guide / code → messaging → active stay → checkout checklist → receipt / review
@@ -60,6 +60,29 @@ Places → Home → Community (HOA) · **Today or You → Move Planning** → ch
 
 ### Connected services (~30s)
 **You → Connected services** → Amazon (API apply · Follow home · Applied OK) → pin South Lamar / follow home → **Update now** → Exclude/Include on Move Planning → back → Move card shows follow/pinned/excluded counts. Add sheet lists capability honesty (API / Deep link / Draft). Demo only — not real OAuth.
+
+### Home devices / smart-lock (~90s · P85 / P87 · stay_access_grants)
+**Not** merchant Connected Services (Amazon/DoorDash). Personal hub for pairing locks at East Cesar Chavez, then issuing time-bound physical entry.
+
+#### Deep links
+| Surface | Hash |
+|---------|------|
+| Hub | `#home-devices` |
+| Device detail (Front door) | `#home-device-detail` (open via hub · `device_front_yale_7a2c`) |
+| Issue access wizard | `#home-access-issue` |
+| Grant detail (Mira stay) | `#home-access-grant` (`access_grant_mira_stay_01`) |
+| Host reservation wire | `#host-reservation` |
+| Guest trip wire | `#trip-prearrival` → Demo unlock |
+
+#### ~90s click path
+1. **You → Home devices** — Front door (Yale-style · **API write** · Connected) · Back gate (**Manual entry-code only**) · Garage (**Available to pair**)
+2. Open **Front door** — capability chip · Active access (Mira stay + Casey crew) · audit snippet
+3. **Issue access** → recipient Mira / Casey / Maya / compose → purpose → fields (entry code; house guide optional; **address separate**) → CT window → Issue → `access_grant_*`
+4. **Grant detail** — tap to reveal code in-window · Revoke (API → partner+app; manual → in-app only honesty) · Extend
+5. **Pair / connect** (+) → place → adapter capability → consent → Connected with pairwise device ID
+6. Wire: **Hosting → Reservation** shows Access issued / Revoke · **Trips → Demo unlock** binds code to `access_grant_mira_stay_01` · Mira Messages action **Access code ready**
+
+Kit honored: capability-aware adapters; distinct address / house guide / entry code; confirmed named guests; validity windows; revoke cuts **future** resolution (already-disclosed stays honest); stay access ≠ household / docs / payments / MAP; offline/manual never fake “revoked on lock”; demo labeling · pairwise IDs · not real OAuth/lock APIs. Optional crew grant seeded (`access_grant_casey_crew_02`).
 
 ### Permissions & sharing (~30s · MAP)
 **You → Permissions & sharing** (or Today Quiet card / Map → Manage sharing) → pause **Sharing with people** (merchant & **inquiry** grants unchanged → Connected Services) → **I've shared** → Maya / Devon / Jordan / Cedar Creek task / **Cedar & Stone inquiry** / Priya expired → grant detail (precision, Follow vs Fixed, CT window, preview / extend / revoke / recipient-bound link+QR, access history) → **Shared with me** → **Public & handle** (@al message-only; public map off by default) → **Share destination** wizard. Pairwise IDs (`grant_maya_4c2e`, `grant_inq_cedar_7a2f`) · prototype only — not live OAuth.
@@ -253,7 +276,9 @@ Overview (East Cesar Chavez → South Lamar) → recipient checklist with channe
 - Job execution status is shared; Owner sees live stamps/duration; Owner-only reset with audit row  
 - Crew cannot reset status (ask Owner); duration uses real in-session `Date` stamps  
 - Private-cohort chrome + gated public discovery  
-- Exact address / door codes only after unlock for confirmed guests  
+- Exact address / door codes only after unlock for confirmed guests
+- Home device entry grants ≠ merchant Connected Services ≠ MAP place shares
+- Lock capability honesty: API write vs deep link vs manual; revoke scope labeled  
 - Guest ≠ household / tenant / resident  
 - Sponsored clearly **Ad**-labeled before interaction  
 - Fictional Austin sample data only (Oak & Waller Loft, East Cesar Chavez Cottage, etc.)  

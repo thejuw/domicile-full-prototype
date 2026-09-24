@@ -14,7 +14,8 @@
     'permissions': 1, 'permission-detail': 1, 'connections': 1, 'connected-services': 1, 'connected-service-detail': 1, 'support': 1,
     'messages': 1, 'message-thread': 1, 'message-compose': 1, 'notifications': 1, 'assist': 1,
     'support-cases': 1, 'support-case': 1, 'trip-messaging': 1,
-    'org-events': 1, 'org-event-edit': 1, 'org-event-detail': 1, 'org-event-participant': 1
+    'org-events': 1, 'org-event-edit': 1, 'org-event-detail': 1, 'org-event-participant': 1,
+    'home-devices': 1, 'home-device-detail': 1, 'home-access-issue': 1, 'home-access-grant': 1
   };
 
   var BIZ_SCREENS = {
@@ -881,10 +882,16 @@
     if (name === 'move-usps') syncUspsUi();
     if (name === 'connected-services') renderConnectedServices();
     if (name === 'connected-service-detail') renderServiceDetail();
+    if (name === 'home-devices') renderHomeDevicesHub();
+    if (name === 'home-device-detail') renderHomeDeviceDetail();
+    if (name === 'home-access-issue') renderIssueAccessWizard();
+    if (name === 'home-access-grant') renderAccessGrantDetail();
+    if (name === 'host-reservation') renderHostAccessCard();
+    if (name === 'trip-prearrival' || name === 'trip-active') refreshTripAccessUi();
     if (name === 'permissions') renderPermissionsHub();
     if (name === 'permission-detail') renderPermissionDetail();
     if (name === 'service-inquiry') syncInquiryFormUi();
-    if (name === 'you' || name === 'today') { updateConnectedServicesSummaries(); updatePermissionsSummaries(); updateOrgEventsSummaries(); }
+    if (name === 'you' || name === 'today') { updateConnectedServicesSummaries(); updatePermissionsSummaries(); updateOrgEventsSummaries(); updateHomeDevicesSummaries(); }
     if (name === 'biz-today') renderBizToday();
     if (name === 'biz-inbox') renderBizInbox();
     if (name === 'biz-inquiry-detail') renderBizInquiryDetail();
@@ -2112,6 +2119,981 @@
     closeAddService();
     toast('Request noted (prototype) — no partner outreach');
   };
+
+  /* ========== Home devices / smart-lock (P85/P87 · stay_access_grants) ========== */
+  var LOCK_CAP_LABEL = {
+    api: 'API write',
+    deeplink: 'Deep link',
+    manual: 'Manual entry-code only'
+  };
+  var LOCK_STATUS_LABEL = {
+    connected: 'Connected',
+    offline: 'Offline',
+    available: 'Available to pair',
+    disconnected: 'Disconnected'
+  };
+  var GRANT_DELIVERY_LABEL = {
+    issued: 'Issued',
+    delivered: 'Delivered to guest app',
+    used: 'Used',
+    expired: 'Expired',
+    revoked: 'Revoked'
+  };
+
+  var homeDevices = [
+    {
+      id: 'device_front_yale_7a2c',
+      name: 'Front door',
+      placeId: 'place_ecc',
+      placeLabel: 'East Cesar Chavez Cottage',
+      adapter: 'Yale-style demo',
+      adapterId: 'adapter_yale_demo',
+      initials: 'Fd',
+      color: '#2F5D50',
+      capability: 'api',
+      status: 'connected',
+      lastSync: 'Synced · 12 min ago CT',
+      note: 'Partner supports issue / revoke of time-bound codes via API (demo — not real OAuth).',
+      paired: true,
+      audit: [
+        { at: 'Sep 22 · 4:12p CT', line: 'Paired · pairwise device_front_yale_7a2c' },
+        { at: 'Sep 23 · 9:04a CT', line: 'Issued access_grant_mira_stay_01 · Stay check-in' },
+        { at: 'Sep 23 · 9:05a CT', line: 'Code reference delivered to guest app (demo)' }
+      ]
+    },
+    {
+      id: 'device_back_manual_3e91',
+      name: 'Back gate',
+      placeId: 'place_ecc',
+      placeLabel: 'East Cesar Chavez Cottage',
+      adapter: 'Unsupported / generic keypad',
+      adapterId: 'adapter_manual',
+      initials: 'Bg',
+      color: '#6a7a55',
+      capability: 'manual',
+      status: 'connected',
+      lastSync: 'Manual path · no partner sync',
+      note: 'No partner API. Host shares a static code; revoke is in-app only — never claim “revoked on lock.”',
+      paired: true,
+      audit: [
+        { at: 'Sep 18 · 2:40p CT', line: 'Connected as manual entry-code only' },
+        { at: 'Sep 20 · 11:10a CT', line: 'Host noted physical code on keypad (demo)' }
+      ]
+    },
+    {
+      id: 'device_garage_avail_9c44',
+      name: 'Garage',
+      placeId: 'place_ecc',
+      placeLabel: 'East Cesar Chavez Cottage',
+      adapter: null,
+      adapterId: null,
+      initials: 'Ga',
+      color: '#5a7a8a',
+      capability: null,
+      status: 'available',
+      lastSync: 'Not paired',
+      note: 'Available to pair. Offline / unsupported adapters stay honest — no fake synced-everywhere.',
+      paired: false,
+      audit: []
+    }
+  ];
+
+  var lockCatalog = [
+    {
+      id: 'adapter_yale_demo',
+      name: 'Yale-style smart lock',
+      purpose: 'Issue / revoke codes via partner API',
+      initials: 'Ya',
+      color: '#2F5D50',
+      capability: 'api'
+    },
+    {
+      id: 'adapter_august_dl',
+      name: 'August-style (deep link)',
+      purpose: 'Opens partner app — no write API in demo',
+      initials: 'Au',
+      color: '#3A4F6A',
+      capability: 'deeplink'
+    },
+    {
+      id: 'adapter_manual',
+      name: 'Keypad / unsupported',
+      purpose: 'Manual entry-code only — honest offline path',
+      initials: 'Ky',
+      color: '#6a7a55',
+      capability: 'manual'
+    }
+  ];
+
+  var stayAccessGrants = [
+    {
+      id: 'access_grant_mira_stay_01',
+      deviceId: 'device_front_yale_7a2c',
+      recipientId: 'acct_mira_stay',
+      recipientName: 'Mira R.',
+      recipientHandle: '@mira',
+      recipientRole: 'stay_guest',
+      recipientInitials: 'MR',
+      recipientColor: '#C45C26',
+      purpose: 'Stay check-in',
+      fields: { entryCode: true, houseGuide: true, address: false },
+      codeRef: '48291#',
+      codeLabel: 'Prototype demo code',
+      startPolicy: '24h_before',
+      startLabel: 'Sep 23 · 3:00 PM CT (24h before check-in)',
+      endLabel: 'Sep 26 · 11:00 AM CT (checkout)',
+      windowStartMs: Date.now() - 36 * 3600 * 1000,
+      windowEndMs: Date.now() + 48 * 3600 * 1000,
+      delivery: 'delivered',
+      status: 'active',
+      revokeScope: null,
+      stayId: 'trip_oak_waller',
+      events: [
+        { at: 'Sep 23 · 9:04a CT', line: 'Issued · Stay check-in · Front door' },
+        { at: 'Sep 23 · 9:05a CT', line: 'Delivered to guest app' },
+        { at: 'Sep 23 · 3:12p CT', line: 'Code resolved in-window (demo)' }
+      ]
+    },
+    {
+      id: 'access_grant_casey_crew_02',
+      deviceId: 'device_front_yale_7a2c',
+      recipientId: 'acct_casey_crew',
+      recipientName: 'Casey Nguyen',
+      recipientHandle: '@casey',
+      recipientRole: 'crew',
+      recipientInitials: 'CN',
+      recipientColor: '#6a7a55',
+      purpose: 'Crew turnover',
+      fields: { entryCode: true, houseGuide: false, address: false },
+      codeRef: '33917#',
+      codeLabel: 'Prototype demo code',
+      startPolicy: 'now',
+      startLabel: 'Today · 1:00 PM CT (−30m buffer)',
+      endLabel: 'Today · 4:00 PM CT (+30m buffer)',
+      windowStartMs: Date.now() - 2 * 3600 * 1000,
+      windowEndMs: Date.now() + 3 * 3600 * 1000,
+      delivery: 'issued',
+      status: 'active',
+      revokeScope: null,
+      stayId: null,
+      jobId: 'job_turnover_ecc',
+      events: [
+        { at: 'Today · 12:58p CT', line: 'Issued · Crew turnover · ±30m buffers' },
+        { at: 'Today · 12:59p CT', line: 'Job-scoped · not household membership' }
+      ]
+    }
+  ];
+
+  var activeDeviceId = 'device_front_yale_7a2c';
+  var activeAccessGrantId = 'access_grant_mira_stay_01';
+  var pairDraft = { step: 1, placeId: 'place_ecc', adapterId: null, consent: false };
+  var issueDraft = {
+    step: 1,
+    deviceId: 'device_front_yale_7a2c',
+    recipientId: 'acct_mira_stay',
+    purpose: 'Stay check-in',
+    entryCode: true,
+    houseGuide: false,
+    startPolicy: '24h_before',
+    endPolicy: 'checkout'
+  };
+
+  var ACCESS_RECIPIENTS = [
+    { id: 'acct_mira_stay', name: 'Mira R.', handle: '@mira', role: 'stay_guest', roleLabel: 'Stay guest', initials: 'MR', color: '#C45C26', note: 'Confirmed stay guest · Oak & Waller / ECC demo' },
+    { id: 'acct_casey_crew', name: 'Casey Nguyen', handle: '@casey', role: 'crew', roleLabel: 'Crew', initials: 'CN', color: '#6a7a55', note: 'Cedar & Stone crew · job-scoped buffers' },
+    { id: 'acct_maya_91c2', name: 'Maya Chen', handle: '@maya', role: 'peer', roleLabel: 'Peer', initials: 'MC', color: '#2F5D50', note: 'Peer · temporary guest / neighbor care' },
+    { id: 'acct_compose_demo', name: 'Compose demo contact', handle: '@guest', role: 'guest', roleLabel: 'Demo contact', initials: '+', color: '#78716C', note: 'Prototype compose — not a live invite' }
+  ];
+
+  function findHomeDevice(id) {
+    for (var i = 0; i < homeDevices.length; i++) {
+      if (homeDevices[i].id === id) return homeDevices[i];
+    }
+    return null;
+  }
+
+  function findAccessGrant(id) {
+    for (var i = 0; i < stayAccessGrants.length; i++) {
+      if (stayAccessGrants[i].id === id) return stayAccessGrants[i];
+    }
+    return null;
+  }
+
+  function grantsForDevice(deviceId) {
+    return stayAccessGrants.filter(function (g) { return g.deviceId === deviceId; });
+  }
+
+  function activeGrantsForDevice(deviceId) {
+    return grantsForDevice(deviceId).filter(function (g) { return g.status === 'active'; });
+  }
+
+  function findAccessRecipient(id) {
+    for (var i = 0; i < ACCESS_RECIPIENTS.length; i++) {
+      if (ACCESS_RECIPIENTS[i].id === id) return ACCESS_RECIPIENTS[i];
+    }
+    return null;
+  }
+
+  function findLockCatalog(id) {
+    for (var i = 0; i < lockCatalog.length; i++) {
+      if (lockCatalog[i].id === id) return lockCatalog[i];
+    }
+    return null;
+  }
+
+  function grantInWindow(g) {
+    if (!g || g.status !== 'active') return false;
+    var now = Date.now();
+    return now >= g.windowStartMs && now <= g.windowEndMs;
+  }
+
+  function updateHomeDevicesSummaries() {
+    var paired = homeDevices.filter(function (d) { return d.paired; }).length;
+    var you = $('#you-hd-meta');
+    if (you) you.textContent = paired + ' paired';
+    var host = $('#host-access-body');
+    if (host) renderHostAccessCard();
+    refreshTripAccessUi();
+  }
+
+  window.openHomeDevices = function () {
+    go('home-devices');
+  };
+
+  function renderHomeDevicesHub() {
+    var list = $('#hd-list');
+    if (!list) return;
+    list.innerHTML = '';
+    homeDevices.forEach(function (d) {
+      list.appendChild(homeDeviceCard(d));
+    });
+    var meta = $('#hd-hub-meta');
+    if (meta) {
+      var paired = homeDevices.filter(function (d) { return d.paired; }).length;
+      var active = stayAccessGrants.filter(function (g) { return g.status === 'active'; }).length;
+      meta.textContent = paired + ' paired · ' + active + ' active access grants';
+    }
+    updateHomeDevicesSummaries();
+  }
+
+  function homeDeviceCard(d) {
+    var el = document.createElement('div');
+    el.className = 'cs-card' + (d.status === 'offline' || d.status === 'available' ? ' needs-reconnect' : '');
+    el.setAttribute('data-id', d.id);
+    var cap = d.capability
+      ? '<span class="cap-badge ' + (d.capability === 'api' ? 'api' : (d.capability === 'deeplink' ? 'deeplink' : 'draft')) + '">' + LOCK_CAP_LABEL[d.capability] + '</span>'
+      : '<span class="pill ghost">Not paired</span>';
+    var stCls = d.status === 'connected' ? 'connected' : (d.status === 'available' ? 'needs-reconnect' : (d.status === 'offline' ? 'failed' : 'excluded'));
+    var activeN = activeGrantsForDevice(d.id).length;
+    el.innerHTML =
+      '<div class="cs-logo" style="background:' + d.color + '">' + d.initials + '</div>' +
+      '<div class="cs-body">' +
+        '<div class="cs-name-row"><div class="cs-name">' + d.name + '</div><span class="y-chev">›</span></div>' +
+        '<div class="cs-purpose">' + d.placeLabel + (d.adapter ? ' · ' + d.adapter : '') + '</div>' +
+        '<div class="cs-chips">' +
+          cap +
+          '<span class="cs-status ' + stCls + '">' + LOCK_STATUS_LABEL[d.status] + '</span>' +
+          (activeN ? '<span class="route-chip">' + activeN + ' active access</span>' : '') +
+        '</div>' +
+        (d.note ? '<div class="cs-note">' + d.note + '</div>' : '') +
+        '<div class="cs-id">ID ' + d.id + '</div>' +
+      '</div>';
+    el.addEventListener('click', function () { openHomeDeviceDetail(d.id); });
+    return el;
+  }
+
+  window.openHomeDeviceDetail = function (id) {
+    activeDeviceId = id;
+    go('home-device-detail');
+  };
+
+  function renderHomeDeviceDetail() {
+    var d = findHomeDevice(activeDeviceId);
+    var body = $('#hdd-body');
+    var title = $('#hdd-title');
+    if (!d || !body) return;
+    if (title) title.textContent = d.name;
+    var stCls = d.status === 'connected' ? 'connected' : (d.status === 'available' ? 'needs-reconnect' : 'failed');
+    var grants = grantsForDevice(d.id);
+    var grantsHtml = '';
+    if (!grants.length) {
+      grantsHtml = '<div class="card mb-12"><p class="sub">No access grants on this device yet.</p></div>';
+    } else {
+      grants.forEach(function (g) {
+        var del = GRANT_DELIVERY_LABEL[g.delivery] || g.delivery;
+        var stPill = g.status === 'active' ? 'ok' : (g.status === 'revoked' ? 'danger' : 'ghost');
+        grantsHtml +=
+          '<div class="card tap mb-8" onclick="openAccessGrant(\'' + g.id + '\')">' +
+            '<div class="between mb-8">' +
+              '<span class="pill ' + stPill + '">' + (g.status === 'active' ? del : g.status) + '</span>' +
+              '<span class="muted" style="font-size:11px">' + g.purpose + '</span>' +
+            '</div>' +
+            '<div class="row gap-md">' +
+              '<div class="avatar sm" style="background:' + g.recipientColor + '">' + g.recipientInitials + '</div>' +
+              '<div class="flex-1">' +
+                '<div class="strong" style="font-size:14px">' + g.recipientName + '</div>' +
+                '<div class="muted" style="font-size:11px">' + g.startLabel + ' → ' + g.endLabel + '</div>' +
+                '<div class="cs-id">ID ' + g.id + '</div>' +
+              '</div>' +
+              '<span class="y-chev">›</span>' +
+            '</div>' +
+          '</div>';
+      });
+    }
+
+    var capBlock = d.capability
+      ? '<span class="cap-badge ' + (d.capability === 'api' ? 'api' : (d.capability === 'deeplink' ? 'deeplink' : 'draft')) + '">' + LOCK_CAP_LABEL[d.capability] + '</span>'
+      : '<span class="pill ghost">Unpaired</span>';
+
+    var honesty =
+      d.capability === 'api'
+        ? 'API write: issue/revoke can sync to partner where supported (demo).'
+        : d.capability === 'deeplink'
+          ? 'Deep link: opens partner app — Domicile does not claim lock-side revoke.'
+          : d.capability === 'manual'
+            ? 'Manual path: revoke is in-app only. Never mark “revoked on lock.”'
+            : 'Pair an adapter to enable capability-honest access.';
+
+    body.innerHTML =
+      '<div class="csd-hero">' +
+        '<div class="cs-logo" style="background:' + d.color + '">' + d.initials + '</div>' +
+        '<div>' +
+          '<div class="strong" style="font-size:18px;font-family:var(--font-display)">' + d.name + '</div>' +
+          '<div class="muted" style="font-size:12px;margin-top:2px">' + d.placeLabel + (d.adapter ? ' · ' + d.adapter : '') + '</div>' +
+          '<div class="cs-chips" style="margin-top:8px">' +
+            capBlock +
+            '<span class="cs-status ' + stCls + '">' + LOCK_STATUS_LABEL[d.status] + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="readback-strip"><span>●</span><span>' + d.lastSync + '</span></div>' +
+      '<div class="banner private mb-12"><span>◎</span><span><strong>Capability honesty:</strong> ' + honesty + '</span></div>' +
+      '<div class="banner info mb-12"><span>ℹ</span><span>Entry code ≠ address ≠ house guide ≠ MAP place share. Stay access never grants household, docs, payments, or ongoing map.</span></div>' +
+      (d.note ? '<p class="muted mb-12" style="font-size:11px;line-height:1.4">' + d.note + '</p>' : '') +
+      '<div class="section-label" style="margin-top:0">Active access</div>' +
+      grantsHtml +
+      (d.paired
+        ? '<button class="btn btn-primary" onclick="openIssueAccess(\'' + d.id + '\')">Issue access</button>'
+        : '<button class="btn btn-primary" onclick="openPairDevice(\'' + d.id + '\')">Pair / connect</button>') +
+      (d.paired
+        ? '<button class="btn btn-ghost mt-8" style="width:100%;color:var(--danger)" onclick="disconnectHomeDevice()">Disconnect</button>'
+        : '') +
+      '<div class="section-label">Audit</div>' +
+      '<div class="card mb-8">' +
+        (d.audit.length
+          ? d.audit.map(function (a) {
+              return '<div class="fact-row"><span class="muted" style="font-size:11px">' + a.at + '</span><span style="font-size:12px;text-align:right">' + a.line + '</span></div>';
+            }).join('')
+          : '<p class="sub">No events yet.</p>') +
+      '</div>' +
+      '<p class="muted mt-12" style="font-size:11px;text-align:center;line-height:1.45">Pairwise device ID · prototype · not real lock APIs</p>';
+  }
+
+  window.disconnectHomeDevice = function () {
+    var d = findHomeDevice(activeDeviceId);
+    if (!d || !d.paired) return;
+    var cap = d.capability;
+    d.paired = false;
+    d.status = 'available';
+    d.adapter = null;
+    d.adapterId = null;
+    d.capability = null;
+    d.lastSync = 'Disconnected · ' + new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) + ' CT';
+    d.audit.unshift({
+      at: 'Just now',
+      line: cap === 'api'
+        ? 'Disconnected in-app · partner revoke attempted (demo)'
+        : 'Disconnected in-app only · lock codes not recalled'
+    });
+    // Revoke future resolution for grants on this device (in-app)
+    stayAccessGrants.forEach(function (g) {
+      if (g.deviceId === d.id && g.status === 'active') {
+        g.status = 'revoked';
+        g.delivery = 'revoked';
+        g.revokeScope = cap === 'api' ? 'partner_and_app' : 'in_app_only';
+        g.events.unshift({ at: 'Just now', line: 'Device disconnected · future in-app resolution cut off' });
+      }
+    });
+    toast(cap === 'api'
+      ? 'Disconnected · partner revoke demo (future codes)'
+      : 'Disconnected · in-app only — not “revoked on lock”');
+    updateHomeDevicesSummaries();
+    go('home-devices');
+  };
+
+  /* —— Pair sheet —— */
+  window.openPairDevice = function (deviceId) {
+    if (deviceId) activeDeviceId = deviceId;
+    pairDraft = { step: 1, placeId: 'place_ecc', adapterId: null, consent: false, targetDeviceId: deviceId || null };
+    renderPairSheet();
+    $('#pair-device-backdrop').classList.add('show');
+    $('#pair-device-sheet').classList.add('show');
+  };
+  window.closePairDevice = function () {
+    $('#pair-device-backdrop').classList.remove('show');
+    $('#pair-device-sheet').classList.remove('show');
+  };
+
+  function renderPairSheet() {
+    var box = $('#pair-device-steps');
+    if (!box) return;
+    var s = pairDraft.step;
+    var html = '<div class="muted mb-12" style="font-size:11px">Step ' + s + ' of 4 · prototype pairing</div>';
+    if (s === 1) {
+      html += '<div class="share-step-label">Place</div>';
+      html += '<div class="policy-option on"><div class="po-radio"></div><div><div class="po-title">East Cesar Chavez Cottage</div><div class="po-sub">Primary home · place_ecc</div></div></div>';
+      html += '<p class="muted mt-8" style="font-size:11px">Demo seeds one place. Pairing binds the device to this place — not a merchant Connected Service.</p>';
+    } else if (s === 2) {
+      html += '<div class="share-step-label">Adapter capability</div>';
+      lockCatalog.forEach(function (c) {
+        var on = pairDraft.adapterId === c.id ? ' on' : '';
+        html +=
+          '<div class="policy-option' + on + '" onclick="pairPickAdapter(\'' + c.id + '\')">' +
+            '<div class="po-radio"></div>' +
+            '<div><div class="po-title">' + c.name + '</div>' +
+            '<div class="po-sub">' + c.purpose + '</div>' +
+            '<div class="cs-chips" style="margin-top:6px"><span class="cap-badge ' + (c.capability === 'api' ? 'api' : (c.capability === 'deeplink' ? 'deeplink' : 'draft')) + '">' + LOCK_CAP_LABEL[c.capability] + '</span></div>' +
+            '</div></div>';
+      });
+      html += '<div class="banner warn mt-8 mb-0"><span>⚠</span><span>Unavailable partner = manual path — never fake “synced everywhere.”</span></div>';
+    } else if (s === 3) {
+      var c = findLockCatalog(pairDraft.adapterId);
+      html += '<div class="share-step-label">Consent</div>';
+      html += '<div class="card mb-12">';
+      html += '<div class="fact-row"><span class="muted">Who</span><span class="strong">You (@al)</span></div>';
+      html += '<div class="fact-row"><span class="muted">What</span><span class="strong">' + (c ? c.name : 'Adapter') + '</span></div>';
+      html += '<div class="fact-row"><span class="muted">Capability</span><span class="strong">' + (c ? LOCK_CAP_LABEL[c.capability] : '—') + '</span></div>';
+      html += '<div class="fact-row" style="border:none"><span class="muted">Duration</span><span class="strong">Until you disconnect</span></div>';
+      html += '</div>';
+      html += '<div class="policy-option' + (pairDraft.consent ? ' on' : '') + '" onclick="pairToggleConsent()"><div class="po-radio"></div><div><div class="po-title">I understand this is a demo connector</div><div class="po-sub">Not real OAuth · not a live lock API</div></div></div>';
+    } else if (s === 4) {
+      var c4 = findLockCatalog(pairDraft.adapterId);
+      html += '<div class="share-step-label">Confirm</div>';
+      html += '<div class="banner private mb-12"><span>◎</span><span>Creates pairwise device ID. Capability stays honest: ' + (c4 ? LOCK_CAP_LABEL[c4.capability] : '') + '.</span></div>';
+      html += '<button class="btn btn-primary" onclick="confirmPairDevice()">Connect device</button>';
+      html += '<button class="btn btn-ghost mt-8" style="width:100%" onclick="closePairDevice()">Cancel</button>';
+    }
+    if (s < 4) {
+      html += '<div class="wiz-nav">';
+      html += '<button class="btn btn-ghost" onclick="pairWizardBack()"' + (s === 1 ? ' disabled style="opacity:.4"' : '') + '>Back</button>';
+      html += '<button class="btn btn-primary" onclick="pairWizardNext()">Next</button>';
+      html += '</div>';
+    } else {
+      html += '<div class="wiz-nav"><button class="btn btn-ghost" onclick="pairWizardBack()">Back</button></div>';
+    }
+    box.innerHTML = html;
+  }
+
+  window.pairPickAdapter = function (id) {
+    pairDraft.adapterId = id;
+    renderPairSheet();
+  };
+  window.pairToggleConsent = function () {
+    pairDraft.consent = !pairDraft.consent;
+    renderPairSheet();
+  };
+  window.pairWizardBack = function () {
+    if (pairDraft.step > 1) { pairDraft.step--; renderPairSheet(); }
+  };
+  window.pairWizardNext = function () {
+    if (pairDraft.step === 2 && !pairDraft.adapterId) { toast('Pick an adapter capability'); return; }
+    if (pairDraft.step === 3 && !pairDraft.consent) { toast('Confirm demo consent'); return; }
+    if (pairDraft.step < 4) { pairDraft.step++; renderPairSheet(); }
+  };
+  window.confirmPairDevice = function () {
+    var c = findLockCatalog(pairDraft.adapterId);
+    if (!c) { toast('Pick an adapter'); return; }
+    var target = pairDraft.targetDeviceId ? findHomeDevice(pairDraft.targetDeviceId) : null;
+    if (!target || target.paired) {
+      target = homeDevices.filter(function (d) { return !d.paired; })[0];
+    }
+    if (!target) {
+      var nid = 'device_' + c.id.replace('adapter_', '') + '_' + Math.floor(Math.random() * 9000 + 1000);
+      target = {
+        id: nid,
+        name: c.name.replace(/-style.*/, '') + ' lock',
+        placeId: 'place_ecc',
+        placeLabel: 'East Cesar Chavez Cottage',
+        initials: c.initials,
+        color: c.color,
+        paired: false,
+        audit: [],
+        note: ''
+      };
+      homeDevices.push(target);
+    }
+    target.paired = true;
+    target.status = c.capability === 'manual' ? 'connected' : 'connected';
+    target.adapter = c.name;
+    target.adapterId = c.id;
+    target.capability = c.capability;
+    target.lastSync = c.capability === 'manual'
+      ? 'Manual path · no partner sync'
+      : (c.capability === 'deeplink' ? 'Deep link ready · not write-synced' : 'Connected · just now CT');
+    target.note = c.capability === 'api'
+      ? 'Partner supports issue / revoke of time-bound codes via API (demo).'
+      : c.capability === 'deeplink'
+        ? 'Deep link to partner app — Domicile does not invent lock-side revoke.'
+        : 'No partner API. Manual entry-code only — revoke is in-app only.';
+    target.audit.unshift({ at: 'Just now', line: 'Paired · ' + LOCK_CAP_LABEL[c.capability] + ' · ' + target.id });
+    activeDeviceId = target.id;
+    closePairDevice();
+    updateHomeDevicesSummaries();
+    toast('Connected · ' + target.id + ' (demo)');
+    go('home-device-detail');
+  };
+
+  /* —— Issue access wizard (screen) —— */
+  window.openIssueAccess = function (deviceId) {
+    var d = findHomeDevice(deviceId || activeDeviceId);
+    if (!d || !d.paired) { toast('Pair a device first'); return; }
+    issueDraft = {
+      step: 1,
+      deviceId: d.id,
+      recipientId: 'acct_mira_stay',
+      purpose: 'Stay check-in',
+      entryCode: true,
+      houseGuide: false,
+      startPolicy: '24h_before',
+      endPolicy: 'checkout'
+    };
+    go('home-access-issue');
+  };
+
+  function renderIssueAccessWizard() {
+    var body = $('#hai-body');
+    if (!body) return;
+    var d = findHomeDevice(issueDraft.deviceId);
+    var s = issueDraft.step;
+    var html = '<div class="between mb-8"><span class="pill ghost">Demo grant</span><span class="muted" style="font-size:11px">Step ' + s + ' of 5</span></div>';
+    html += '<h1 class="h1" style="font-size:22px">Issue access</h1>';
+    html += '<p class="sub mb-12">' + (d ? d.name + ' · ' + LOCK_CAP_LABEL[d.capability] : 'Device') + '</p>';
+
+    if (s === 1) {
+      html += '<div class="section-label" style="margin-top:0">Recipient</div>';
+      ACCESS_RECIPIENTS.forEach(function (r) {
+        var on = issueDraft.recipientId === r.id ? ' on' : '';
+        html +=
+          '<div class="policy-option' + on + '" onclick="issuePickRecipient(\'' + r.id + '\')">' +
+            '<div class="po-radio"></div>' +
+            '<div class="row gap-md flex-1">' +
+              '<div class="avatar sm" style="background:' + r.color + '">' + r.initials + '</div>' +
+              '<div><div class="po-title">' + r.name + ' <span class="muted" style="font-weight:500">' + r.handle + '</span></div>' +
+              '<div class="po-sub">' + r.roleLabel + ' · ' + r.note + '</div></div>' +
+            '</div></div>';
+      });
+      html += '<div class="banner info mt-8"><span>ℹ</span><span>Stay-scoped grants require a <strong>confirmed named guest</strong>. Peer / crew paths stay purpose-bound.</span></div>';
+    } else if (s === 2) {
+      html += '<div class="section-label" style="margin-top:0">Purpose</div>';
+      html += '<div class="chip-row mb-12">';
+      ['Stay check-in', 'Crew turnover', 'Temporary guest', 'Neighbor care'].forEach(function (p) {
+        html += '<button type="button" class="purpose-chip' + (issueDraft.purpose === p ? ' on' : '') + '" onclick="issuePickPurpose(\'' + p.replace(/'/g, "\\'") + '\')">' + p + '</button>';
+      });
+      html += '</div>';
+      html += '<div class="banner private"><span>◎</span><span>Purpose binds the grant. Stay access ≠ household membership.</span></div>';
+    } else if (s === 3) {
+      html += '<div class="section-label" style="margin-top:0">Fields</div>';
+      html += '<div class="policy-option' + (issueDraft.entryCode ? ' on' : '') + '" onclick="issueToggleField(\'entryCode\')"><div class="po-radio"></div><div><div class="po-title">Smart-lock / entry code</div><div class="po-sub">Time-bound code reference on this device</div></div></div>';
+      html += '<div class="policy-option' + (issueDraft.houseGuide ? ' on' : '') + '" onclick="issueToggleField(\'houseGuide\')"><div class="po-radio"></div><div><div class="po-title">House guide</div><div class="po-sub">Wifi / parking / quiet hours — separate from code</div></div></div>';
+      html += '<div class="card mb-12" style="opacity:.85"><div class="between"><div><div class="strong" style="font-size:13px">Exact address</div><div class="muted" style="font-size:11px">Stays behind existing stay unlock rules — not granted here</div></div><span class="pill ghost">Separate</span></div></div>';
+      html += '<div class="banner warn"><span>⚠</span><span>Granting entry code must <strong>not</strong> imply address, household, docs, payments, or MAP grants.</span></div>';
+    } else if (s === 4) {
+      html += '<div class="section-label" style="margin-top:0">Time window (CT)</div>';
+      html += '<div class="muted mb-8" style="font-size:11px">Start policy</div>';
+      [
+        { id: 'now', l: 'Start now', s: 'Reveal immediately' },
+        { id: '24h_before', l: '24h before check-in', s: 'Matches stay unlock' },
+        { id: 'custom', l: 'Custom', s: 'Pick a start (demo)' }
+      ].forEach(function (o) {
+        html += '<div class="policy-option' + (issueDraft.startPolicy === o.id ? ' on' : '') + '" onclick="issuePickStart(\'' + o.id + '\')"><div class="po-radio"></div><div><div class="po-title">' + o.l + '</div><div class="po-sub">' + o.s + '</div></div></div>';
+      });
+      html += '<div class="muted mb-8 mt-12" style="font-size:11px">End policy</div>';
+      [
+        { id: 'checkout', l: 'At checkout', s: 'Sep 26 · 11:00 AM CT' },
+        { id: 'cancel', l: 'On cancel / revoke', s: 'Cuts future resolution' },
+        { id: 'fixed', l: 'Fixed expiry', s: 'e.g. +48h from start' }
+      ].forEach(function (o) {
+        html += '<div class="policy-option' + (issueDraft.endPolicy === o.id ? ' on' : '') + '" onclick="issuePickEnd(\'' + o.id + '\')"><div class="po-radio"></div><div><div class="po-title">' + o.l + '</div><div class="po-sub">' + o.s + '</div></div></div>';
+      });
+    } else if (s === 5) {
+      var r = findAccessRecipient(issueDraft.recipientId);
+      var startL = issueDraft.startPolicy === 'now' ? 'Now (CT)' : (issueDraft.startPolicy === 'custom' ? 'Custom start (demo)' : '24h before check-in');
+      var endL = issueDraft.endPolicy === 'checkout' ? 'Checkout' : (issueDraft.endPolicy === 'fixed' ? 'Fixed expiry' : 'Cancel / revoke');
+      html += '<div class="section-label" style="margin-top:0">Preview</div>';
+      html += '<div class="share-preview-card mb-12">';
+      html += '<div class="strong">' + (r ? r.name : 'Recipient') + ' receives</div>';
+      html += '<p class="muted mt-8" style="font-size:12px">Entry code' + (issueDraft.houseGuide ? ' + house guide' : '') + ' · address stays behind stay unlock</p>';
+      html += '<p class="muted mt-8" style="font-size:11px">' + issueDraft.purpose + ' · ' + startL + ' → ' + endL + '</p>';
+      html += '<p class="muted mt-8" style="font-size:11px">Device ' + (d ? d.id : '') + ' · capability ' + (d ? LOCK_CAP_LABEL[d.capability] : '') + '</p>';
+      html += '</div>';
+      html += '<div class="banner private mb-12"><span>◎</span><span>Creates <strong>access_grant_*</strong> with code reference. Demo codes OK — labeled prototype.</span></div>';
+      html += '<button class="btn btn-primary" onclick="confirmIssueAccess()">Issue access</button>';
+    }
+
+    if (s < 5) {
+      html += '<div class="wiz-nav">';
+      html += '<button class="btn btn-ghost" onclick="issueWizardBack()"' + (s === 1 ? ' disabled style="opacity:.4"' : '') + '>Back</button>';
+      html += '<button class="btn btn-primary" onclick="issueWizardNext()">Next</button>';
+      html += '</div>';
+    } else {
+      html += '<div class="wiz-nav"><button class="btn btn-ghost" onclick="issueWizardBack()">Back</button></div>';
+    }
+    html += '<p class="muted mt-12" style="font-size:11px;text-align:center">Prototype · pairwise grant IDs · not real lock APIs</p>';
+    body.innerHTML = html;
+  }
+
+  window.issuePickRecipient = function (id) { issueDraft.recipientId = id; renderIssueAccessWizard(); };
+  window.issuePickPurpose = function (p) { issueDraft.purpose = p; renderIssueAccessWizard(); };
+  window.issueToggleField = function (f) {
+    if (f === 'entryCode') {
+      issueDraft.entryCode = !issueDraft.entryCode;
+      if (!issueDraft.entryCode) issueDraft.entryCode = true; // entry code required
+      toast('Entry code is required for lock access');
+    } else if (f === 'houseGuide') {
+      issueDraft.houseGuide = !issueDraft.houseGuide;
+    }
+    renderIssueAccessWizard();
+  };
+  window.issuePickStart = function (id) { issueDraft.startPolicy = id; renderIssueAccessWizard(); };
+  window.issuePickEnd = function (id) { issueDraft.endPolicy = id; renderIssueAccessWizard(); };
+  window.issueWizardBack = function () {
+    if (issueDraft.step > 1) { issueDraft.step--; renderIssueAccessWizard(); }
+  };
+  window.issueWizardNext = function () {
+    if (issueDraft.step === 1 && !issueDraft.recipientId) { toast('Pick a recipient'); return; }
+    if (issueDraft.step < 5) { issueDraft.step++; renderIssueAccessWizard(); }
+  };
+
+  window.confirmIssueAccess = function () {
+    var d = findHomeDevice(issueDraft.deviceId);
+    var r = findAccessRecipient(issueDraft.recipientId);
+    if (!d || !r) { toast('Missing device or recipient'); return; }
+    var code = String(Math.floor(10000 + Math.random() * 89999)) + '#';
+    var gid = 'access_grant_' + r.id.replace('acct_', '').slice(0, 8) + '_' + Math.floor(Math.random() * 900 + 100);
+    var startLabel = issueDraft.startPolicy === 'now'
+      ? 'Now · CT'
+      : (issueDraft.startPolicy === 'custom' ? 'Custom start · CT (demo)' : '24h before check-in · CT');
+    var endLabel = issueDraft.endPolicy === 'checkout'
+      ? 'Checkout · CT'
+      : (issueDraft.endPolicy === 'fixed' ? 'Fixed expiry · +48h CT' : 'Until cancel / revoke');
+    var now = Date.now();
+    var g = {
+      id: gid,
+      deviceId: d.id,
+      recipientId: r.id,
+      recipientName: r.name,
+      recipientHandle: r.handle,
+      recipientRole: r.role,
+      recipientInitials: r.initials,
+      recipientColor: r.color,
+      purpose: issueDraft.purpose,
+      fields: { entryCode: true, houseGuide: !!issueDraft.houseGuide, address: false },
+      codeRef: code,
+      codeLabel: 'Prototype demo code',
+      startPolicy: issueDraft.startPolicy,
+      startLabel: startLabel,
+      endLabel: endLabel,
+      windowStartMs: issueDraft.startPolicy === 'now' ? now - 60000 : now + 3600 * 1000,
+      windowEndMs: issueDraft.endPolicy === 'fixed' ? now + 48 * 3600 * 1000 : now + 72 * 3600 * 1000,
+      delivery: 'issued',
+      status: 'active',
+      revokeScope: null,
+      stayId: r.role === 'stay_guest' ? 'trip_oak_waller' : null,
+      events: [
+        { at: 'Just now', line: 'Issued · ' + issueDraft.purpose + ' · ' + d.name },
+        { at: 'Just now', line: 'Code reference ' + code + ' · labeled prototype' }
+      ]
+    };
+    stayAccessGrants.unshift(g);
+    d.audit.unshift({ at: 'Just now', line: 'Issued ' + gid + ' · ' + r.name });
+    if (d.capability === 'api') {
+      g.delivery = 'delivered';
+      g.events.unshift({ at: 'Just now', line: 'Partner API write · delivered to guest app (demo)' });
+    } else if (d.capability === 'manual') {
+      g.events.unshift({ at: 'Just now', line: 'Manual path · host must share code out-of-band' });
+    } else {
+      g.events.unshift({ at: 'Just now', line: 'Deep link handoff · confirm in partner app (demo)' });
+    }
+    // Optional thin Messages / notif for Mira
+    if (r.id === 'acct_mira_stay' && messageStore.thr_mira_01) {
+      messageStore.thr_mira_01.push({
+        id: 'm_access_' + Date.now(),
+        from: 'action',
+        action: 'view_access_grant',
+        title: 'Access code ready',
+        body: 'Front door · ' + gid + ' · prototype code in window',
+        primary: 'View grant',
+        time: 'Just now',
+        grantId: gid
+      });
+      var thr = null;
+      for (var ti = 0; ti < messageThreads.length; ti++) {
+        if (messageThreads[ti].id === 'thr_mira_01') { thr = messageThreads[ti]; break; }
+      }
+      if (thr) {
+        thr.preview = 'Access code ready';
+        thr.unread = (thr.unread || 0) + 1;
+        thr.timeLabel = 'Just now';
+      }
+    }
+    activeAccessGrantId = gid;
+    updateHomeDevicesSummaries();
+    if (typeof updateMessagesBadges === 'function') updateMessagesBadges();
+    toast('Issued ' + gid + ' (demo)');
+    go('home-access-grant');
+  };
+
+  window.openAccessGrant = function (id) {
+    activeAccessGrantId = id;
+    go('home-access-grant');
+  };
+
+  function renderAccessGrantDetail() {
+    var g = findAccessGrant(activeAccessGrantId);
+    var body = $('#hag-body');
+    var title = $('#hag-title');
+    if (!g || !body) return;
+    if (title) title.textContent = g.recipientName;
+    var d = findHomeDevice(g.deviceId);
+    var inWin = grantInWindow(g);
+    var codeHtml;
+    if (g.status === 'revoked' || g.status === 'expired') {
+      codeHtml =
+        '<div class="card mb-12" style="text-align:center">' +
+          '<div class="muted mb-8">Code reference</div>' +
+          '<div class="code-reveal" style="opacity:.45;filter:blur(2px)">•••••</div>' +
+          '<p class="muted mt-8" style="font-size:11px">Future in-app resolution cut off · already-disclosed facts stay honest</p>' +
+        '</div>';
+    } else if (inWin) {
+      codeHtml =
+        '<div class="card mb-12 tap" onclick="revealAccessCode()" style="text-align:center">' +
+          '<div class="muted mb-8">Code reference · tap to reveal</div>' +
+          '<div class="code-reveal" id="hag-code-blur" style="filter:blur(6px);user-select:none">' + g.codeRef + '</div>' +
+          '<p class="muted mt-8" style="font-size:11px">' + g.codeLabel + ' · within validity window</p>' +
+        '</div>';
+    } else {
+      codeHtml =
+        '<div class="card mb-12" style="text-align:center">' +
+          '<div class="lock-overlay" style="position:relative">' +
+            '<div class="veil">🔒 Outside validity window</div>' +
+            '<div class="code-reveal" style="opacity:.35">•••••#</div>' +
+          '</div>' +
+          '<p class="muted mt-8" style="font-size:11px">Reveal starts ' + g.startLabel + '</p>' +
+        '</div>';
+    }
+
+    var revokeNote = '';
+    if (g.revokeScope === 'partner_and_app') {
+      revokeNote = 'Revoked on partner (demo API) and in-app.';
+    } else if (g.revokeScope === 'in_app_only') {
+      revokeNote = 'Revoked in-app only — not marked “revoked on lock” (manual / unsupported).';
+    } else if (d && d.capability === 'api') {
+      revokeNote = 'Revoke will attempt partner API write (demo) + cut future in-app resolution.';
+    } else {
+      revokeNote = 'Revoke cuts future in-app resolution. Manual / deep-link: do not claim lock-side revoke.';
+    }
+
+    var delLabel = GRANT_DELIVERY_LABEL[g.delivery] || g.delivery;
+    var fieldsLine = 'Entry code' + (g.fields.houseGuide ? ' · House guide' : '') + ' · Address separate';
+
+    body.innerHTML =
+      '<div class="between mb-8">' +
+        '<span class="pill ' + (g.status === 'active' ? 'ok' : (g.status === 'revoked' ? 'danger' : 'ghost')) + '">' + (g.status === 'active' ? delLabel : g.status) + '</span>' +
+        '<span class="muted" style="font-size:11px">' + g.purpose + '</span>' +
+      '</div>' +
+      '<div class="row gap-md mb-12">' +
+        '<div class="avatar" style="background:' + g.recipientColor + '">' + g.recipientInitials + '</div>' +
+        '<div>' +
+          '<div class="strong" style="font-size:17px">' + g.recipientName + '</div>' +
+          '<div class="muted">' + g.recipientHandle + ' · ' + (g.recipientRole === 'stay_guest' ? 'Stay guest' : (g.recipientRole === 'crew' ? 'Crew' : 'Peer')) + '</div>' +
+        '</div>' +
+      '</div>' +
+      codeHtml +
+      '<div class="section-label" style="margin-top:0">Window</div>' +
+      '<div class="card mb-12">' +
+        '<div class="fact-row"><span class="muted">Start</span><span class="strong" style="font-size:12px;text-align:right">' + g.startLabel + '</span></div>' +
+        '<div class="fact-row"><span class="muted">End</span><span class="strong" style="font-size:12px;text-align:right">' + g.endLabel + '</span></div>' +
+        '<div class="fact-row" style="border:none"><span class="muted">Fields</span><span class="strong" style="font-size:12px;text-align:right">' + fieldsLine + '</span></div>' +
+      '</div>' +
+      '<div class="section-label">Device</div>' +
+      '<div class="card tap mb-12" onclick="openHomeDeviceDetail(\'' + g.deviceId + '\')">' +
+        '<div class="between"><div><div class="strong" style="font-size:14px">' + (d ? d.name : 'Device') + '</div>' +
+        '<div class="muted" style="font-size:11px">' + (d ? LOCK_CAP_LABEL[d.capability] : '') + ' · ' + g.deviceId + '</div></div><span>›</span></div>' +
+      '</div>' +
+      '<div class="banner private mb-12"><span>◎</span><span>' + revokeNote + '</span></div>' +
+      '<div class="cs-id mb-12">Grant ID ' + g.id + '</div>' +
+      (g.status === 'active'
+        ? '<div class="btn-row mb-8">' +
+            '<button class="btn btn-secondary" onclick="extendAccessGrant()">Extend</button>' +
+            '<button class="btn btn-primary" style="background:var(--danger)" onclick="revokeAccessGrant()">Revoke</button>' +
+          '</div>'
+        : '') +
+      '<div class="section-label">Delivery &amp; events</div>' +
+      '<div class="card mb-8">' +
+        g.events.map(function (e) {
+          return '<div class="fact-row"><span class="muted" style="font-size:11px">' + e.at + '</span><span style="font-size:12px;text-align:right">' + e.line + '</span></div>';
+        }).join('') +
+      '</div>' +
+      '<p class="muted mt-8" style="font-size:11px;text-align:center;line-height:1.45">Already-seen codes cannot be recalled · future resolution can be cut off</p>';
+  }
+
+  window.revealAccessCode = function () {
+    var el = $('#hag-code-blur');
+    if (el) {
+      el.style.filter = 'none';
+      el.style.userSelect = 'text';
+      toast('Code revealed · within window (prototype)');
+    }
+  };
+
+  window.extendAccessGrant = function () {
+    var g = findAccessGrant(activeAccessGrantId);
+    if (!g || g.status !== 'active') return;
+    g.windowEndMs += 24 * 3600 * 1000;
+    g.endLabel = 'Extended +24h · CT (demo)';
+    g.events.unshift({ at: 'Just now', line: 'Extended validity +24h (demo)' });
+    toast('Extended +24h CT (demo)');
+    renderAccessGrantDetail();
+    updateHomeDevicesSummaries();
+  };
+
+  window.revokeAccessGrantById = function (id) {
+    activeAccessGrantId = id;
+    revokeAccessGrant();
+  };
+
+  window.revokeAccessGrant = function () {
+    var g = findAccessGrant(activeAccessGrantId);
+    if (!g || g.status !== 'active') return;
+    var d = findHomeDevice(g.deviceId);
+    g.status = 'revoked';
+    g.delivery = 'revoked';
+    if (d && d.capability === 'api') {
+      g.revokeScope = 'partner_and_app';
+      g.events.unshift({ at: 'Just now', line: 'Revoked on partner (demo API) · future in-app cut off' });
+      toast('Revoked · partner + in-app (demo)');
+    } else {
+      g.revokeScope = 'in_app_only';
+      g.events.unshift({ at: 'Just now', line: 'Revoked in-app only · not “revoked on lock”' });
+      toast('Revoked in-app only — lock honesty preserved');
+    }
+    if (d) d.audit.unshift({ at: 'Just now', line: 'Revoked ' + g.id });
+    if (g.recipientId === 'acct_mira_stay' && messageStore.thr_mira_01) {
+      messageStore.thr_mira_01.push({
+        id: 'm_rev_' + Date.now(),
+        from: 'action',
+        action: 'view_access_grant',
+        title: 'Access revoked',
+        body: 'Future code resolution ended · ' + g.id,
+        primary: 'View grant',
+        time: 'Just now',
+        grantId: g.id
+      });
+    }
+    updateHomeDevicesSummaries();
+    if (typeof updateMessagesBadges === 'function') updateMessagesBadges();
+    renderAccessGrantDetail();
+  };
+
+  /* —— Trip / host wiring —— */
+  function miraStayGrant() {
+    return findAccessGrant('access_grant_mira_stay_01') ||
+      stayAccessGrants.filter(function (g) { return g.recipientId === 'acct_mira_stay' && g.status === 'active'; })[0] ||
+      stayAccessGrants.filter(function (g) { return g.recipientId === 'acct_mira_stay'; })[0];
+  }
+
+  function refreshTripAccessUi() {
+    var g = miraStayGrant();
+    var unlocked = $('#unlocked-address');
+    var codeEl = unlocked && unlocked.querySelector('.code-reveal');
+    var note = $('#trip-access-grant-note');
+    var activeCode = $('#trip-active-access-code');
+    var hostBody = $('#host-access-body');
+
+    if (g && codeEl) {
+      if (g.status === 'active' && grantInWindow(g)) {
+        codeEl.textContent = g.codeRef;
+        codeEl.style.opacity = '1';
+      } else if (g.status === 'revoked' || g.status === 'expired') {
+        codeEl.textContent = 'Revoked · future use cut off';
+        codeEl.style.opacity = '0.7';
+        codeEl.style.fontSize = '14px';
+      } else {
+        codeEl.textContent = 'Outside window';
+      }
+    }
+    if (note) {
+      if (g) {
+        note.innerHTML = 'Bound to <strong>' + g.id + '</strong> · Front door · ' +
+          (g.status === 'active' ? (GRANT_DELIVERY_LABEL[g.delivery] || g.delivery) : g.status) +
+          ' · prototype';
+        note.classList.remove('hide');
+      }
+    }
+    if (activeCode && g) {
+      activeCode.textContent = (g.status === 'active' && grantInWindow(g)) ? g.codeRef : (g.status === 'revoked' ? 'Revoked' : '—');
+    }
+    if (hostBody) renderHostAccessCard();
+  }
+
+  function renderHostAccessCard() {
+    var host = $('#host-access-body');
+    if (!host) return;
+    var g = miraStayGrant();
+    var front = findHomeDevice('device_front_yale_7a2c');
+    if (!g) {
+      host.innerHTML =
+        '<p class="sub mb-12">No stay access grant yet. Issue from Home devices → Front door.</p>' +
+        '<button class="btn btn-secondary btn-sm" style="width:auto" onclick="openHomeDeviceDetail(\'device_front_yale_7a2c\')">Open Front door</button>';
+      return;
+    }
+    var st = g.status === 'active' ? 'Access issued' : (g.status === 'revoked' ? 'Access revoked' : g.status);
+    host.innerHTML =
+      '<div class="between mb-8">' +
+        '<span class="pill ' + (g.status === 'active' ? 'ok' : 'danger') + '">' + st + '</span>' +
+        '<span class="muted" style="font-size:11px">' + (front ? front.name : 'Front door') + '</span>' +
+      '</div>' +
+      '<div class="strong" style="font-size:13px">' + g.recipientName + ' · ' + g.purpose + '</div>' +
+      '<div class="muted mt-8" style="font-size:11px">' + g.startLabel + ' → ' + g.endLabel + '</div>' +
+      '<div class="cs-id">ID ' + g.id + '</div>' +
+      '<p class="sub mt-8">Entry code only on this grant · address stays behind stay unlock · not household.</p>' +
+      '<div class="btn-row mt-12">' +
+        '<button class="btn btn-secondary btn-sm" style="width:auto" onclick="openAccessGrant(\'' + g.id + '\')">View grant</button>' +
+        (g.status === 'active'
+          ? '<button class="btn btn-ghost btn-sm" style="width:auto;color:var(--danger)" onclick="revokeAccessGrantById(\'' + g.id + '\')">Revoke</button>'
+          : '') +
+      '</div>';
+  }
+
+  window.revokeMiraStayGrantFromHost = function () {
+    activeAccessGrantId = 'access_grant_mira_stay_01';
+    var g = findAccessGrant(activeAccessGrantId);
+    if (!g) {
+      var alt = stayAccessGrants.filter(function (x) { return x.recipientId === 'acct_mira_stay' && x.status === 'active'; })[0];
+      if (alt) activeAccessGrantId = alt.id;
+    }
+    revokeAccessGrant();
+  };
+
+  // Replace trip unlock so guest-visible code stays bound to grant
+  window.simulateUnlock = function () {
+    var locked = $('#locked-address');
+    var unlocked = $('#unlocked-address');
+    var countdown = $('#countdown-card');
+    if (locked) locked.classList.add('hide');
+    if (unlocked) unlocked.classList.remove('hide');
+    if (countdown) countdown.classList.add('hide');
+    refreshTripAccessUi();
+    var g = miraStayGrant();
+    if (g && g.status === 'active') {
+      toast('Address & house guide unlocked · entry code from ' + g.id);
+    } else if (g && g.status === 'revoked') {
+      toast('Address unlocked · entry code revoked (future cut off)');
+    } else {
+      toast('Address, house guide & access revealed');
+    }
+  };
+
 
   /* ========== Permissions & sharing (MAP demo · not live grants) ========== */
   var personalSharingPaused = false;
@@ -6337,7 +7319,7 @@
       counterpart: 'Mira R.',
       alias: null,
       reminder: null,
-      allowedActions: ['view_house_guide', 'unlock_stay']
+      allowedActions: ['view_house_guide', 'unlock_stay', 'view_access_grant']
     },
     {
       id: 'thr_cedar_01',
@@ -6461,7 +7443,8 @@
       { id: 'm2', from: 'me', text: 'Thanks — looking forward to it.', time: 'Yesterday', delivery: 'read' },
       { id: 'm3', from: 'them', text: 'Street parking is easier on the east side after 6.', time: '10:12 AM', delivery: null },
       { id: 'm4', from: 'system', text: 'Check-in tips shared · house guide available after unlock', time: '10:13 AM', delivery: null },
-      { id: 'm5', from: 'action', action: 'view_house_guide', title: 'House guide', body: 'Wifi, parking, quiet hours, trash day — unlocks with address.', primary: 'View house guide', time: '10:13 AM' }
+      { id: 'm5', from: 'action', action: 'view_house_guide', title: 'House guide', body: 'Wifi, parking, quiet hours, trash day — unlocks with address.', primary: 'View house guide', time: '10:13 AM' },
+      { id: 'm6', from: 'action', action: 'view_access_grant', title: 'Access code ready', body: 'Front door · access_grant_mira_stay_01 · prototype code in window', primary: 'View grant', time: '9:05 AM', grantId: 'access_grant_mira_stay_01' }
     ],
     thr_cedar_01: [
       { id: 'c1', from: 'them', text: 'Thanks for the private inquiry. We can deep-clean Thu 10–1.', time: 'Mon', delivery: null },
@@ -6803,7 +7786,8 @@
       open_move_draft: 'Open move draft',
       mark_recipient_updated: 'Mark recipient updated',
       view_case: 'Open support case',
-      open_assist: 'Open Assist'
+      open_assist: 'Open Assist',
+      view_access_grant: 'View access grant'
     };
     body.innerHTML = (t.allowedActions || []).map(function (a) {
       return '<div class="card tap mb-8" onclick="closeMsgActionSheet();runThreadAction(\'' + a + '\',\'primary\')"><div class="between"><span class="strong">' + (labels[a] || a) + '</span><span>›</span></div></div>';
@@ -6817,6 +7801,11 @@
     if (action === 'view_house_guide' || action === 'unlock_stay') {
       go('trip-prearrival');
       toast(action === 'unlock_stay' ? 'Demo unlock from stay thread' : 'House guide on stay screen');
+      return;
+    }
+    if (action === 'view_access_grant') {
+      activeAccessGrantId = 'access_grant_mira_stay_01';
+      go('home-access-grant');
       return;
     }
     if (action === 'approve_exact') {

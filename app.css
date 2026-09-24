@@ -1098,3 +1098,7 @@ input.field, .sheet input.field {
 .case-tl-item { padding-left: 10px; border-left: 2px solid var(--line-strong); }
 .case-tl-item .muted { margin-bottom: 2px; }
 .msg-alias-banner { margin-bottom: 10px; }
+
+
+/* ===== Home devices / smart-lock ===== */
+/* Reuses .cs-card / .cap-badge / .policy-option / .code-reveal patterns */

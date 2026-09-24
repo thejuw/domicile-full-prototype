@@ -23,8 +23,10 @@
     <div class="path">Places → East Cesar Chavez → Hosting dashboard</div>
     <div class="path">You → Ledger, Move planning, permissions</div>
     <div class="path">You → Connected services → Amazon detail → Update now</div>
+    <div class="path">You → Home devices → Front door → Issue access / grant detail</div>
     <div class="path">You → Permissions &amp; sharing → grant detail → Pause / New share</div>
     <div class="hint" style="margin-top:8px"><strong>Connected services:</strong> demo connectors only (API / deep link / draft). Pairwise IDs — not real OAuth.</div>
+    <div class="hint"><strong>Home devices:</strong> smart-lock pair + time-bound entry access · capability honesty · not merchant Connected Services.</div>
     <div class="hint"><strong>Permissions (MAP):</strong> peer grants need expiry · Pause ≠ revoke merchants · Public handle ≠ address · prototype only.</div>
     <div class="hint"><strong>W8 Public/guest:</strong> open <code>#public</code> cold · business / event / stay / invite / grant / QR without personal nav · Continue mock unlocks permitted fields.</div>
     <div class="path">#public → resolve @cedarstone / grant / stay invite / event / QR</div>
@@ -1069,7 +1071,7 @@
               <div class="section-label" style="margin-top:4px">Address</div>
               <div class="card mb-12">
                 <p class="strong">1247 Waller Creek Ln, Unit B</p>
-                <p class="sub">East Austin · fictional sample address</p>
+                <p class="sub">East Austin · fictional sample address · separate from entry code grant</p>
               </div>
               <div class="section-label">House guide</div>
               <div class="card mb-12">
@@ -1077,7 +1079,8 @@
               </div>
               <div class="section-label">Access code</div>
               <div class="code-reveal mb-12">48291#</div>
-              <p class="muted text-center mb-12">Code active from 2:00 PM check-in day · changes after checkout</p>
+              <p class="muted text-center mb-8">Code active in validity window · prototype demo code</p>
+              <p class="muted text-center mb-12" id="trip-access-grant-note" style="font-size:11px">Bound to <strong>access_grant_mira_stay_01</strong> · Front door · prototype</p>
             </div>
 
             <div class="btn-row mb-8">
@@ -1116,7 +1119,8 @@
             </div>
             <div class="card mb-12">
               <div class="quote-line"><span>Wifi</span><span>OakWaller_Guest</span></div>
-              <div class="quote-line"><span>Access code</span><span class="strong">48291#</span></div>
+              <div class="quote-line"><span>Access code</span><span class="strong" id="trip-active-access-code">48291#</span></div>
+              <p class="muted mt-8" style="font-size:10px">Grant <span id="trip-active-grant-id">access_grant_mira_stay_01</span> · not household</p>
               <div class="quote-line"><span>Checkout</span><span>Sep 26 · 11:00 AM</span></div>
             </div>
             <button class="btn btn-secondary mb-8" onclick="openMessageThread('thr_mira_01')">Message host</button>
@@ -1204,6 +1208,7 @@
             <div class="card mb-8">
               <div class="you-row" onclick="go('permissions')"><span>◎</span><span class="y-label">Permissions &amp; sharing</span><span class="y-chev">›</span></div>
               <div class="you-row" onclick="go('connected-services')"><span>↔</span><span class="y-label">Connected services</span><span class="y-meta" id="you-cs-meta">9</span><span class="y-chev">›</span></div>
+              <div class="you-row" onclick="go('home-devices')"><span>⌂</span><span class="y-label">Home devices</span><span class="y-meta" id="you-hd-meta">2 paired</span><span class="y-chev">›</span></div>
               <div class="you-row" onclick="go('move-planning')"><span>→</span><span class="y-label">Move planning</span><span class="y-meta" id="you-move-meta">3/8</span><span class="y-chev">›</span></div>
             </div>
             <div class="card mb-8">
@@ -1353,6 +1358,61 @@
             <span></span>
           </div>
           <div class="pad" id="csd-body"><!-- filled by JS --></div>
+        </section>
+
+
+        <section class="screen" data-screen="home-devices" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('you')">‹ You</button>
+            <span class="title">Home devices</span>
+            <button class="back" style="justify-self:end;font-size:20px;font-weight:500" onclick="openPairDevice()" aria-label="Pair a device">+</button>
+          </div>
+          <div class="pad">
+            <div class="between mb-8">
+              <span class="pill ghost">Smart-lock demo</span>
+              <span class="muted" style="font-size:11px">Not real lock APIs</span>
+            </div>
+            <h1 class="h1" style="font-size:22px">Home devices</h1>
+            <p class="sub mb-8">Paired locks for East Cesar Chavez. Issue time-bound physical entry — separate from merchant Connected Services and MAP place sharing.</p>
+            <p class="muted mb-12" id="hd-hub-meta" style="font-size:11px">2 paired · active access grants</p>
+            <div class="banner private mb-12"><span>◎</span><span><strong>Capability honesty:</strong> API write · Deep link · Manual entry-code only. Unavailable partner ≠ fake synced everywhere.</span></div>
+            <div class="cs-filter-row mb-12">
+              <button type="button" class="cs-filter on">All</button>
+              <button type="button" class="cs-filter" onclick="toast('Filter demo — list shows all seeded devices')">Paired</button>
+              <button type="button" class="cs-filter" onclick="toast('Filter demo — Front door has API write')">API write</button>
+            </div>
+            <div id="hd-list"><!-- filled by JS --></div>
+            <button class="btn btn-secondary mt-8" style="width:100%" onclick="openPairDevice()">Pair / connect a lock</button>
+            <button class="btn btn-ghost mt-8" style="width:100%" onclick="go('connected-services')">Connected services (merchants)</button>
+            <p class="muted mt-12" style="font-size:11px;text-align:center;line-height:1.45">P85 / P87 · stay_access_grants · pairwise device IDs · prototype</p>
+          </div>
+        </section>
+
+        <section class="screen" data-screen="home-device-detail" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('home-devices')">‹ Devices</button>
+            <span class="title" id="hdd-title">Device</span>
+            <span></span>
+          </div>
+          <div class="pad" id="hdd-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="home-access-issue" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('home-device-detail')">‹ Device</button>
+            <span class="title">Issue access</span>
+            <span></span>
+          </div>
+          <div class="pad" id="hai-body"><!-- filled by JS --></div>
+        </section>
+
+        <section class="screen" data-screen="home-access-grant" data-nav="you">
+          <div class="topbar">
+            <button class="back" onclick="go('home-device-detail')">‹ Device</button>
+            <span class="title" id="hag-title">Grant</span>
+            <span></span>
+          </div>
+          <div class="pad" id="hag-body"><!-- filled by JS --></div>
         </section>
 
         <!-- keep legacy hash -->
@@ -1740,9 +1800,10 @@ AL</div>
               <button class="btn btn-secondary btn-sm mt-12" style="width:auto" onclick="toast('Turnover marked in progress')">Mark in progress</button>
             </div>
             <div class="section-label">Access</div>
-            <div class="card mb-16">
+            <div class="card mb-16" id="host-access-body">
               <p class="sub">Guest code issues at pre-arrival window. Household codes stay separate.</p>
             </div>
+            <button class="btn btn-secondary mb-8" style="width:100%" onclick="go('home-devices')">Home devices</button>
             <button class="btn btn-ghost" style="width:100%" onclick="openMessageThread('thr_mira_01')">Message guest</button>
           </div>
         </section>
@@ -2194,6 +2255,16 @@ AL</div>
         </div>
         <button class="btn btn-primary" onclick="continueUspsDemo()">Open official form (demo)</button>
         <button class="btn btn-ghost mt-8" style="width:100%" onclick="closeUspsExternal()">Stay in Domicile</button>
+      </div>
+
+
+      <div class="sheet-backdrop" id="pair-device-backdrop" onclick="closePairDevice()"></div>
+      <div class="sheet sheet-tall" id="pair-device-sheet" role="dialog" aria-modal="true" aria-labelledby="pair-device-title">
+        <div class="sheet-handle"></div>
+        <h2 class="h2" id="pair-device-title" style="font-size:18px;margin-bottom:6px">Pair a lock</h2>
+        <p class="sub mb-12">Capability-aware adapter · demo only — not real OAuth or lock APIs.</p>
+        <div id="pair-device-steps"></div>
+        <button class="btn btn-ghost mt-8" style="width:100%" onclick="closePairDevice()">Close</button>
       </div>
 
       <div class="sheet-backdrop" id="add-service-backdrop" onclick="closeAddService()"></div>
